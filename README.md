@@ -1,8 +1,9 @@
 # MIPS32
 
 C++ library to simulate a MIPS32 CPU.
-
+[![Build Status - Travis-CI](https://travis-ci.org/famastefano/MIPS32.svg?branch=master)](https://travis-ci.org/famastefano/MIPS32)
 [![Build status - AppVeyor](https://ci.appveyor.com/api/projects/status/r4pgby80gsidb69x/branch/master?svg=true)](https://ci.appveyor.com/project/famastefano/mips32/branch/master)
+[![codecov](https://codecov.io/gh/famastefano/MIPS32/branch/master/graph/badge.svg)](https://codecov.io/gh/famastefano/MIPS32)
 
 ## Project Structure
 

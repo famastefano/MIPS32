@@ -21,8 +21,6 @@ before_build:
     cd build
     cmake --version
     cmake .. -G "Visual Studio 15 2017" -A%platform%
-#    if ($env:PLATFORM -eq "x64") { cmake .. -G "Visual Studio 15 2017 Win64" }
-#    else { cmake .. -G "Visual Studio 15 2017" }
 
 build:
   project: c:\projects\MIPS32\build\MIPS32.sln
@@ -30,4 +28,7 @@ build:
   parallel: true
 
 test_script:
-  - cmd: c:\projects\MIPS32\build\%configuration%\my_test.exe
+#  - cmd: c:\projects\MIPS32\build\%configuration%\my_test.exe
+  - cmd: |-
+      cd c:\projects\MIPS32\build
+      ctest --output-on-failure -j 2 --schedule-random --timeout 120

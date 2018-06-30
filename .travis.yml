@@ -42,5 +42,5 @@ before_install:
   - eval "${MATRIX_EVAL}"
 
 script:
-  - cmake . -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Debug && make && make test
-  - cmake . -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release && make && make test
+  - cmake . -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Debug && make && ctest --output-on-failure -j 2 --schedule-random --timeout 120
+  - cmake . -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release && make && ctest --output-on-failure -j 2 --schedule-random --timeout 120

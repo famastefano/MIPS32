@@ -13,12 +13,6 @@ if(${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang")
     add_definitions(-DCATCH_CONFIG_NO_CPP17_UNCAUGHT_EXCEPTIONS)
 endif()
 
-if(NOT ${MSVC})
-    if($ENV{COVERAGE})
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -O0 -fprofile-arcs -ftest-coverage")
-    endif()
-endif()
-
 # Tests
 
 add_library(Catch2 INTERFACE)

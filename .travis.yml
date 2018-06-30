@@ -45,12 +45,3 @@ before_install:
 script:
   - cmake . -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Debug && make && make test
   - cmake . -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release && make && make test
-  - for filename in `find . | egrep '\.cpp'`; 
-    do 
-      gcov-5 -n -o . $filename > /dev/null; 
-    done
-
-after_success:
-  if [[ ${COVERAGE} ]]; then
-      bash <(curl -s https://codecov.io/bash) -t 6f7d97a9-06f0-434a-8d40-e50a250aa5d0
-  fi

@@ -15,7 +15,11 @@ endif()
 
 if(NOT ${MSVC})
     if($ENV{COVERAGE})
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O0 -coverage")
+        set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/CMakeModules)
+
+        include(CodeCoverage)
+        setup_target_for_coverage(${PROJECT_NAME}_coverage tests coverage)
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -O0 -fprofile-arcs -ftest-coverage")
     endif()
 endif()
 
@@ -27,5 +31,6 @@ target_include_directories(Catch2 INTERFACE ${CMAKE_SOURCE_DIR}/third-party)
 add_executable(my_test ${CMAKE_SOURCE_DIR}/test/test.cpp)
 target_link_libraries(my_test Catch2)
 
+include(CTest)
 enable_testing()
 add_test(NAME MyAwesomeTest COMMAND my_test)

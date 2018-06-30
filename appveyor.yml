@@ -1,4 +1,4 @@
-version: '0.1.{build}'
+version: '0.1.0.{build}'
 
 branches:
   only:
@@ -26,5 +26,4 @@ build:
   parallel: true
 
 test_script:
-  - c:\projects\MIPS32\Debug\my_test.exe
-  - c:\projects\MIPS32\Release\my_test.exe
+  - cmd: c:\projects\MIPS32\build\%configuration%\my_test.exe

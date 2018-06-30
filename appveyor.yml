@@ -30,4 +30,4 @@ build:
   parallel: true
 
 test_script:
-  - cmd: c:\projects\MIPS32\build\%platform%\%configuration%\my_test.exe
+  - cmd: c:\projects\MIPS32\build\%configuration%\my_test.exe

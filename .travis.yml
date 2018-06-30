@@ -17,7 +17,6 @@ matrix:
             - g++-7
       env:
         - MATRIX_EVAL="CC=gcc-7 && CXX=g++-7"
-        - COVERAGE=true
   # Linux - clang 4
     - os: linux
       addons:

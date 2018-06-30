@@ -11,7 +11,7 @@ set(MIPS32_VERSION_PATCH 0)
 
 if(${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang")
     add_definitions(-DCATCH_CONFIG_NO_CPP17_UNCAUGHT_EXCEPTIONS)
-endif
+endif()
 
 if($ENV{COVERAGE} AND NOT ${MSVC})
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O0 -coverage")

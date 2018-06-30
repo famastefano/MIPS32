@@ -26,5 +26,5 @@ build:
   parallel: true
 
 test_script:
-  - c:\projects\MIPS32\x64\Debug\my_test.exe
-  - c:\projects\MIPS32\x64\Release\my_test.exe
+  - c:\projects\MIPS32\Debug\my_test.exe
+  - c:\projects\MIPS32\Release\my_test.exe

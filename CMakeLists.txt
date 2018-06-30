@@ -36,6 +36,5 @@ target_include_directories(Catch2 INTERFACE ${CMAKE_SOURCE_DIR}/third-party)
 add_executable(run_tests ${CMAKE_SOURCE_DIR}/test/test.cpp)
 target_link_libraries(run_tests Catch2)
 
-include(CTest)
 enable_testing()
 add_test(NAME RunAllTests COMMAND run_tests)

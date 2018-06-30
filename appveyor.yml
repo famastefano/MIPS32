@@ -5,6 +5,14 @@ branches:
     - master
     - develop
 
+configuration:
+  - Debug
+  - Release
+
+platform:
+  - x86
+  - x64
+
 image: Visual Studio 2017
 
 before_build:

@@ -16,13 +16,12 @@ platform:
 image: Visual Studio 2017
 
 before_build:
-- cmd: |-
+- ps: |-
     mkdir build
     cd build
     cmake --version
-    cmake .. -G "Visual Studio 15 2017" -A %configuration%
-#    if ($env:PLATFORM -eq "x64") { cmake .. -G "Visual Studio 15 2017 Win64" }
-#    else { cmake .. -G "Visual Studio 15 2017" }
+    if ($env:PLATFORM -eq "x64") { cmake .. -G "Visual Studio 15 2017 Win64" -A x64 }
+    else { cmake .. -G "Visual Studio 15 2017" -A x86 }
 
 build:
   project: c:\projects\MIPS32\build\MIPS32.sln

@@ -16,17 +16,18 @@
 # import sys
 # sys.path.insert(0, os.path.abspath('.'))
 
+import sphinx_rtd_theme
 
 # -- Project information -----------------------------------------------------
 
 project = 'MIPS32'
 copyright = '2018, MIPS32'
-author = 'MIPS32'
+author = 'Stefano Famà'
 
 # The short X.Y version
-version = ''
+version = '0.1.0'
 # The full version, including alpha/beta/rc tags
-release = 'MIPS32'
+release = '0.1.0'
 
 
 # -- General configuration ---------------------------------------------------

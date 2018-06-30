@@ -2,9 +2,12 @@ language: cpp
 
 dist: trusty
 
+notifications:
+  email: false
+
 matrix:
   include:
-  # Linux - gcc
+  # Linux - gcc 7
     - os: linux
       addons:
         apt:
@@ -13,8 +16,8 @@ matrix:
           packages:
             - g++-7
       env:
-        - MATRIX_EVAL="export CC=gcc-7 && CXX=g++-7"
-  # Linux - clang
+        - MATRIX_EVAL="CC=gcc-7 && CXX=g++-7"
+  # Linux - clang 4
     - os: linux
       addons:
         apt:
@@ -23,8 +26,8 @@ matrix:
           packages:
             - clang-4.0
       env:
-        - MATRIX_EVAL="export CC=clang-4.0 && CXX=clang++-4.0"
-
+        - MATRIX_EVAL="CC=clang-4.0 && CXX=clang++-4.0"
+  # Linux - clang 5
     - os: linux
       addons:
         apt:
@@ -33,11 +36,26 @@ matrix:
           packages:
             - clang-5.0
       env:
-        - MATRIX_EVAL="export CC=clang-5.0 && CXX=clang++-5.0"
+        - MATRIX_EVAL="CC=clang-5.0 && CXX=clang++-5.0"
+  # Linux - clang 6
+      - os: linux
+      addons:
+        apt:
+          sources:
+            - llvm-toolchain-trusty-6.0
+          packages:
+            - clang-6.0
+      env:
+        - MATRIX_EVAL="CC=clang-5.0 && CXX=clang++-5.0"
 
 before_install:
   - eval "${MATRIX_EVAL}"
 
 script:
-  - cmake . -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Debug && make && make test
-  - cmake . -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release && make && make test
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then
+    cmake . -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Debug && make && make test
+    fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then
+    cmake . -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release && make && make test
+    fi
+  

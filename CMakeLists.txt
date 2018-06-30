@@ -2,12 +2,20 @@ cmake_minimum_required (VERSION 3.9)
 project (MIPS32 CXX)
 
 set (CMAKE_CXX_STANDARD 17)
-# Catch2 fails on clang5+ due to std::uncaught_exceptions not defined
-add_definitions(-DCATCH_CONFIG_NO_CPP17_UNCAUGHT_EXCEPTIONS)
 
 set(MIPS32_VERSION_MAJOR 0)
 set(MIPS32_VERSION_MINOR 1)
 set(MIPS32_VERSION_PATCH 0)
+
+# Catch2 fails on clang5+ due to std::uncaught_exceptions not defined
+
+if(${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang")
+    add_definitions(-DCATCH_CONFIG_NO_CPP17_UNCAUGHT_EXCEPTIONS)
+endif
+
+if($ENV{COVERAGE} AND NOT ${MSVC})
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O0 -coverage")
+endif()
 
 # Tests
 

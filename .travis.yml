@@ -17,6 +17,7 @@ matrix:
             - g++-7
       env:
         - MATRIX_EVAL="CC=gcc-7 && CXX=g++-7"
+        - COVERAGE=true
   # Linux - clang 4
     - os: linux
       addons:
@@ -44,4 +45,6 @@ before_install:
 script:
   - cmake . -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Debug && make && make test
   - cmake . -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release && make && make test
-  
+
+after_success:
+  - if [[ -z "${COVERAGE}" ]]; then bash <(curl -s https://codecov.io/bash) fi

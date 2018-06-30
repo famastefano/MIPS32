@@ -33,8 +33,8 @@ endif()
 add_library(Catch2 INTERFACE)
 target_include_directories(Catch2 INTERFACE ${CMAKE_SOURCE_DIR}/third-party)
 
-add_executable(run_tests ${CMAKE_SOURCE_DIR}/test/test.cpp)
-target_link_libraries(run_tests Catch2)
+add_executable(mips32_run_all_tests ${CMAKE_SOURCE_DIR}/test/test.cpp)
+target_link_libraries(mips32_run_all_tests Catch2)
 
 enable_testing()
-add_test(NAME RunAllTests COMMAND run_tests)
+add_test(NAME RunAllTests COMMAND mips32_run_all_tests)

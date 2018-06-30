@@ -28,4 +28,4 @@ build:
   parallel: true
 
 test_script:
-  - cmd: c:\projects\MIPS32\build\%configuration%\run_tests.exe
+  - cmd: c:\projects\MIPS32\build\%configuration%\mips32_run_all_tests.exe

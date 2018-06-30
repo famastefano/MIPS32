@@ -24,3 +24,7 @@ build:
   project: c:\projects\MIPS32\build\MIPS32.sln
   verbosity: minimal
   parallel: true
+
+test_script:
+  - c:\projects\MIPS32\x64\Debug\my_test.exe
+  - c:\projects\MIPS32\x64\Release\my_test.exe

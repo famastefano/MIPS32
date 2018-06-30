@@ -15,10 +15,6 @@ endif()
 
 if(NOT ${MSVC})
     if($ENV{COVERAGE})
-        set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/CMakeModules)
-
-        include(CodeCoverage)
-        setup_target_for_coverage(${PROJECT_NAME}_coverage tests coverage)
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -O0 -fprofile-arcs -ftest-coverage")
     endif()
 endif()

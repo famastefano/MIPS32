@@ -8,15 +8,17 @@ branches:
 image: Visual Studio 2017
 
 before_build:
-- cmd: |-
+- ps: |-
     mkdir build
     cd build
     cmake --version
-    if /I %configuration% == "x64" cmake .. -G "Visual Studio 15 2017 Win64"
+    if ($env:PLATFORM -eq "x64") { cmake .. -G "Visual Studio 15 2017 Win64" }
+    else { cmake .. -G "Visual Studio 15 2017" }
+
 build:
   project: c:\projects\MIPS32\build\MIPS32.sln
   verbosity: minimal
   parallel: true
 
 test_script:
-  - cmd: c:\projects\MIPS32\build\%platform%\%configuration%\my_test.exe
+  - ps: c:\projects\MIPS32\build\%platform%\%configuration%\my_test.exe

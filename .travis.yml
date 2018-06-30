@@ -1,7 +1,4 @@
 language: cpp
-compiler:
-  - gcc
-  - clang
 
 dist: trusty
 

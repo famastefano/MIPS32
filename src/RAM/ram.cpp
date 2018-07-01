@@ -8,7 +8,7 @@ namespace mips32 {
 
 void addr_to_string( char *buf, std::uint32_t addr )
 {
-  std::sprintf( buf, "0x%8X.block", addr );
+  std::sprintf( buf, "0x%08X.block", addr );
 }
 
 RAM::RAM( std::uint32_t alloc_limit ) : alloc_limit( alloc_limit )
@@ -84,7 +84,7 @@ std::uint32_t &RAM::operator[]( std::uint32_t address ) noexcept
   }
 
   // Case 3.1
-  if ( alloc_limit < blocks.size() * ( block_size + 1 ) ) {
+  if ( blocks.size() * ( block_size + 1 ) <= alloc_limit ) {
     Block new_block;
 
     // Allocate block
@@ -153,7 +153,7 @@ RAM::Block &RAM::Block::serialize() noexcept
   assert( write_count == RAM::block_size && "Couldn't write to the file." );
 
   auto close = std::fclose( out );
-  assert( close && "Couldn't close the file." );
+  assert( !close && "Couldn't close the file." );
 
   return *this;
 }
@@ -174,7 +174,7 @@ RAM::Block &RAM::Block::deserialize() noexcept
   assert( read_count == RAM::block_size && "Couldn't read from the file." );
 
   auto close = std::fclose( in );
-  assert( close && "Couldn't close the file." );
+  assert( !close && "Couldn't close the file." );
 
   return *this;
 }

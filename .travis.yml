@@ -42,5 +42,5 @@ before_install:
   - eval "${MATRIX_EVAL}"
 
 script:
-  - cmake . -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Debug && make && ./mips32_run_all_tests
-  - cmake . -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release && make && ./mips32_run_all_tests
+  - cmake . -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Debug && make && ctest -C Debug --output-on-failure
+  - cmake . -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release && make && ctest -C Release --output-on-failure

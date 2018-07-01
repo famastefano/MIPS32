@@ -45,7 +45,8 @@ std::uint32_t MachineInspector::RAM_swapped_blocks_no() const noexcept
 std::vector<std::uint32_t> MachineInspector::RAM_allocated_addresses() const
     noexcept
 {
-  std::vector<std::uint32_t> addresses( RAM_allocated_blocks_no() );
+  std::vector<std::uint32_t> addresses;
+  addresses.reserve( RAM_allocated_blocks_no() );
 
   for ( auto const &block : ram->blocks )
     addresses.emplace_back( block.base_address );
@@ -56,7 +57,8 @@ std::vector<std::uint32_t> MachineInspector::RAM_allocated_addresses() const
 std::vector<std::uint32_t> MachineInspector::RAM_swapped_addresses() const
     noexcept
 {
-  std::vector<std::uint32_t> addresses( RAM_swapped_blocks_no() );
+  std::vector<std::uint32_t> addresses;
+  addresses.reserve( RAM_swapped_blocks_no() );
 
   for ( auto const &block : ram->swapped )
     addresses.emplace_back( block.base_address );

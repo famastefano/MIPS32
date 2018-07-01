@@ -33,8 +33,7 @@ class RAM
   struct Block
   {
     std::uint32_t                    base_address;
-    std::uint32_t                    size;
-    std::uint32_t                    access_count;
+    std::uint32_t                    access_count{0};
     std::unique_ptr<std::uint32_t[]> data;
 
     Block &allocate() noexcept;
@@ -67,6 +66,8 @@ class RAM
                []( Block &lhs, Block &rhs ) -> bool {
                  return lhs.access_count > rhs.access_count;
                } );
+
+    for ( auto &block : blocks ) block.access_count = 0;
 
     return blocks.back();
   }

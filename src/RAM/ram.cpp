@@ -113,7 +113,7 @@ std::uint32_t &RAM::operator[]( std::uint32_t address ) noexcept
 
     // Calculate the base address
     allocated_block.base_address = 0;
-    while ( allocated_block.base_address + block_size < address )
+    while ( allocated_block.base_address + block_size <= address )
       allocated_block.base_address += block_size;
 
     // Return the std::uint32_t
@@ -139,7 +139,6 @@ RAM::Block &RAM::Block::deallocate() noexcept
 
 RAM::Block &RAM::Block::serialize() noexcept
 {
-  assert( size && "Size can't be 0." );
   assert( data && "Block::serialize() called without allocated data." );
 
   char file_name[18]{'\0'};
@@ -160,7 +159,6 @@ RAM::Block &RAM::Block::serialize() noexcept
 
 RAM::Block &RAM::Block::deserialize() noexcept
 {
-  assert( size && "Size can't be 0." );
   assert( data && "Block::deserialize() called without allocated data." );
 
   char file_name[18]{'\0'};

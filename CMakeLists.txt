@@ -5,6 +5,8 @@
 cmake_minimum_required (VERSION 3.9)
 project (MIPS32 CXX)
 
+include_directories(include third-party)
+
 set (CMAKE_CXX_STANDARD 17)
 
 set(MIPS32_VERSION_MAJOR 0)
@@ -13,6 +15,7 @@ set(MIPS32_VERSION_PATCH 0)
 
 if(${MSVC})
     set(${CMAKE_CXX_FLAGS} "${CMAKE_CXX_FLAGS} /W4")
+    add_definitions("-D_CRT_SECURE_NO_WARNINGS")
 else()
     set(${CMAKE_CXX_FLAGS} "${CMAKE_CXX_FLAGS} -Wall -Wextra")
 endif()
@@ -30,11 +33,10 @@ if(${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang")
     add_definitions(-DCATCH_CONFIG_NO_CPP17_UNCAUGHT_EXCEPTIONS)
 endif()
 
-add_library(Catch2 INTERFACE)
-target_include_directories(Catch2 INTERFACE ${CMAKE_SOURCE_DIR}/third-party)
+## RAM ##
+add_executable(TestRAM test/test_ram.cpp src/machine_inspector.cpp src/RAM/ram.cpp)
+target_include_directories(TestRAM PRIVATE src)
 
-add_executable(mips32_run_all_tests ${CMAKE_SOURCE_DIR}/test/test.cpp)
-target_link_libraries(mips32_run_all_tests Catch2)
-
+include(CTest)
 enable_testing()
-add_test(NAME RunAllTests COMMAND mips32_run_all_tests)
+add_test(NAME TestRam COMMAND TestRAM)

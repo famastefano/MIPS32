@@ -17,7 +17,7 @@ class RAM
 
   public:
   static inline constexpr std::uint32_t block_size{
-      64_KB / sizeof( std::uint32_t )}; // 64K std::uint32_ts
+      64_KB / sizeof( std::uint32_t )}; // 16K std::uint32_ts
 
   explicit RAM( std::uint32_t alloc_limit );
 

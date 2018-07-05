@@ -11,12 +11,10 @@ void addr_to_string( char *buf, std::uint32_t addr )
   std::sprintf( buf, "0x%08X.block", addr );
 }
 
-RAM::RAM( std::uint32_t alloc_limit )
-    : alloc_limit( alloc_limit / sizeof( std::uint32_t ) )
+RAM::RAM( std::uint32_t alloc_limit ) : alloc_limit( alloc_limit / sizeof( std::uint32_t ) )
 {
   assert( alloc_limit && "The allocation limit can't be 0 (zero)." );
-  assert( alloc_limit % block_size == 0 &&
-          "The allocation limit must be a multiple of RAM::block_size." );
+  assert( alloc_limit % block_size == 0 && "The allocation limit must be a multiple of RAM::block_size." );
 
   blocks.reserve( alloc_limit / block_size );
 }
@@ -148,8 +146,7 @@ RAM::Block &RAM::Block::serialize() noexcept
   std::FILE *out = std::fopen( file_name, "w+b" );
   assert( out && "Couldn't open the file." );
 
-  auto write_count =
-      std::fwrite( data.get(), sizeof( std::uint32_t ), RAM::block_size, out );
+  auto write_count = std::fwrite( data.get(), sizeof( std::uint32_t ), RAM::block_size, out );
   assert( write_count == RAM::block_size && "Couldn't write to the file." );
 
   auto close = std::fclose( out );
@@ -168,8 +165,7 @@ RAM::Block &RAM::Block::deserialize() noexcept
   std::FILE *in = std::fopen( file_name, "r+b" );
   assert( in && "Couldn't open the file." );
 
-  auto read_count =
-      std::fread( data.get(), sizeof( std::uint32_t ), RAM::block_size, in );
+  auto read_count = std::fread( data.get(), sizeof( std::uint32_t ), RAM::block_size, in );
   assert( read_count == RAM::block_size && "Couldn't read from the file." );
 
   auto close = std::fclose( in );

@@ -17,7 +17,7 @@ void MachineInspector::restore_RAM_state( char const *name ) noexcept {}
 
 MachineInspector::RAMInfo MachineInspector::RAM_info() const noexcept
 {
-  return {RAM_alloc_limit(),         RAM_block_size(),
+  return {RAM_alloc_limit(), RAM_block_size(),
           RAM_allocated_blocks_no(), RAM_swapped_blocks_no(),
           RAM_allocated_addresses(), RAM_swapped_addresses()};
 }

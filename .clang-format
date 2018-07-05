@@ -30,5 +30,5 @@ SpacesInParentheses: 'true'
 SpacesInSquareBrackets: 'false'
 Standard: Auto
 UseTab: Never
-
+ColumnLimit: 0
 ...

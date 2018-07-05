@@ -35,8 +35,7 @@ class RAM
 
   public:
   // A block holds 16K words (64KB).
-  static inline constexpr std::uint32_t block_size{64_KB /
-                                                   sizeof( std::uint32_t )};
+  static inline constexpr std::uint32_t block_size{64_KB / sizeof( std::uint32_t )};
 
   // Construct a RAM object and specifies
   // how much memory, in bytes, it can use to hold the blocks.
@@ -60,9 +59,9 @@ class RAM
   // It's a very simple class that owns `RAM::block_size` words.
   struct Block
   {
-    std::uint32_t base_address;    // base address of our block
-    std::uint32_t access_count{0}; // number of accesses through operator[]
-    std::unique_ptr<std::uint32_t[]> data; // Words array
+    std::uint32_t                    base_address;    // base address of our block
+    std::uint32_t                    access_count{0}; // number of accesses through operator[]
+    std::unique_ptr<std::uint32_t[]> data;            // Words array
 
     // Allocate a `RAM::block_size` array of words.
     // If it fails, `data` holds nullptr,
@@ -97,8 +96,7 @@ class RAM
   };
 
   // Helper function that checks if the given addres belongs to a block.
-  bool contains( std::uint32_t base, std::uint32_t address,
-                 std::uint32_t limit ) const noexcept
+  bool contains( std::uint32_t base, std::uint32_t address, std::uint32_t limit ) const noexcept
   {
     return base <= address && address < base + limit;
   }

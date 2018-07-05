@@ -11,7 +11,8 @@ void addr_to_string( char *buf, std::uint32_t addr )
   std::sprintf( buf, "0x%08X.block", addr );
 }
 
-RAM::RAM( std::uint32_t alloc_limit ) : alloc_limit( alloc_limit )
+RAM::RAM( std::uint32_t alloc_limit )
+    : alloc_limit( alloc_limit / sizeof( std::uint32_t ) )
 {
   assert( alloc_limit && "The allocation limit can't be 0 (zero)." );
   assert( alloc_limit % block_size == 0 &&
@@ -27,7 +28,7 @@ RAM::RAM( std::uint32_t alloc_limit ) : alloc_limit( alloc_limit )
  * Case 1:
  * - Block exists
  * - Block is allocated
- * + Return the std::uint32_t
+ * + Return the word
  *
  * Case 2:
  * - Block exists
@@ -35,7 +36,7 @@ RAM::RAM( std::uint32_t alloc_limit ) : alloc_limit( alloc_limit )
  * + Find a block to swap
  * + Swap that block on disk
  * + Load the block from disk
- * + Return the std::uint32_t
+ * + Return the word
  *
  * Case 3:
  * - Block doesn't exists
@@ -43,20 +44,20 @@ RAM::RAM( std::uint32_t alloc_limit ) : alloc_limit( alloc_limit )
  *   - We can allocate another block
  *   + Allocate block
  *   + Calculate the base address
- *   + Return the std::uint32_t
+ *   + Return the word
  * - Case 3.2:
  *   - We can't allocate another block (limit reached)
  *   + Find a block to swap
  *   + Swap that block on disk
  *   + Overwrite the block
- *   + Return the std::uint32_t
+ *   + Return the word
  **/
 std::uint32_t &RAM::operator[]( std::uint32_t address ) noexcept
 {
   // Case 1
   for ( auto &block : blocks ) {
     if ( contains( block.base_address, address, block_size ) ) {
-      // + Return the std::uint32_t
+      // Return the word
       return block[address & ~0b11 - block.base_address];
     }
   }
@@ -78,7 +79,7 @@ std::uint32_t &RAM::operator[]( std::uint32_t address ) noexcept
 
       block_on_disk.base_address = old_addr;
 
-      // Return the std::uint32_t
+      // Return the word
       return allocated_block[address & ~0b11 - allocated_block.base_address];
     }
   }
@@ -97,7 +98,7 @@ std::uint32_t &RAM::operator[]( std::uint32_t address ) noexcept
 
     blocks.push_back( std::move( new_block ) );
 
-    // Return the std::uint32_t
+    // Return the word
     auto &block = blocks.back();
     return block[address & ~0b11 - block.base_address];
   }
@@ -116,7 +117,7 @@ std::uint32_t &RAM::operator[]( std::uint32_t address ) noexcept
     while ( allocated_block.base_address + block_size <= address )
       allocated_block.base_address += block_size;
 
-    // Return the std::uint32_t
+    // Return the word
     return allocated_block[address & ~0b11 - allocated_block.base_address];
   }
 }

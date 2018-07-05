@@ -24,7 +24,7 @@ MachineInspector::RAMInfo MachineInspector::RAM_info() const noexcept
 
 std::uint32_t MachineInspector::RAM_alloc_limit() const noexcept
 {
-  return ram->alloc_limit;
+  return ram->alloc_limit * sizeof( std::uint32_t );
 }
 
 std::uint32_t MachineInspector::RAM_block_size() const noexcept

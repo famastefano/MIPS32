@@ -39,7 +39,7 @@ class RAM
                                                    sizeof( std::uint32_t )};
 
   // Construct a RAM object and specifies
-  // how much memory it can use to hold the blocks.
+  // how much memory, in bytes, it can use to hold the blocks.
   //
   // A minimum of ``RAM::block_size`` is required.
   explicit RAM( std::uint32_t alloc_limit );

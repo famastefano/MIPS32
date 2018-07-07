@@ -34,9 +34,13 @@ if(${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang")
 endif()
 
 ## RAM ##
-add_executable(TestRAM test/test_ram.cpp src/machine_inspector.cpp src/RAM/ram.cpp)
+add_executable(TestRAM test/test_ram.cpp src/machine_inspector.cpp src/ram.cpp)
 target_include_directories(TestRAM PRIVATE src)
+
+add_executable(TestCACHE test/test_cache.cpp src/machine_inspector.cpp src/cache.cpp)
+target_include_directories(TestCACHE PRIVATE src)
 
 include(CTest)
 enable_testing()
 add_test(NAME TestRam COMMAND TestRAM)
+add_test(NAME TestCache COMMAND TestCACHE)

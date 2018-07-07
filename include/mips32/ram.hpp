@@ -1,6 +1,6 @@
 #pragma once
 
-#include <literals.hpp>
+#include <mips32/literals.hpp>
 
 #include <algorithm>
 #include <cstdint>

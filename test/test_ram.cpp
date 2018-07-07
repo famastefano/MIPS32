@@ -1,8 +1,8 @@
 #define CATCH_CONFIG_MAIN
 #include <catch.hpp>
 
-#include <RAM/ram.hpp>
-#include <machine_inspector.hpp>
+#include <mips32/machine_inspector.hpp>
+#include <mips32/ram.hpp>
 
 /*
 struct RAMInfo

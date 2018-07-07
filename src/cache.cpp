@@ -73,7 +73,7 @@ Cache::Cache( std::uint32_t capacity, std::uint32_t associativity, std::uint32_t
 }
 
 Cache::Cache( std::uint32_t capacity, Cache::FullyAssociative, std::uint32_t words_per_block )
-    : Cache( capacity, capacity / words_per_block, words_per_block )
+    : Cache( capacity, capacity / sizeof( std::uint32_t ) / words_per_block, words_per_block )
 {}
 
 /**
@@ -85,9 +85,9 @@ Cache::Cache( std::uint32_t capacity, Cache::FullyAssociative, std::uint32_t wor
 Cache::Word Cache::operator[]( std::uint32_t address ) noexcept
 {
   // 1
-  auto _word = address >> word[shamt] >> word[mask];
-  auto _line = address >> line[shamt] >> line[mask];
-  auto _tag  = address >> tag[shamt] >> tag[mask];
+  auto _word = address >> word[shamt] & word[mask];
+  auto _line = address >> line[shamt] & line[mask];
+  auto _tag  = address >> tag[shamt] & tag[mask];
 
   // 2
   for ( std::uint32_t i = _line; i < _line + associativity; ++i ) {
@@ -109,6 +109,21 @@ Cache::Line Cache::get_line( std::uint32_t address ) noexcept
           lines.data() + _line * words_per_block,
           words_per_block,
           associativity};
+}
+
+std::uint32_t Cache::extract_word( std::uint32_t address ) const noexcept
+{
+  return address >> word[shamt] & word[mask];
+}
+
+std::uint32_t Cache::extract_line( std::uint32_t address ) const noexcept
+{
+  return address >> line[shamt] & line[mask];
+}
+
+std::uint32_t Cache::extract_tag( std::uint32_t address ) const noexcept
+{
+  return address >> tag[shamt] & tag[mask];
 }
 
 Cache::Word &Cache::Word::operator=( std::uint32_t data ) noexcept

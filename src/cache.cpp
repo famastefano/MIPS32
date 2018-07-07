@@ -85,9 +85,9 @@ Cache::Cache( std::uint32_t capacity, Cache::FullyAssociative, std::uint32_t wor
 Cache::Word Cache::operator[]( std::uint32_t address ) noexcept
 {
   // 1
-  auto _word = address >> word[shamt] & word[mask];
-  auto _line = address >> line[shamt] & line[mask];
-  auto _tag  = address >> tag[shamt] & tag[mask];
+  auto _word = extract_word( address );
+  auto _line = extract_line( address );
+  auto _tag  = extract_tag( address );
 
   // 2
   for ( std::uint32_t i = _line; i < _line + associativity; ++i ) {

@@ -148,14 +148,19 @@ class MachineInspector::CacheBlockIterator
     return it;
   }
 
-  bool operator==( CacheBlockIterator &other ) const noexcept
+  bool operator==( CacheBlockIterator other ) const noexcept
   {
     return _header == other._header;
   }
 
-  bool operator!=( CacheBlockIterator &other ) const noexcept
+  bool operator!=( CacheBlockIterator other ) const noexcept
   {
     return !operator==( other );
+  }
+
+  std::ptrdiff_t operator-( CacheBlockIterator other ) const noexcept
+  {
+    return _header - other._header;
   }
 
   private:

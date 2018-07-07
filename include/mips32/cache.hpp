@@ -23,11 +23,11 @@ class Cache
 {
   friend class MachineInspector;
 
+  public:
   // Placeholder used to call the correct constructor.
   struct FullyAssociative
   {};
 
-  public:
   /**
    * Constructs a Cache.
    * 
@@ -42,6 +42,10 @@ class Cache
   Word operator[]( std::uint32_t address ) noexcept;
 
   Line get_line( std::uint32_t address ) noexcept;
+
+  std::uint32_t extract_word( std::uint32_t address ) const noexcept;
+  std::uint32_t extract_line( std::uint32_t address ) const noexcept;
+  std::uint32_t extract_tag( std::uint32_t address ) const noexcept;
 
   private:
   static inline constexpr std::uint32_t mask{0}, shamt{1};

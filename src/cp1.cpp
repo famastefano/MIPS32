@@ -21,11 +21,11 @@
 #ifdef _MSC_VER
 #pragma warning( disable : 4309 )
 #elif __clang__
-#pragma GCC diagnostic ignored "-Wlogical-op-parentheses"
 #pragma clang diagnostic push
-#elif __GNUC__
 #pragma GCC diagnostic ignored "-Wlogical-op-parentheses"
+#elif __GNUC__
 #pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wlogical-op-parentheses"
 #endif
 
 inline constexpr std::uint32_t ROUND_NEAREST{0x0};
@@ -217,64 +217,70 @@ CP1::Exception CP1::execute( std::uint32_t word ) noexcept
 {
   assert( ( ( ( word & 0xFC00'0000 ) >> 26 ) == 0b010001 ) && "Invalid Opcode!" );
 
-  static constexpr std::array<int ( CP1::* )( std::uint32_t ), 64> function_table{{
-      &CP1::add,
-      &CP1::sub,
-      &CP1::mul,
-      &CP1::div,
-      &CP1::sqrt,
-      &CP1::abs,
-      &CP1::mov,
-      &CP1::neg,
-      &CP1::unimplemented, // ROUND.L
-      &CP1::unimplemented, // TRUNC.L
-      &CP1::unimplemented, // CEIL.L
-      &CP1::unimplemented, // FLOOR.L
-      &CP1::unimplemented, // ROUND.W
-      &CP1::unimplemented, // TRUNC.W
-      &CP1::unimplemented, // CEIL.W
-      &CP1::unimplemented, // FLOOR.W
-      &CP1::sel,
-      &CP1::reserved, // MOVCF [6R]
-      &CP1::reserved, // MOVZ  [6R]
-      &CP1::reserved, // MOVN  [6R]
-      &CP1::seleqz,
-      &CP1::recip,
-      &CP1::rsqrt,
-      &CP1::selnez,
-      &CP1::maddf,
-      &CP1::msubf,
-      &CP1::rint,
-      &CP1::class_,
-      &CP1::min,
-      &CP1::max,
-      &CP1::mina,
-      &CP1::maxa,
-      &CP1::cvt_s,
-      &CP1::cvt_d,
-      &CP1::reserved,      // *
-      &CP1::reserved,      // *
-      &CP1::unimplemented, // CVT.L
-      &CP1::unimplemented, // CVT.W
-      &CP1::unimplemented, // CVT.PS
-      &CP1::reserved,      // *
-      &CP1::cabs_af,
-      &CP1::cabs_un,
-      &CP1::cabs_eq,
-      &CP1::cabs_ueq,
-      &CP1::cabs_lt,
-      &CP1::cabs_ult,
-      &CP1::cabs_le,
-      &CP1::cabs_ule,
-      &CP1::cabs_saf,
-      &CP1::cabs_sun,
-      &CP1::cabs_seq,
-      &CP1::cabs_sueq,
-      &CP1::cabs_slt,
-      &CP1::cabs_sult,
-      &CP1::cabs_sle,
-      &CP1::cabs_sule,
-  }};
+#if defined( __GNUC__ ) && !defined( __clang__ )
+  static const
+#else
+  static constexpr
+#endif
+      std::array<int ( CP1::* )( std::uint32_t ), 64>
+          function_table{
+              &CP1::add,
+              &CP1::sub,
+              &CP1::mul,
+              &CP1::div,
+              &CP1::sqrt,
+              &CP1::abs,
+              &CP1::mov,
+              &CP1::neg,
+              &CP1::unimplemented, // ROUND.L
+              &CP1::unimplemented, // TRUNC.L
+              &CP1::unimplemented, // CEIL.L
+              &CP1::unimplemented, // FLOOR.L
+              &CP1::unimplemented, // ROUND.W
+              &CP1::unimplemented, // TRUNC.W
+              &CP1::unimplemented, // CEIL.W
+              &CP1::unimplemented, // FLOOR.W
+              &CP1::sel,
+              &CP1::reserved, // MOVCF [6R]
+              &CP1::reserved, // MOVZ  [6R]
+              &CP1::reserved, // MOVN  [6R]
+              &CP1::seleqz,
+              &CP1::recip,
+              &CP1::rsqrt,
+              &CP1::selnez,
+              &CP1::maddf,
+              &CP1::msubf,
+              &CP1::rint,
+              &CP1::class_,
+              &CP1::min,
+              &CP1::max,
+              &CP1::mina,
+              &CP1::maxa,
+              &CP1::cvt_s,
+              &CP1::cvt_d,
+              &CP1::reserved,      // *
+              &CP1::reserved,      // *
+              &CP1::unimplemented, // CVT.L
+              &CP1::unimplemented, // CVT.W
+              &CP1::unimplemented, // CVT.PS
+              &CP1::reserved,      // *
+              &CP1::cabs_af,
+              &CP1::cabs_un,
+              &CP1::cabs_eq,
+              &CP1::cabs_ueq,
+              &CP1::cabs_lt,
+              &CP1::cabs_ult,
+              &CP1::cabs_le,
+              &CP1::cabs_ule,
+              &CP1::cabs_saf,
+              &CP1::cabs_sun,
+              &CP1::cabs_seq,
+              &CP1::cabs_sueq,
+              &CP1::cabs_slt,
+              &CP1::cabs_sult,
+              &CP1::cabs_sle,
+              &CP1::cabs_sule,
+          };
 
   int v = ( this->*function_table[word & FUNCTION] )( word );
 

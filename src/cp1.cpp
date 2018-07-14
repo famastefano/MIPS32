@@ -17,16 +17,15 @@
 #endif
 
 // Disable warnings about truncation of compile time constants
+// Disable warnings on parenthesis with '&' and '|'
 #ifdef _MSC_VER
 #pragma warning( disable : 4309 )
-/*
 #elif __clang__
-#pragma GCC diagnostic ignored "-Wformat"
+#pragma GCC diagnostic ignored "-Wlogical-op-parentheses"
 #pragma clang diagnostic push
 #elif __GNUC__
-#pragma GCC diagnostic ignored "-Wformat"
+#pragma GCC diagnostic ignored "-Wlogical-op-parentheses"
 #pragma GCC diagnostic push
-*/
 #endif
 
 inline constexpr std::uint32_t ROUND_NEAREST{0x0};
@@ -218,7 +217,7 @@ CP1::Exception CP1::execute( std::uint32_t word ) noexcept
 {
   assert( ( ( ( word & 0xFC00'0000 ) >> 26 ) == 0b010001 ) && "Invalid Opcode!" );
 
-  static constexpr std::array<int ( CP1::* )( std::uint32_t ), 64> function_table{
+  static constexpr std::array<int ( CP1::* )( std::uint32_t ), 64> function_table{{
       &CP1::add,
       &CP1::sub,
       &CP1::mul,
@@ -275,7 +274,7 @@ CP1::Exception CP1::execute( std::uint32_t word ) noexcept
       &CP1::cabs_sult,
       &CP1::cabs_sle,
       &CP1::cabs_sule,
-  };
+  }};
 
   int v = ( this->*function_table[word & FUNCTION] )( word );
 

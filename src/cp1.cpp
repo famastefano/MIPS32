@@ -23,9 +23,6 @@
 #elif __clang__
 #pragma clang diagnostic push
 #pragma GCC diagnostic ignored "-Wlogical-op-parentheses"
-#elif __GNUC__
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wlogical-op-parentheses"
 #endif
 
 inline constexpr std::uint32_t ROUND_NEAREST{0x0};
@@ -1189,6 +1186,4 @@ int CP1::cabs_sule( std::uint32_t word ) noexcept
 #pragma warning( default : 4309 )
 #elif __clang__
 #pragma clang diagnostic pop
-#elif __GNUC__
-#pragma GCC diagnostic pop
 #endif

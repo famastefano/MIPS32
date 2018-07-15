@@ -20,6 +20,7 @@ if (CMAKE_BUILD_TYPE STREQUAL "Coverage")
     setup_target_for_coverage(${PROJECT_NAME}_coverage Tests coverage)
 
     SET(CMAKE_CXX_FLAGS "-g -O0 --coverage")
+    set(LCOV_REMOVE_EXTRA "'test/*'" "'third-party/*'")
 else()
     if(${MSVC})
         set(${CMAKE_CXX_FLAGS} "${CMAKE_CXX_FLAGS} /W4 /fp:strict")

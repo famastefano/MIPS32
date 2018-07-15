@@ -18,6 +18,8 @@ matrix:
       env:
         - MATRIX_EVAL="CC=gcc-7 && CXX=g++-7 && GCOV=gcov-7"
         - COVERAGE=ON
+        - COL_RESET="\e[0m"
+        - COL_YELLOW="\e[93m"
 
   # Linux - gcc 7
     - os: linux
@@ -78,10 +80,12 @@ script:
   - |
     if [[ -v COVERAGE ]]; then
       cmake . -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Coverage && make
+      echo -e "$COL_YELLOW INITIALIZING LCOV ENVIRONMENT $COL_RESET  \n"
       lcov --version
-      lcov --directory . --zerocounters
-      lcov --capture --initial --directory . --output-file coverage_base.info --gcov-tool '/usr/bin/gcov-7' --no-external
-      lcov --remove coverage_base.info '/usr/*' 'third-party/*' 'test/*' --output-file coverage_base.info
+      lcov --directory . --zerocounters --quiet
+      lcov --capture --initial --directory . --output-file coverage_base.info --gcov-tool '/usr/bin/gcov-7' --no-external --quiet
+      lcov --remove coverage_base.info '/usr/*' 'third-party/catch.hpp' 'test/test_ram.cpp' 'test/test_cp1.cpp' --output-file coverage_base.info --quiet
+      echo -e "$COL_YELLOW RUNNING TESTS $COL_RESET \n"
       ctest -C Debug --output-on-failure
     else
       cmake . -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Debug && make && ctest -C Debug --output-on-failure
@@ -91,10 +95,12 @@ script:
 after_success:
   - |
     if [[ -v COVERAGE ]]; then
+      echo -e "$COL_YELLOW RUNNING LCOV AFTER TESTS $COL_RESET \n"
       lcov --directory . --capture --output-file coverage_test.info --gcov-tool '/usr/bin/gcov-7' --no-external
-      lcov --remove coverage_test.info '/usr/*' 'third-party/*' 'test/*' --output-file coverage_test.info
+      lcov --remove coverage_base.info '/usr/*' 'third-party/catch.hpp' 'test/test_ram.cpp' 'test/test_cp1.cpp' --output-file coverage_test.info
       lcov --add-tracefile coverage_base.info --add-tracefile coverage_test.info -o coverage_total.info
       rm coverage_base.info coverage_test.info
       lcov --list coverage_total.info
-      bash <(curl -s https://codecov.io/bash) -X coveragepy -x "/usr/bin/gcov-7" -e "-e '/usr/*' 'third-party/*' 'test/*'" -g "'/usr/*' 'third-party/*' 'test/*"
+      echo -e "$COL_YELLOW UPLOADING TO CODECOV $COL_RESET \n"
+      bash <(curl -s https://codecov.io/bash) -X coveragepy -x "/usr/bin/gcov-7"
     fi

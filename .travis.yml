@@ -17,7 +17,7 @@ matrix:
             - g++-7
       env:
         - MATRIX_EVAL="CC=gcc-7 && CXX=g++-7"
-        - COVERAGE=ON
+        - COVERAGE
 
   # Linux - gcc 7
     - os: linux
@@ -69,7 +69,18 @@ before_install:
   - eval "${MATRIX_EVAL}"
 
 script:
-  - bash ./.travis.build.sh
+  - if [[ -v COVERAGE ]]; then
+  - cmake . -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Debug -DCOVERAGE=ON && make && ctest -C Debug --output-on-failure
+  - else
+  - cmake . -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Debug && make && ctest -C Debug --output-on-failure &&
+  - cmake . -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release && make && ctest -C Release --output-on-failure;
+  - fi;
 
 after_success:
-  - bash ./.travis.coverage.sh
+  - if [ -v COVERAGE ]; then
+  - cd ${TRAVIS_BUILD_DIR}
+  - lcov --directory . --capture --output-file coverage.info coverage info
+  - lcov --remove coverage.info '/usr/*' --output-file coverage.info 
+  - lcov --list coverage.info
+  - bash <(curl -s https://codecov.io/bash) || echo "Codecov did not collect coverage reports"
+  - fi;

@@ -145,8 +145,8 @@ FUNCTION(SETUP_TARGET_FOR_COVERAGE _targetname _testrunner _outputname)
 		COMMAND ${test_command} ${ARGV3}
 
 		# Capturing lcov counters and generating report
-		COMMAND ${LCOV_PATH} --directory . --capture --output-file ${coverage_info}
-		COMMAND ${LCOV_PATH} --remove ${coverage_info} 'tests/*' '/usr/*' 'third-party/*' --output-file ${coverage_cleaned}
+		COMMAND ${LCOV_PATH} --directory . --capture --output-file ${coverage_info} --gcov-tool /usr/bin/gcov-7
+		COMMAND ${LCOV_PATH} --remove ${coverage_info} 'test/*' '/usr/*' 'third-party/*' --output-file ${coverage_cleaned}
 		COMMAND ${GENHTML_PATH} -o ${_outputname} ${coverage_cleaned}
 		COMMAND ${CMAKE_COMMAND} -E remove ${coverage_info} ${coverage_cleaned}
 

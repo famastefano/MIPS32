@@ -23,9 +23,6 @@
 // Disable warnings on parenthesis with '&' and '|'
 #ifdef _MSC_VER
 #pragma warning( disable : 4309 )
-#elif __clang__
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wlogical-op-parentheses"
 #endif
 
 inline constexpr std::uint32_t ROUND_NEAREST{0x0};
@@ -1181,6 +1178,4 @@ int CP1::cabs_sule( std::uint32_t word ) noexcept
 
 #ifdef _MSC_VER
 #pragma warning( default : 4309 )
-#elif __clang__
-#pragma clang diagnostic pop
 #endif

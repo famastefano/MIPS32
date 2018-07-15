@@ -51,6 +51,7 @@ add_executable(Tests
 
 # Catch2 fails on clang5+ due to std::uncaught_exceptions not defined
 if(${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang")
+    set(${CMAKE_CXX_FLAGS} "${CMAKE_CXX_FLAGS} -Wno-logical-op-parentheses")
     set_target_properties(Tests PROPERTIES DEFINITIONS "-DCATCH_CONFIG_NO_CPP17_UNCAUGHT_EXCEPTIONS")
 endif()
 

@@ -21,6 +21,7 @@ matrix:
             - g++-7
             - g++-7-multilib
             - gcc-7-multilib
+            - linux-libc-dev-i386
       env:
         - MATRIX_EVAL="CC=gcc-7 && CXX=g++-7"
         - ARCH=x86
@@ -35,6 +36,7 @@ matrix:
             - g++-8
             - g++-8-multilib
             - gcc-8-multilib
+            - linux-libc-dev-i386
       env:
         - MATRIX_EVAL="CC=gcc-8 && CXX=g++-8"
         - ARCH=x86
@@ -51,6 +53,7 @@ matrix:
             - g++-7
             - g++-7-multilib
             - gcc-7-multilib
+            - linux-libc-dev-i386
       env:
         - MATRIX_EVAL="CC=clang-5.0 && CXX=clang++-5.0"
         - ARCH=x86
@@ -67,6 +70,7 @@ matrix:
             - g++-7
             - g++-7-multilib
             - gcc-7-multilib
+            - linux-libc-dev-i386
       env:
         - MATRIX_EVAL="CC=clang-6.0 && CXX=clang++-6.0"
         - ARCH=x86

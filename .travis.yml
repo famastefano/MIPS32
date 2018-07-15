@@ -77,17 +77,29 @@ before_install:
 script:
   - |
     if [[ -v COVERAGE ]]; then
-      cmake . -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Coverage && make && ctest -C Debug --output-on-failure
+      cmake . -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Coverage && make
     else
       cmake . -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Debug && make && ctest -C Debug --output-on-failure
       cmake . -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release && make && ctest -C Release --output-on-failure
     fi
 
+after_script:
+  - |
+    if [[ -v COVERAGE ]]; then
+      lcov --version
+      lcov --directory . --zerocounters
+      lcov --capture --initial --directory . --output-file coverage_base.info --gcov-tool '/usr/bin/gcov-7' --no-external
+      lcov --remove coverage_base.info '/usr/*' 'third-party/*' 'test/*' --output-file coverage_base.info
+      ctest -C Debug --output-on-failure
+    fi
+
 after_success:
   - |
     if [[ -v COVERAGE ]]; then
-      #lcov --directory ${TRAVIS_BUILD_DIR} --capture --output-file coverage.info --gcov-tool /usr/bin/gcov-7
-      #lcov --remove coverage.info '/usr/*' 'third-party/*' 'test/*' --output-file coverage.info
-      #lcov --list coverage.info
-      bash <(curl -s https://codecov.io/bash) || echo "Codecov did not collect coverage reports"
+      lcov --directory . --capture --output-file coverage_test.info --gcov-tool '/usr/bin/gcov-7' --no-external
+      lcov --remove coverage_test.info '/usr/*' 'third-party/*' 'test/*' --output-file coverage_test.info
+      lcov --add-tracefile coverage_base.info --add-tracefile coverage_test.info -o coverage_total.info
+      rm coverage_base.info coverage_test.info
+      lcov --list coverage_total.info
+      bash <(curl -s https://codecov.io/bash) -X coveragepy -x "/usr/bin/gcov-7" -e "-e '/usr/*' 'third-party/*' 'test/*'" -g "'/usr/*' 'third-party/*' 'test/*"
     fi

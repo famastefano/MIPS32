@@ -5,7 +5,7 @@
 cmake_minimum_required (VERSION 3.9)
 project (MIPS32 CXX)
 
-set(CMAKE_MODULE_PATH CMakeModules)
+#set(CMAKE_MODULE_PATH CMakeModules)
 
 include_directories(include third-party)
 
@@ -16,8 +16,8 @@ set(MIPS32_VERSION_MINOR 3)
 set(MIPS32_VERSION_PATCH 0)
 
 if (CMAKE_BUILD_TYPE STREQUAL "Coverage")
-    include(CodeCoverage)
-    setup_target_for_coverage(${PROJECT_NAME}_coverage Tests coverage)
+    #include(CodeCoverage)
+    #setup_target_for_coverage(${PROJECT_NAME}_coverage Tests coverage)
 
     SET(CMAKE_CXX_FLAGS "-g -O0 --coverage")
 else()
@@ -25,7 +25,7 @@ else()
         set(${CMAKE_CXX_FLAGS} "${CMAKE_CXX_FLAGS} /W4 /fp:strict")
         add_definitions("-D_CRT_SECURE_NO_WARNINGS")
     else()
-        set(${CMAKE_CXX_FLAGS} "${CMAKE_CXX_FLAGS} -Wall -Wextra -mfpmath=sse -msse2")
+        set(${CMAKE_CXX_FLAGS} "${CMAKE_CXX_FLAGS} -Wall -Wextra -mfpmath=sse -msse2 -pedantic")
     endif()
 endif()
 

@@ -19,6 +19,9 @@ parsers:
       method: no
       macro: no
 
+ignore:
+  - "third-party/**/*"
+
 comment:
   layout: "header, diff"
   behavior: default

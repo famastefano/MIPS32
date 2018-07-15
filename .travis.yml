@@ -78,19 +78,14 @@ script:
   - |
     if [[ -v COVERAGE ]]; then
       cmake . -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Coverage && make
-    else
-      cmake . -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Debug && make && ctest -C Debug --output-on-failure
-      cmake . -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release && make && ctest -C Release --output-on-failure
-    fi
-
-after_script:
-  - |
-    if [[ -v COVERAGE ]]; then
       lcov --version
       lcov --directory . --zerocounters
       lcov --capture --initial --directory . --output-file coverage_base.info --gcov-tool '/usr/bin/gcov-7' --no-external
       lcov --remove coverage_base.info '/usr/*' 'third-party/*' 'test/*' --output-file coverage_base.info
       ctest -C Debug --output-on-failure
+    else
+      cmake . -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Debug && make && ctest -C Debug --output-on-failure
+      cmake . -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release && make && ctest -C Release --output-on-failure
     fi
 
 after_success:

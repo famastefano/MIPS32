@@ -17,7 +17,7 @@ matrix:
             - g++-7
       env:
         - MATRIX_EVAL="CC=gcc-7 && CXX=g++-7"
-        - COVERAGE
+        - COVERAGE=ON
 
   # Linux - gcc 7
     - os: linux
@@ -66,6 +66,7 @@ matrix:
         
 
 before_install:
+  - bash --version
   - eval "${MATRIX_EVAL}"
 
 script:

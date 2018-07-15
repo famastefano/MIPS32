@@ -20,6 +20,10 @@ else()
     set(${CMAKE_CXX_FLAGS} "${CMAKE_CXX_FLAGS} -Wall -Wextra -mfpmath=sse -msse2")
 endif()
 
+if(COVERAGE)
+    set(${CMAKE_CXX_FLAGS} "${CMAKE_CXX_FLAGS} --coverage")
+endif()
+
 #############
 ## Library ##
 #############
@@ -37,14 +41,20 @@ endif()
 add_executable(TestRAM test/test_ram.cpp src/machine_inspector.cpp src/ram.cpp)
 target_include_directories(TestRAM PRIVATE src)
 
-add_executable(TestCACHE test/test_cache.cpp src/machine_inspector.cpp src/cache.cpp)
-target_include_directories(TestCACHE PRIVATE src)
+#add_executable(TestCACHE test/test_cache.cpp src/machine_inspector.cpp src/cache.cpp)
+#target_include_directories(TestCACHE PRIVATE src)
 
 add_executable(TestCP1 test/test_cp1.cpp src/machine_inspector.cpp src/cp1.cpp)
 target_include_directories(TestCP1 PRIVATE src)
 
+if(COVERAGE)
+    set_target_properties(TestRAM LINK_FLAGS "-lgcov --coverage")
+    #set_target_properties(TestCACHE LINK_FLAGS "-lgcov --coverage")
+    set_target_properties(TestCP1 LINK_FLAGS "-lgcov --coverage")
+endif()
+
 include(CTest)
 enable_testing()
 add_test(NAME TestRam COMMAND TestRAM)
-add_test(NAME TestCache COMMAND TestCACHE)
+#add_test(NAME TestCache COMMAND TestCACHE)
 add_test(NAME TestCp1 COMMAND TestCP1)

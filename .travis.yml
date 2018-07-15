@@ -7,6 +7,18 @@ notifications:
 
 matrix:
   include:
+  # Linux - gcc 7 + coverage
+  - os: linux
+    addons:
+      apt:
+        sources:
+          - ubuntu-toolchain-r-test
+        packages:
+          - g++-7
+    env:
+      - MATRIX_EVAL="CC=gcc-7 && CXX=g++-7"
+      - COVERAGE=ON
+
   # Linux - gcc 7
     - os: linux
       addons:
@@ -57,5 +69,20 @@ before_install:
   - eval "${MATRIX_EVAL}"
 
 script:
-  - cmake . -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Debug && make && ctest -C Debug --output-on-failure
-  - cmake . -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release && make && ctest -C Release --output-on-failure
+  - if [ -z ${COVERAGE+x} ]; then
+      cmake . -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Debug -DCOVERAGE=ON && make && ctest -C Debug --output-on-failure
+    else
+      cmake . -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Debug && make && ctest -C Debug --output-on-failure &&
+      cmake . -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release && make && ctest -C Release --output-on-failure;
+    fi;
+
+after_success:
+  - if [ -z ${COVERAGE+x} ]; then
+    # Creating report
+      cd ${TRAVIS_BUILD_DIR}
+      lcov --directory . --capture --output-file coverage.info coverage info
+      lcov --remove coverage.info '/usr/*' --output-file coverage.info 
+      lcov --list coverage.info
+    # Uploading report to CodeCov
+      bash <(curl -s https://codecov.io/bash) || echo "Codecov did not collect coverage reports"
+    fi;

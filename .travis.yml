@@ -20,6 +20,7 @@ matrix:
           packages:
             - g++-7
             - g++-7-multilib
+            - gcc-7-multilib
       env:
         - MATRIX_EVAL="CC=gcc-7 && CXX=g++-7"
         - ARCH=x86
@@ -33,6 +34,7 @@ matrix:
           packages:
             - g++-8
             - g++-8-multilib
+            - gcc-8-multilib
       env:
         - MATRIX_EVAL="CC=gcc-8 && CXX=g++-8"
         - ARCH=x86
@@ -48,6 +50,7 @@ matrix:
             - clang-5.0
             - g++-7
             - g++-7-multilib
+            - gcc-7-multilib
       env:
         - MATRIX_EVAL="CC=clang-5.0 && CXX=clang++-5.0"
         - ARCH=x86
@@ -63,6 +66,7 @@ matrix:
             - clang-6.0
             - g++-7
             - g++-7-multilib
+            - gcc-7-multilib
       env:
         - MATRIX_EVAL="CC=clang-6.0 && CXX=clang++-6.0"
         - ARCH=x86

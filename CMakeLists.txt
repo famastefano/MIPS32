@@ -20,17 +20,8 @@ if (NOT (CMAKE_BUILD_TYPE STREQUAL "Coverage"))
         set(${CMAKE_CXX_FLAGS} "${CMAKE_CXX_FLAGS} /W4 /fp:strict")
         add_definitions("-D_CRT_SECURE_NO_WARNINGS")
     else()
-        if(${ARCH} STREQUAL "x86")
-            set(${CMAKE_CXX_FLAGS} "${CMAKE_CXX_FLAGS} -m32" CACHE STRING "c++ flags")
-            set(${CMAKE_C_FLAGS} "${CMAKE_C_FLAGS} -m32" CACHE STRING "c flags")
-        else()
-            set(${CMAKE_CXX_FLAGS} "${CMAKE_CXX_FLAGS} -m64" CACHE STRING "c++ flags")
-            set(${CMAKE_C_FLAGS} "${CMAKE_C_FLAGS} -m64" CACHE STRING "c flags")
-        endif()
         set(${CMAKE_CXX_FLAGS} "${CMAKE_CXX_FLAGS} -Wall -Wextra -mfpmath=sse -msse2 -pedantic")
     endif()
-else()
-    SET(CMAKE_CXX_FLAGS "-g -O0 --coverage")
 endif()
 
 #############
@@ -43,12 +34,6 @@ endif()
 ## Tests ##
 ###########
 
-# Catch2 fails on clang5+ due to std::uncaught_exceptions not defined
-if(${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang")
-    add_definitions(-DCATCH_CONFIG_NO_CPP17_UNCAUGHT_EXCEPTIONS)
-endif()
-
-## RAM ##
 add_executable(Tests test/test_main.cpp
     src/machine_inspector.cpp
 
@@ -62,8 +47,24 @@ add_executable(Tests test/test_main.cpp
     src/cp1.cpp
 )
 
+# Catch2 fails on clang5+ due to std::uncaught_exceptions not defined
+if(${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang")
+    #add_definitions(-DCATCH_CONFIG_NO_CPP17_UNCAUGHT_EXCEPTIONS)
+    set_target_properties(Tests PROPERTIES DEFINITIONS "-DCATCH_CONFIG_NO_CPP17_UNCAUGHT_EXCEPTIONS")
+endif()
+
 if (CMAKE_BUILD_TYPE STREQUAL "Coverage")
-    target_link_libraries(Tests INTERFACE "-lgcov --coverage")
+    MESSAGE("\n\t\tCOVERAGE BUILD\n")
+    set_target_properties(Tests PROPERTIES COMPILE_FLAGS "-g -O0 --coverage" LINK_FLAGS "-lgcov --coverage")
+    #target_link_libraries(Tests INTERFACE "-lgcov --coverage")
+else()
+    if(${ARCH} STREQUAL "x86")
+        MESSAGE("\n\t\tBUILDING FOR x86\n")
+        set_target_properties(Tests PROPERTIES COMPILE_FLAGS "-m32" LINK_FLAGS "-m32")
+    else()
+        MESSAGE("\n\t\tBUILDING FOR x86_64\n")
+        set_target_properties(Tests PROPERTIES COMPILE_FLAGS "-m64" LINK_FLAGS "-m64")
+    endif()
 endif()
 
 include(CTest)

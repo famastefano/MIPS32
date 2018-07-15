@@ -48,9 +48,9 @@ add_executable(TestCP1 test/test_cp1.cpp src/machine_inspector.cpp src/cp1.cpp)
 target_include_directories(TestCP1 PRIVATE src)
 
 if(COVERAGE)
-    set_target_properties(TestRAM LINK_FLAGS "-lgcov --coverage")
-    #set_target_properties(TestCACHE LINK_FLAGS "-lgcov --coverage")
-    set_target_properties(TestCP1 LINK_FLAGS "-lgcov --coverage")
+    target_link_libraries(TestRAM INTERFACE "-lgcov --coverage")
+    #target_link_libraries(TestCACHE INTERFACE "-lgcov --coverage")
+    target_link_libraries(TestCP1 INTERFACE "-lgcov --coverage")
 endif()
 
 include(CTest)

@@ -3,8 +3,9 @@ codecov:
     require_ci_to_pass: yes
 
 coverage:
-  precision: 2
+  precision: 0
   round: down
+  range: 75..100
 
   status:
     project: yes
@@ -16,11 +17,12 @@ parsers:
     branch_detection:
       conditional: yes
       loop: yes
-      method: no
+      method: yes
       macro: no
 
 ignore:
-  - "third-party/**/*"
+  - "./third-party"
+  - "./test"
 
 comment:
   layout: "header, diff"

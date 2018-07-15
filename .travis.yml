@@ -68,8 +68,8 @@ matrix:
 before_install:
   - bash --version
   - eval "${MATRIX_EVAL}"
-  - gcc --version
-  - gcov --version
+  - gcc-7 --version
+  - gcov-7 --version
   - |
     if [[ -v COVERAGE ]]; then
       wget http://ftp.de.debian.org/debian/pool/main/l/lcov/lcov_1.13.orig.tar.gz
@@ -89,8 +89,8 @@ script:
 after_success:
   - |
     if [[ -v COVERAGE ]]; then
-      lcov --directory ${TRAVIS_BUILD_DIR} --capture --output-file coverage.info --gcov-tool /usr/bin/gcov-7
-      lcov --remove coverage.info '/usr/*' '${TRAVIS_BUILD_DIR}/third-party/*' --output-file coverage.info 
-      lcov --list coverage.info
+      #lcov --directory ${TRAVIS_BUILD_DIR} --capture --output-file coverage.info --gcov-tool /usr/bin/gcov-7
+      #lcov --remove coverage.info '/usr/*' 'third-party/*' 'test/*' --output-file coverage.info
+      #lcov --list coverage.info
       bash <(curl -s https://codecov.io/bash) || echo "Codecov did not collect coverage reports"
     fi

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <mips32/fpr.hpp>
 #include <mips32/header.hpp>
 
 #include <cstdint>
@@ -9,6 +10,8 @@ namespace mips32 {
 
 class RAM;
 class Cache;
+
+class CP1;
 
 class MachineInspector
 {
@@ -21,21 +24,22 @@ class MachineInspector
 
   void inspect( RAM &ram ) noexcept;
   void inspect( Cache &cache ) noexcept;
+  void inspect( CP1 &cp1 ) noexcept;
 
-  /*********
+  /* * * * *
    *       *
    * STATE *
    *       *
-   *********/
+   * * * * */
 
   void save_state( Component c, char const *name ) const noexcept;
   void restore_state( Component c, char const *name ) noexcept;
 
-  /*******
+  /* * * *
    *     *
    * RAM *
    *     *
-   *******/
+   * * * */
 
   struct RAMInfo
   {
@@ -56,11 +60,11 @@ class MachineInspector
   std::vector<std::uint32_t> RAM_allocated_addresses() const noexcept;
   std::vector<std::uint32_t> RAM_swapped_addresses() const noexcept;
 
-  /*********
+  /* * * * *
    *       *
    * CACHE *
    *       *
-   *********/
+   * * * * */
 
   class CacheBlockIterator;
 
@@ -71,103 +75,32 @@ class MachineInspector
   std::uint32_t CACHE_associativity() const noexcept;
   std::uint32_t CACHE_block_size() const noexcept;
 
+  /* * * * *
+   *       *
+   * COP 1 *
+   *       *
+   * * * * */
+
+  class FPR;
+
+  std::uint32_t CP1_fir() const noexcept;
+  std::uint32_t CP1_fcsr() const noexcept;
+
+  FPR CP1_fpr( std::uint32_t index ) noexcept;
+
+  FPR CP1_fpr_begin() noexcept;
+  FPR CP1_fpr_end() noexcept;
+
   private:
   RAM *ram;
 
   Cache *cache;
+
+  CP1 *cp1;
 };
 
-class MachineInspector::CacheBlockIterator
-{
-  public:
-  CacheBlockIterator( Header *h, std::uint32_t *b, std::uint32_t wno ) noexcept
-      : _header( h ), _block( b ), words_per_block( wno )
-  {}
+#include <mips32/inspector_iterators/cache_iterator.hpp>
 
-  Header &header() noexcept
-  {
-    return *_header;
-  }
-
-  std::uint32_t *data() noexcept
-  {
-    return _block;
-  }
-
-  std::uint32_t size() noexcept
-  {
-    return words_per_block;
-  }
-
-  CacheBlockIterator &operator++() noexcept
-  {
-    ++_header;
-    _block += words_per_block;
-    return *this;
-  }
-
-  CacheBlockIterator operator++( int ) noexcept
-  {
-    CacheBlockIterator old( *this );
-    ++*this;
-    return old;
-  }
-
-  CacheBlockIterator &operator--() noexcept
-  {
-    --_header;
-    _block -= words_per_block;
-    return *this;
-  }
-
-  CacheBlockIterator operator--( int ) noexcept
-  {
-    CacheBlockIterator old( *this );
-    --*this;
-    return old;
-  }
-
-  CacheBlockIterator friend operator+( CacheBlockIterator it, int offset ) noexcept
-  {
-    it._header += offset;
-    it._block += it.words_per_block * offset;
-
-    return it;
-  }
-
-  CacheBlockIterator friend operator+( int offset, CacheBlockIterator it ) noexcept
-  {
-    return it + offset;
-  }
-
-  CacheBlockIterator friend operator-( CacheBlockIterator it, int offset ) noexcept
-  {
-    it._header -= offset;
-    it._block -= it.words_per_block * offset;
-
-    return it;
-  }
-
-  bool operator==( CacheBlockIterator other ) const noexcept
-  {
-    return _header == other._header;
-  }
-
-  bool operator!=( CacheBlockIterator other ) const noexcept
-  {
-    return !operator==( other );
-  }
-
-  std::ptrdiff_t operator-( CacheBlockIterator other ) const noexcept
-  {
-    return _header - other._header;
-  }
-
-  private:
-  Header *_header;
-
-  std::uint32_t *_block;
-  std::uint32_t  words_per_block;
-};
+#include <mips32/inspector_iterators/cp1_iterator.hpp>
 
 } // namespace mips32

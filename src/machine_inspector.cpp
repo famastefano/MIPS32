@@ -1,4 +1,5 @@
 #include <mips32/cache.hpp>
+#include <mips32/cp1.hpp>
 #include <mips32/ram.hpp>
 
 #include <mips32/machine_inspector.hpp>
@@ -8,20 +9,22 @@ void MachineInspector::inspect( RAM &ram ) noexcept { this->ram = &ram; }
 
 void MachineInspector::inspect( Cache &cache ) noexcept { this->cache = &cache; }
 
-/*********
+void MachineInspector::inspect( CP1 &cp1 ) noexcept { this->cp1 = &cp1; }
+
+/* * * * *
  *       *
  * STATE *
  *       *
- *********/
+ * * * * */
 
 void MachineInspector::save_state( Component c, char const *name ) const noexcept {}
 void MachineInspector::restore_state( Component c, char const *name ) noexcept {}
 
-/*******
+/* * * *
  *     *
  * RAM *
  *     *
- *******/
+ * * * */
 
 MachineInspector::RAMInfo MachineInspector::RAM_info() const noexcept
 {
@@ -74,11 +77,11 @@ std::vector<std::uint32_t> MachineInspector::RAM_swapped_addresses() const
   return addresses;
 }
 
-/*********
+/* * * * *
  *       *
  * CACHE *
  *       *
- *********/
+ * * * * */
 
 MachineInspector::CacheBlockIterator MachineInspector::CACHE_block_begin() noexcept
 {
@@ -107,6 +110,35 @@ std::uint32_t MachineInspector::CACHE_associativity() const noexcept
 std::uint32_t MachineInspector::CACHE_block_size() const noexcept
 {
   return cache->words_per_block;
+}
+
+/* * * * *
+ *       *
+ * COP 1 *
+ *       *
+ * * * * */
+
+std::uint32_t MachineInspector::CP1_fir() const noexcept
+{
+  return cp1->fir;
+}
+std::uint32_t MachineInspector::CP1_fcsr() const noexcept
+{
+  return cp1->fcsr;
+}
+
+MachineInspector::FPR MachineInspector::CP1_fpr( std::uint32_t index ) noexcept
+{
+  return FPR{cp1->fpr.data() + index};
+}
+
+MachineInspector::FPR MachineInspector::CP1_fpr_begin() noexcept
+{
+  return FPR{cp1->fpr.data()};
+}
+MachineInspector::FPR MachineInspector::CP1_fpr_end() noexcept
+{
+  return FPR{cp1->fpr.data() + cp1->fpr.size()};
 }
 
 } // namespace mips32

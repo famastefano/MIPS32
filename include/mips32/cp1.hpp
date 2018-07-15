@@ -1,5 +1,7 @@
 #pragma once
 
+#include <mips32/fpr.hpp>
+
 #include <array>
 #include <cstdint>
 
@@ -109,15 +111,6 @@ class CP1
   int cabs_sult( std::uint32_t word ) noexcept;
   int cabs_sle( std::uint32_t word ) noexcept;
   int cabs_sule( std::uint32_t word ) noexcept;
-
-  union FPR
-  {
-    float         f;
-    std::uint32_t i32;
-
-    double        d;
-    std::uint64_t i64;
-  };
 
   std::array<FPR, 32> fpr;
 

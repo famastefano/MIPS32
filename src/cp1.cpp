@@ -3,11 +3,14 @@
 #include <cassert>
 #include <cfenv>
 #include <cmath>
+#include <limits>
 
 #include <pmmintrin.h>
 #include <xmmintrin.h>
 
-// TODO: enable /fp:strict on MSCV and -ffloat-store -mfpmath=sse -msse2 on GCC/Clang
+// TODO: save/restore the Floating-Point Environment in a RAII way.
+
+// TODO: add assertions to every function to check for fmt
 
 // Access to the Floating-Point Environment
 #ifdef _MSC_VER
@@ -22,7 +25,7 @@
 #pragma warning( disable : 4309 )
 #elif __clang__
 #pragma clang diagnostic push
-#pragma GCC diagnostic ignored "-Wlogical-op-parentheses"
+#pragma clang diagnostic ignored "-Wlogical-op-parentheses"
 #endif
 
 inline constexpr std::uint32_t ROUND_NEAREST{0x0};

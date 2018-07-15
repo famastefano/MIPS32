@@ -15,7 +15,6 @@ matrix:
             - ubuntu-toolchain-r-test
           packages:
             - g++-7
-            - gcov-7
       env:
         - MATRIX_EVAL="CC=gcc-7 && CXX=g++-7 && GCOV=gcov-7"
         - COVERAGE=ON

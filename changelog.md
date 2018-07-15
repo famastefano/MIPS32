@@ -1,9 +1,14 @@
 # Changelog
 
+## 0.3.0
+
+1. Coprocessor 1 created.
+2. Added support for the Coprocessor 1 to the MachineInspector.
+
 ## 0.2.0
 
 1. Cache created.
-2. Added support for the Cache with the MachineInspector.
+2. Added support for the Cache to the MachineInspector.
 
 ## 0.1.0
 

@@ -66,10 +66,7 @@ matrix:
         
 
 before_install:
-  - bash --version
   - eval "${MATRIX_EVAL}"
-  - gcc-7 --version
-  - gcov-7 --version
   - |
     if [[ -v COVERAGE ]]; then
       wget http://ftp.de.debian.org/debian/pool/main/l/lcov/lcov_1.13.orig.tar.gz

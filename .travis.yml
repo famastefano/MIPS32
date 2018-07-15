@@ -159,8 +159,8 @@ script:
       echo -e "\n\t\tRUNNING TESTS\n"
       ctest -C Debug --output-on-failure
     else
-      cmake . -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Debug -DARCH=$ARCH && make && ctest -C Debug --output-on-failure
-      cmake . -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release -DARCH=$ARCH && make && ctest -C Release --output-on-failure
+      cmake . -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Debug -DARCH=$ARCH && make && file Tests && ctest -C Debug --output-on-failure
+      cmake . -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release -DARCH=$ARCH && make && file Tests && ctest -C Release --output-on-failure
     fi
 
 after_success:

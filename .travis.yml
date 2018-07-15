@@ -7,6 +7,70 @@ notifications:
 
 matrix:
   include:
+  # # # # # # # #
+  #  x86 builds #
+  # # # # # # # #
+
+  # Linux - gcc 7
+    - os: linux
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - g++-7
+            - g++-7-multilib
+      env:
+        - MATRIX_EVAL="CC=gcc-7 && CXX=g++-7"
+        - ARCH=x86
+
+  # Linux - gcc 8
+    - os: linux
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - g++-8
+            - g++-8-multilib
+      env:
+        - MATRIX_EVAL="CC=gcc-8 && CXX=g++-8"
+        - ARCH=x86
+
+  # Linux - clang 5
+    - os: linux
+      addons:
+        apt:
+          sources:
+            - llvm-toolchain-trusty-5.0
+            - ubuntu-toolchain-r-test
+          packages:
+            - clang-5.0
+            - g++-7
+            - g++-7-multilib
+      env:
+        - MATRIX_EVAL="CC=clang-5.0 && CXX=clang++-5.0"
+        - ARCH=x86
+
+  # Linux - clang 6
+    - os: linux
+      addons:
+        apt:
+          sources:
+            - llvm-toolchain-trusty-6.0
+            - ubuntu-toolchain-r-test
+          packages:
+            - clang-6.0
+            - g++-7
+            - g++-7-multilib
+      env:
+        - MATRIX_EVAL="CC=clang-6.0 && CXX=clang++-6.0"
+        - ARCH=x86
+
+  # # # # # # # # #
+  # x86_64 builds #
+  # # # # # # # # #
+
   # Linux - gcc 7 + coverage
     - os: linux
       addons:
@@ -18,6 +82,7 @@ matrix:
       env:
         - MATRIX_EVAL="CC=gcc-7 && CXX=g++-7 && GCOV=gcov-7"
         - COVERAGE=ON
+        - ARCH=x64
 
   # Linux - gcc 7
     - os: linux
@@ -29,6 +94,8 @@ matrix:
             - g++-7
       env:
         - MATRIX_EVAL="CC=gcc-7 && CXX=g++-7"
+        - ARCH=x64
+
   # Linux - gcc 8
     - os: linux
       addons:
@@ -39,6 +106,8 @@ matrix:
             - g++-8
       env:
         - MATRIX_EVAL="CC=gcc-8 && CXX=g++-8"
+        - ARCH=x64
+
   # Linux - clang 5
     - os: linux
       addons:
@@ -51,6 +120,8 @@ matrix:
             - g++-7
       env:
         - MATRIX_EVAL="CC=clang-5.0 && CXX=clang++-5.0"
+        - ARCH=x64
+
   # Linux - clang 6
     - os: linux
       addons:
@@ -63,7 +134,8 @@ matrix:
             - g++-7
       env:
         - MATRIX_EVAL="CC=clang-6.0 && CXX=clang++-6.0"
-        
+        - ARCH=x64
+
 
 before_install:
   - eval "${MATRIX_EVAL}"
@@ -83,11 +155,12 @@ script:
       lcov -d . --zerocounters
       lcov -c -i -d . -o coverage_base.info --gcov-tool '/usr/bin/gcov-7' --no-external
       lcov --remove coverage_base.info '/usr/*' 'third-party/catch.hpp' 'test/test_ram.cpp' 'test/test_cp1.cpp' -o coverage_base.info
+      lcov --list coverage_total.info
       echo -e "\n\t\tRUNNING TESTS\n"
       ctest -C Debug --output-on-failure
     else
-      cmake . -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Debug && make && ctest -C Debug --output-on-failure
-      cmake . -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release && make && ctest -C Release --output-on-failure
+      cmake . -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Debug -DARCH=$ARCH && make && ctest -C Debug --output-on-failure
+      cmake . -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release -DARCH=$ARCH && make && ctest -C Release --output-on-failure
     fi
 
 after_success:

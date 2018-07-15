@@ -5,28 +5,35 @@
 cmake_minimum_required (VERSION 3.9)
 project (MIPS32 CXX)
 
+set(CMAKE_MODULE_PATH CMakeModules)
+
 include_directories(include third-party)
 
 set (CMAKE_CXX_STANDARD 17)
 
 set(MIPS32_VERSION_MAJOR 0)
-set(MIPS32_VERSION_MINOR 1)
+set(MIPS32_VERSION_MINOR 3)
 set(MIPS32_VERSION_PATCH 0)
 
-if(${MSVC})
-    set(${CMAKE_CXX_FLAGS} "${CMAKE_CXX_FLAGS} /W4 /fp:strict")
-    add_definitions("-D_CRT_SECURE_NO_WARNINGS")
-else()
-    set(${CMAKE_CXX_FLAGS} "${CMAKE_CXX_FLAGS} -Wall -Wextra -mfpmath=sse -msse2")
-endif()
+if (CMAKE_BUILD_TYPE STREQUAL "Coverage")
+    include(CodeCoverage)
+    setup_target_for_coverage(${PROJECT_NAME}_coverage Tests coverage)
 
-if(COVERAGE)
-    set(${CMAKE_CXX_FLAGS} "${CMAKE_CXX_FLAGS} --coverage")
+    SET(CMAKE_CXX_FLAGS "-g -O0 --coverage")
+else()
+    if(${MSVC})
+        set(${CMAKE_CXX_FLAGS} "${CMAKE_CXX_FLAGS} /W4 /fp:strict")
+        add_definitions("-D_CRT_SECURE_NO_WARNINGS")
+    else()
+        set(${CMAKE_CXX_FLAGS} "${CMAKE_CXX_FLAGS} -Wall -Wextra -mfpmath=sse -msse2")
+    endif()
 endif()
 
 #############
 ## Library ##
 #############
+
+
 
 ###########
 ## Tests ##
@@ -38,23 +45,23 @@ if(${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang")
 endif()
 
 ## RAM ##
-add_executable(TestRAM test/test_ram.cpp src/machine_inspector.cpp src/ram.cpp)
-target_include_directories(TestRAM PRIVATE src)
+add_executable(Tests test/test_main.cpp
+    src/machine_inspector.cpp
 
-#add_executable(TestCACHE test/test_cache.cpp src/machine_inspector.cpp src/cache.cpp)
-#target_include_directories(TestCACHE PRIVATE src)
+    test/test_ram.cpp
+    src/ram.cpp
 
-add_executable(TestCP1 test/test_cp1.cpp src/machine_inspector.cpp src/cp1.cpp)
-target_include_directories(TestCP1 PRIVATE src)
+    #test/test_cache.cpp
+    #src/cache.cpp
 
-if(COVERAGE)
-    target_link_libraries(TestRAM INTERFACE "-lgcov --coverage")
-    #target_link_libraries(TestCACHE INTERFACE "-lgcov --coverage")
-    target_link_libraries(TestCP1 INTERFACE "-lgcov --coverage")
+    test/test_cp1.cpp
+    src/cp1.cpp
+)
+
+if (CMAKE_BUILD_TYPE STREQUAL "Coverage")
+    target_link_libraries(Tests INTERFACE "-lgcov --coverage")
 endif()
 
 include(CTest)
 enable_testing()
-add_test(NAME TestRam COMMAND TestRAM)
-#add_test(NAME TestCache COMMAND TestCACHE)
-add_test(NAME TestCp1 COMMAND TestCP1)
+add_test(NAME AllTests COMMAND Tests)

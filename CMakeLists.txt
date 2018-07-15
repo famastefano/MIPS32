@@ -34,7 +34,9 @@ endif()
 ## Tests ##
 ###########
 
-add_executable(Tests test/test_main.cpp
+add_executable(Tests
+    test/test_main.cpp
+    
     src/machine_inspector.cpp
 
     test/test_ram.cpp
@@ -49,22 +51,11 @@ add_executable(Tests test/test_main.cpp
 
 # Catch2 fails on clang5+ due to std::uncaught_exceptions not defined
 if(${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang")
-    #add_definitions(-DCATCH_CONFIG_NO_CPP17_UNCAUGHT_EXCEPTIONS)
     set_target_properties(Tests PROPERTIES DEFINITIONS "-DCATCH_CONFIG_NO_CPP17_UNCAUGHT_EXCEPTIONS")
 endif()
 
 if (CMAKE_BUILD_TYPE STREQUAL "Coverage")
-    MESSAGE("\n\t\tCOVERAGE BUILD\n")
     set_target_properties(Tests PROPERTIES COMPILE_FLAGS "-g -O0 --coverage" LINK_FLAGS "-lgcov --coverage")
-    #target_link_libraries(Tests INTERFACE "-lgcov --coverage")
-else()
-    if(${ARCH} STREQUAL "x86")
-        MESSAGE("\n\t\tBUILDING FOR x86\n")
-        set_target_properties(Tests PROPERTIES COMPILE_FLAGS "-m32" LINK_FLAGS "-m32")
-    else()
-        MESSAGE("\n\t\tBUILDING FOR x86_64\n")
-        set_target_properties(Tests PROPERTIES COMPILE_FLAGS "-m64" LINK_FLAGS "-m64")
-    endif()
 endif()
 
 include(CTest)

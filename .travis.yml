@@ -22,7 +22,6 @@ matrix:
       env:
         - MATRIX_EVAL="CC=gcc-7 && CXX=g++-7 && GCOV=gcov-7"
         - COVERAGE=ON
-        - ARCH=x64
 
   # Linux - gcc 7
     - os: linux
@@ -34,7 +33,6 @@ matrix:
             - g++-7
       env:
         - MATRIX_EVAL="CC=gcc-7 && CXX=g++-7"
-        - ARCH=x64
 
   # Linux - gcc 8
     - os: linux
@@ -46,7 +44,6 @@ matrix:
             - g++-8
       env:
         - MATRIX_EVAL="CC=gcc-8 && CXX=g++-8"
-        - ARCH=x64
 
   # Linux - clang 5
     - os: linux
@@ -60,7 +57,6 @@ matrix:
             - g++-7
       env:
         - MATRIX_EVAL="CC=clang-5.0 && CXX=clang++-5.0"
-        - ARCH=x64
 
   # Linux - clang 6
     - os: linux
@@ -74,7 +70,6 @@ matrix:
             - g++-7
       env:
         - MATRIX_EVAL="CC=clang-6.0 && CXX=clang++-6.0"
-        - ARCH=x64
 
 
 before_install:
@@ -99,8 +94,8 @@ script:
       echo -e "\n\t\tRUNNING TESTS\n"
       ctest -C Debug --output-on-failure
     else
-      cmake . -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Debug -DARCH=$ARCH && make && file Tests && ctest -C Debug --output-on-failure
-      cmake . -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release -DARCH=$ARCH && make && file Tests && ctest -C Release --output-on-failure
+      cmake . -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Debug && make && file Tests && ctest -C Debug --output-on-failure
+      cmake . -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release && make && file Tests && ctest -C Release --output-on-failure
     fi
 
 after_success:

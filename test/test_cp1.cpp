@@ -5,6 +5,10 @@
 
 using namespace mips32;
 
+// TODO: change rounding mode
+// TODO: provoke FPU exception
+// TODO: test every instruction for every format
+
 SCENARIO( "A Coprocessor 1 object exists and it's resetted and inspected" )
 {
   CP1 cp1;
@@ -69,6 +73,86 @@ SCENARIO( "A Coprocessor 1 object exists and it's resetted and inspected" )
         REQUIRE( begin.double_binary() == 0 );
 
         ++begin;
+      }
+    }
+  }
+
+  WHEN( "I write a float to a register through the inspector" )
+  {
+    auto begin = inspector.CP1_fpr_begin();
+    auto end   = inspector.CP1_fpr_end();
+    while ( begin != end ) {
+      begin = 42.f;
+      ++begin;
+    }
+
+    THEN( "If I read them again, I should see the changes" )
+    {
+      auto _begin = inspector.CP1_fpr_begin();
+      auto _end   = inspector.CP1_fpr_end();
+      while ( _begin != _end ) {
+        REQUIRE( _begin.read_single() == 42.f );
+        ++_begin;
+      }
+    }
+  }
+
+  WHEN( "I write a double to a register through the inspector" )
+  {
+    auto begin = inspector.CP1_fpr_begin();
+    auto end   = inspector.CP1_fpr_end();
+    while ( begin != end ) {
+      begin = 6657.0;
+      ++begin;
+    }
+
+    THEN( "If I read them again, I should see the changes" )
+    {
+      auto _begin = inspector.CP1_fpr_begin();
+      auto _end   = inspector.CP1_fpr_end();
+      while ( _begin != _end ) {
+        REQUIRE( _begin.read_double() == 6657.0 );
+        ++_begin;
+      }
+    }
+  }
+
+  WHEN( "I write an i32 to a register through the inspector" )
+  {
+    auto begin = inspector.CP1_fpr_begin();
+    auto end   = inspector.CP1_fpr_end();
+    while ( begin != end ) {
+      begin = (std::uint32_t)0xABCD'7531;
+      ++begin;
+    }
+
+    THEN( "If I read them again, I should see the changes" )
+    {
+      auto _begin = inspector.CP1_fpr_begin();
+      auto _end   = inspector.CP1_fpr_end();
+      while ( _begin != _end ) {
+        REQUIRE( _begin.single_binary() == 0xABCD'7531 );
+        ++_begin;
+      }
+    }
+  }
+
+  WHEN( "I write i64 to a register through the inspector" )
+  {
+    auto begin = inspector.CP1_fpr_begin();
+    auto end   = inspector.CP1_fpr_end();
+    while ( begin != end ) {
+      begin = (std::uint64_t)0x8518'FBBB'9871'412C;
+      ++begin;
+    }
+
+    THEN( "If I read them again, I should see the changes" )
+    {
+      auto _begin = inspector.CP1_fpr_begin();
+      auto _end   = inspector.CP1_fpr_end();
+      while ( _begin != _end ) {
+        REQUIRE( _begin.double_binary() == 0x8518'FBBB'9871'412C );
+        ++_begin;
       }
     }
   }

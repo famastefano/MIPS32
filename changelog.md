@@ -1,5 +1,9 @@
 # Changelog
 
+## 2018/07/16
+
+- CI system running with Linux x86/x86_64 and Windows Win32/x64 as targets.
+
 ## 0.3.0
 
 1. Coprocessor 1 created.

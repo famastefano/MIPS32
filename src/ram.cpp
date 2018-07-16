@@ -21,10 +21,7 @@ RAM::RAM( std::uint32_t alloc_limit ) : alloc_limit( alloc_limit / sizeof( std::
 
 RAM::Block &RAM::least_accessed() noexcept
 {
-  std::sort( blocks.begin(), blocks.end(),
-             []( Block &lhs, Block &rhs ) -> bool {
-               return lhs.access_count > rhs.access_count;
-             } );
+  std::sort( blocks.begin(), blocks.end(), []( Block &lhs, Block &rhs ) -> bool { return lhs.access_count > rhs.access_count; } );
 
   for ( auto &block : blocks ) block.access_count = 0;
 

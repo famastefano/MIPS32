@@ -57,8 +57,8 @@ if (NOT (CMAKE_BUILD_TYPE STREQUAL "Coverage"))
         endif()
 
         target_compile_options(Tests PRIVATE "$<$<STREQUAL:${ARCH},x86>:-m32>")
-        target_link_libraries(Tests PRIVATE "$<$<STREQUAL:${ARCH},x86>:-m elf_i386>")
-        
+        target_link_libraries(Tests PRIVATE "$<$<STREQUAL:${ARCH},x86>:-m32>")
+
         target_compile_options(Tests PRIVATE "$<$<STREQUAL:${ARCH},x64>:-m64>")
 
         target_compile_options(Tests PRIVATE -Wall -Wextra -mfpmath=sse -msse2 -pedantic)

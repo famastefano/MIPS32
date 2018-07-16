@@ -284,8 +284,8 @@ CP1::Exception CP1::execute( std::uint32_t word ) noexcept
   }
 }
 
-int CP1::reserved( std::uint32_t word ) noexcept { return -1; }
-int CP1::unimplemented( std::uint32_t word ) noexcept
+int CP1::reserved( std::uint32_t ) noexcept { return -1; }
+int CP1::unimplemented( std::uint32_t ) noexcept
 {
   set_cause( CP1::UNIMPLEMENTED );
   return 1;

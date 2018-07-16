@@ -67,6 +67,8 @@ SCENARIO( "A Coprocessor 1 object exists and it's resetted and inspected" )
         REQUIRE( begin.read_double() == 0.0 );
         REQUIRE( begin.single_binary() == 0 );
         REQUIRE( begin.double_binary() == 0 );
+
+        ++begin;
       }
     }
   }

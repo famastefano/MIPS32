@@ -158,10 +158,10 @@ RAM::Block &RAM::Block::serialize() noexcept
   std::FILE *out = std::fopen( file_name, "w+b" );
   assert( out && "Couldn't open the file." );
 
-  auto write_count = std::fwrite( data.get(), sizeof( std::uint32_t ), RAM::block_size, out );
+  [[maybe_unused]] auto write_count = std::fwrite( data.get(), sizeof( std::uint32_t ), RAM::block_size, out );
   assert( write_count == RAM::block_size && "Couldn't write to the file." );
 
-  auto close = std::fclose( out );
+  [[maybe_unused]] auto close = std::fclose( out );
   assert( !close && "Couldn't close the file." );
 
   return *this;
@@ -177,10 +177,10 @@ RAM::Block &RAM::Block::deserialize() noexcept
   std::FILE *in = std::fopen( file_name, "r+b" );
   assert( in && "Couldn't open the file." );
 
-  auto read_count = std::fread( data.get(), sizeof( std::uint32_t ), RAM::block_size, in );
+  [[maybe_unused]] auto read_count = std::fread( data.get(), sizeof( std::uint32_t ), RAM::block_size, in );
   assert( read_count == RAM::block_size && "Couldn't read from the file." );
 
-  auto close = std::fclose( in );
+  [[maybe_unused]] auto close = std::fclose( in );
   assert( !close && "Couldn't close the file." );
 
   return *this;

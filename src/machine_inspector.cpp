@@ -5,11 +5,11 @@
 #include <mips32/machine_inspector.hpp>
 
 namespace mips32 {
-void MachineInspector::inspect( RAM &ram ) noexcept { this->ram = &ram; }
+void MachineInspector::inspect( RAM &_ram ) noexcept { this->ram = &_ram; }
 
 //void MachineInspector::inspect( Cache &cache ) noexcept { this->cache = &cache; }
 
-void MachineInspector::inspect( CP1 &cp1 ) noexcept { this->cp1 = &cp1; }
+void MachineInspector::inspect( CP1 &_cp1 ) noexcept { this->cp1 = &_cp1; }
 
 /* * * * *
  *       *
@@ -17,8 +17,8 @@ void MachineInspector::inspect( CP1 &cp1 ) noexcept { this->cp1 = &cp1; }
  *       *
  * * * * */
 
-void MachineInspector::save_state( Component c, char const *name ) const noexcept {}
-void MachineInspector::restore_state( Component c, char const *name ) noexcept {}
+void MachineInspector::save_state( Component, char const * ) const noexcept {}
+void MachineInspector::restore_state( Component, char const * ) noexcept {}
 
 /* * * *
  *     *

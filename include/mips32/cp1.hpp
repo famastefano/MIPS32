@@ -3,6 +3,7 @@
 #include <mips32/fpr.hpp>
 
 #include <array>
+#include <cfenv>
 #include <cstdint>
 
 namespace mips32 {
@@ -15,6 +16,11 @@ class CP1
   friend class MachineInspector;
 
   public:
+  CP1()
+  noexcept;
+
+  ~CP1() noexcept;
+
   // Resets the FPU its default state.
   void reset() noexcept;
 
@@ -115,6 +121,8 @@ class CP1
   std::array<FPR, 32> fpr;
 
   std::uint32_t fir, fcsr;
+
+  std::fenv_t env;
 };
 
 } // namespace mips32

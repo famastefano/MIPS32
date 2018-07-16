@@ -3,6 +3,8 @@
 #include <mips32/cp1.hpp>
 #include <mips32/machine_inspector.hpp>
 
+#include <cfenv>
+
 using namespace mips32;
 
 // TODO: change rounding mode
@@ -154,6 +156,32 @@ SCENARIO( "A Coprocessor 1 object exists and it's resetted and inspected" )
         REQUIRE( _begin.double_binary() == 0x8518'FBBB'9871'412C );
         ++_begin;
       }
+    }
+  }
+
+  WHEN( "I change the rounding in the FCSR" )
+  {
+    /*
+    FCSR is register 28
+    0 RN - Round to Nearest
+    1 RZ - Round Toward Zero
+    2 RP - Round Towards Plus Infinity
+    3 RM - Round Towards Minus Infinity
+    */
+
+    THEN( "The FP ENV should reflect that change as well" )
+    {
+      cp1.write( 28, 1 );
+      REQUIRE( std::fegetround() == FE_TOWARDZERO );
+
+      cp1.write( 28, 2 );
+      REQUIRE( std::fegetround() == FE_UPWARD );
+
+      cp1.write( 28, 3 );
+      REQUIRE( std::fegetround() == FE_DOWNWARD );
+
+      cp1.write( 28, 0 );
+      REQUIRE( std::fegetround() == FE_TONEAREST );
     }
   }
 }

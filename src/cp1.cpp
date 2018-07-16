@@ -8,8 +8,6 @@
 #include <pmmintrin.h>
 #include <xmmintrin.h>
 
-// TODO: save/restore the Floating-Point Environment in a RAII way.
-
 // TODO: add assertions to every function to check for fmt
 
 // Access to the Floating-Point Environment
@@ -20,7 +18,6 @@
 #endif
 
 // Disable warnings about truncation of compile time constants
-// Disable warnings on parenthesis with '&' and '|'
 #ifdef _MSC_VER
 #pragma warning( disable : 4309 )
 #endif
@@ -46,6 +43,10 @@ constexpr bool is_SNaN( double d ) noexcept { return d == std::numeric_limits<do
 #define MIPS32_STATIC_CAST( T, v ) static_cast<typename std::remove_reference<decltype( this->fpr[_fs].*T )>::type>( v )
 
 namespace mips32 {
+
+CP1::CP1() noexcept { std::fegetenv( &env ); }
+
+CP1::~CP1() noexcept { std::fesetenv( &env ); }
 
 std::uint32_t CP1::round() const noexcept
 {
@@ -149,7 +150,7 @@ void CP1::set_denormal_flush() noexcept
 
 void CP1::reset() noexcept
 {
-  *this = {};
+  std::memset( fpr.data(), 0, sizeof( FPR ) * fpr.size() );
 
   /*
   fir

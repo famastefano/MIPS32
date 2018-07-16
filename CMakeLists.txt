@@ -42,8 +42,9 @@ target_include_directories(Tests PRIVATE include third-party)
 if (NOT (CMAKE_BUILD_TYPE STREQUAL "Coverage"))
     if(${MSVC})
 
-        target_compile_options(Tests PRIVATE "/W4 /fp:strict")
-        target_compile_definitions(Tests PRIVATE "-D_CRT_SECURE_NO_WARNINGS")
+        target_compile_options(Tests PRIVATE "/Wall")
+        target_compile_options(Tests PRIVATE "/fp:strict")
+        target_compile_definitions(Tests PRIVATE "/D_CRT_SECURE_NO_WARNINGS")
 
     else() # GCC - Clang
         

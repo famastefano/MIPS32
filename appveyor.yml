@@ -18,9 +18,8 @@ image: Visual Studio 2017
 before_build:
 - cmd: |-
     mkdir build
-    cd build
     cmake --version
-    cmake .. -G "Visual Studio 15 2017" -A%platform%
+    cmake . -Bbuild -G "Visual Studio 15 2017" -DCMAKE_BUILD_TYPE=%configuration% -A%platform%
 
 build:
   project: c:\projects\MIPS32\build\MIPS32.sln

@@ -123,10 +123,10 @@ script:
       lcov --list coverage_total.info
     else
       mkdir build-debug && mkdir build-release
-      cmake -Bbuild-debug -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Debug -DARCH=$ARCH
-      cmake -Bbuild-release -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release -DARCH=$ARCH
-      make && file Tests && ctest -C Debug --output-on-failure
-      make && file Tests && ctest -C Release --output-on-failure
+      cmake . -Bbuild-debug -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Debug -DARCH=$ARCH
+      cmake . -Bbuild-release -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release -DARCH=$ARCH
+      cd $TRAVIS_SOURCE_DIR/build-debug && make && file Tests && ctest -C Debug --output-on-failure
+      cd $TRAVIS_SOURCE_DIR/build-release && make && file Tests && ctest -C Release --output-on-failure
     fi
 
 after_success:

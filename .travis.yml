@@ -94,6 +94,52 @@ matrix:
         - MATRIX_EVAL="CC=gcc-7 && CXX=g++-7"
         - ARCH=x86
 
+  # Linux - gcc 8
+    - os: linux
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - g++-8-multilib
+            - libc6-dev:i386
+            - linux-libc-dev:i386
+      env:
+        - MATRIX_EVAL="CC=gcc-8 && CXX=g++-8"
+        - ARCH=x86
+
+  # Linux - clang 5
+    - os: linux
+      addons:
+        apt:
+          sources:
+            - llvm-toolchain-trusty-5.0
+            - ubuntu-toolchain-r-test
+          packages:
+            - clang-5.0
+            - g++-7-multilib
+            - libc6-dev:i386
+            - linux-libc-dev:i386
+      env:
+        - MATRIX_EVAL="CC=clang-5.0 && CXX=clang++-5.0"
+        - ARCH=x86
+
+  # Linux - clang 6
+    - os: linux
+      addons:
+        apt:
+          sources:
+            - llvm-toolchain-trusty-6.0
+            - ubuntu-toolchain-r-test
+          packages:
+            - clang-6.0
+            - g++-7-multilib
+            - libc6-dev:i386
+            - linux-libc-dev:i386
+      env:
+        - MATRIX_EVAL="CC=clang-6.0 && CXX=clang++-6.0"
+        - ARCH=x86
+
 
 before_install:
   - eval "${MATRIX_EVAL}"

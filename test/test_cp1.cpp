@@ -55,4 +55,19 @@ SCENARIO( "A Coprocessor 1 object exists and it's resetted and inspected" )
       REQUIRE( ( before[1] & ~0x0103'FFFF ) == ( after[1] & ~0x0103'FFFF ) );
     }
   }
+
+  WHEN( "I read the FPRs" )
+  {
+    THEN( "All of them are 0" )
+    {
+      auto begin = inspector.CP1_fpr_begin();
+      auto end   = inspector.CP1_fpr_end();
+      while ( begin != end ) {
+        REQUIRE( begin.f == 0.0f );
+        REQUIRE( begin.d == 0.0 );
+        REQUIRE( begin.i32 == 0 );
+        REQUIRE( begin.i64 == 0 );
+      }
+    }
+  }
 }

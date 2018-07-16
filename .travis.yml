@@ -89,6 +89,7 @@ matrix:
           packages:
             - g++-7-multilib
             - libc6-dev-i386
+            - linux-libc-dev-i386
       env:
         - MATRIX_EVAL="CC=gcc-7 && CXX=g++-7"
         - ARCH=x86

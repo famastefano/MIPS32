@@ -63,10 +63,10 @@ SCENARIO( "A Coprocessor 1 object exists and it's resetted and inspected" )
       auto begin = inspector.CP1_fpr_begin();
       auto end   = inspector.CP1_fpr_end();
       while ( begin != end ) {
-        REQUIRE( begin.f == 0.0f );
-        REQUIRE( begin.d == 0.0 );
-        REQUIRE( begin.i32 == 0 );
-        REQUIRE( begin.i64 == 0 );
+        REQUIRE( begin.read_single() == 0.0f );
+        REQUIRE( begin.read_double() == 0.0 );
+        REQUIRE( begin.single_binary() == 0 );
+        REQUIRE( begin.double_binary() == 0 );
       }
     }
   }

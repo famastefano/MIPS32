@@ -44,28 +44,28 @@ if (NOT (CMAKE_BUILD_TYPE STREQUAL "Coverage"))
 
         target_compile_options(Tests PRIVATE "/W4")
         target_compile_options(Tests PRIVATE "/fp:strict")
-        target_compile_definitions(Tests PRIVATE "/D_CRT_SECURE_NO_WARNINGS")
+        target_compile_definitions(Tests PRIVATE "-D_CRT_SECURE_NO_WARNINGS")
 
     else() # GCC - Clang
         
         if(${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang")
 
-            target_compile_options(Tests PRIVATE "-Wno-logical-op-parentheses")
-            target_compile_definitions(Tests PRIVATE "-DCATCH_CONFIG_NO_CPP17_UNCAUGHT_EXCEPTIONS")
+            target_compile_options(Tests PRIVATE -Wno-logical-op-parentheses)
+            #target_compile_definitions(Tests PRIVATE "-DCATCH_CONFIG_NO_CPP17_UNCAUGHT_EXCEPTIONS")
 
         endif()
 
         target_compile_options(Tests PRIVATE "$<$<ARCH:x86>:-m32>")
         target_compile_options(Tests PRIVATE "$<$<ARCH:x64>:-m64>")
 
-        target_compile_options(Tests PRIVATE "-Wall -Wextra -mfpmath=sse -msse2 -pedantic")
+        target_compile_options(Tests PRIVATE -Wall -Wextra -mfpmath=sse -msse2 -pedantic)
 
     endif() # GCC - Clang
 endif()
 
 if (CMAKE_BUILD_TYPE STREQUAL "Coverage")
-    target_compile_options(Tests PRIVATE "-g -O0 --coverage")
-    target_link_libraries(Tests PRIVATE "-lgcov --coverage")
+    target_compile_options(Tests PRIVATE -g -O0 --coverage)
+    target_link_libraries(Tests PRIVATE -lgcov --coverage)
     #set_target_properties(Tests PROPERTIES COMPILE_FLAGS "-g -O0 --coverage" LINK_FLAGS "-lgcov --coverage")
 endif()
 

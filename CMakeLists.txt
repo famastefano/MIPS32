@@ -40,7 +40,7 @@ target_compile_features(Tests PRIVATE cxx_std_17)
 target_include_directories(Tests PRIVATE include third-party)
 
 if (NOT (CMAKE_BUILD_TYPE STREQUAL "Coverage"))
-    if(${MSVC})
+    if(MSVC)
 
         target_compile_options(Tests PRIVATE "/W4")
         target_compile_options(Tests PRIVATE "/fp:strict")
@@ -55,8 +55,8 @@ if (NOT (CMAKE_BUILD_TYPE STREQUAL "Coverage"))
 
         endif()
 
-        target_compile_options(Tests PRIVATE "$<$<ARCH:x86>:-m32>")
-        target_compile_options(Tests PRIVATE "$<$<ARCH:x64>:-m64>")
+        target_compile_options(Tests PRIVATE "$<$<STREQUAL:${ARCH},x86>:-m32>")
+        target_compile_options(Tests PRIVATE "$<$<STREQUAL:${ARCH},x64>:-m64>")
 
         target_compile_options(Tests PRIVATE -Wall -Wextra -mfpmath=sse -msse2 -pedantic)
 

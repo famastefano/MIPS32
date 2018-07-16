@@ -19,11 +19,12 @@ class MachineInspector
   enum class Component
   {
     RAM,
-    CACHE,
+    //CACHE,
+    CP1,
   };
 
   void inspect( RAM &ram ) noexcept;
-  void inspect( Cache &cache ) noexcept;
+  // void inspect( Cache &cache ) noexcept;
   void inspect( CP1 &cp1 ) noexcept;
 
   /* * * * *
@@ -65,7 +66,7 @@ class MachineInspector
    * CACHE *
    *       *
    * * * * */
-
+  /*
   class CacheBlockIterator;
 
   CacheBlockIterator CACHE_block_begin() noexcept;
@@ -74,7 +75,7 @@ class MachineInspector
   std::uint32_t CACHE_line_no() const noexcept;
   std::uint32_t CACHE_associativity() const noexcept;
   std::uint32_t CACHE_block_size() const noexcept;
-
+*/
   /* * * * *
    *       *
    * COP 1 *
@@ -94,12 +95,12 @@ class MachineInspector
   private:
   RAM *ram;
 
-  Cache *cache;
+  //Cache *cache;
 
   CP1 *cp1;
 };
 
-#include <mips32/inspector_iterators/cache_iterator.hpp>
+//#include <mips32/inspector_iterators/cache_iterator.hpp>
 
 #include <mips32/inspector_iterators/cp1_iterator.hpp>
 

@@ -110,17 +110,7 @@ class RAM
    *      This means that every block can be selected for the next substitution.
    *   3. Returns the last block, that is the least accessed (due to sorting).
    **/
-  Block &least_accessed() noexcept
-  {
-    std::sort( blocks.begin(), blocks.end(),
-               []( Block &lhs, Block &rhs ) -> bool {
-                 return lhs.access_count > rhs.access_count;
-               } );
-
-    for ( auto &block : blocks ) block.access_count = 0;
-
-    return blocks.back();
-  }
+  Block &least_accessed() noexcept;
 
   std::uint32_t             alloc_limit; // Maximum number of allocable bytes.
   std::vector<Block>        blocks;      // Block list.

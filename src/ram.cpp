@@ -19,6 +19,18 @@ RAM::RAM( std::uint32_t alloc_limit ) : alloc_limit( alloc_limit / sizeof( std::
   blocks.reserve( alloc_limit / block_size );
 }
 
+RAM::Block &RAM::least_accessed() noexcept
+{
+  std::sort( blocks.begin(), blocks.end(),
+             []( Block &lhs, Block &rhs ) -> bool {
+               return lhs.access_count > rhs.access_count;
+             } );
+
+  for ( auto &block : blocks ) block.access_count = 0;
+
+  return blocks.back();
+}
+
 /**
  * We need to retrieve the block that contains the address.
  * If the block doesn't exists, we need to create it.

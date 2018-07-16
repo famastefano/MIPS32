@@ -7,7 +7,7 @@
 namespace mips32 {
 void MachineInspector::inspect( RAM &ram ) noexcept { this->ram = &ram; }
 
-void MachineInspector::inspect( Cache &cache ) noexcept { this->cache = &cache; }
+//void MachineInspector::inspect( Cache &cache ) noexcept { this->cache = &cache; }
 
 void MachineInspector::inspect( CP1 &cp1 ) noexcept { this->cp1 = &cp1; }
 
@@ -82,7 +82,7 @@ std::vector<std::uint32_t> MachineInspector::RAM_swapped_addresses() const
  * CACHE *
  *       *
  * * * * */
-
+/*
 MachineInspector::CacheBlockIterator MachineInspector::CACHE_block_begin() noexcept
 {
   return {cache->headers.data(),
@@ -111,7 +111,7 @@ std::uint32_t MachineInspector::CACHE_block_size() const noexcept
 {
   return cache->words_per_block;
 }
-
+*/
 /* * * * *
  *       *
  * COP 1 *

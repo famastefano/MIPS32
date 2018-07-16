@@ -54,24 +54,24 @@ std::uint32_t CP1::round() const noexcept
 }
 std::uint32_t CP1::flags() const noexcept
 {
-  return fcsr & 0x7C >> 2;
+  return ( fcsr & 0x7C ) >> 2;
 }
 std::uint32_t CP1::enable() const noexcept
 {
-  return fcsr & 0xF80 >> 7;
+  return ( fcsr & 0xF80 ) >> 7;
 }
 std::uint32_t CP1::cause() const noexcept
 {
-  return fcsr & 0x3'F000 >> 12;
+  return ( fcsr & 0x3'F000 ) >> 12;
 }
 
 void CP1::set_flags( std::uint32_t flag ) noexcept
 {
-  fcsr |= flag & 0x1F << 2;
+  fcsr |= ( flag & 0x1F ) << 2;
 }
 void CP1::set_cause( std::uint32_t data ) noexcept
 {
-  fcsr |= data & 0x2F << 12;
+  fcsr |= ( data & 0x2F ) << 12;
 }
 
 bool CP1::handle_fpu_ex() noexcept
@@ -109,22 +109,30 @@ bool CP1::handle_fpu_ex() noexcept
 
 constexpr std::uint32_t fmt( std::uint32_t word ) noexcept
 {
-  return word & 0x03E0'0000 >> 21;
+  return ( word & 0x03E0'0000 ) >> 21;
 }
 
 constexpr std::uint32_t fd( std::uint32_t word ) noexcept
 {
-  return word & 0x07C0 >> 6;
+  return ( word & 0x07C0 ) >> 6;
 }
 
 constexpr std::uint32_t fs( std::uint32_t word ) noexcept
 {
-  return word & 0xF800 >> 11;
+  return ( word & 0xF800 ) >> 11;
 }
 
 constexpr std::uint32_t ft( std::uint32_t word ) noexcept
 {
-  return word & 0x1F'0000 >> 16;
+  return ( word & 0x1F'0000 ) >> 16;
+}
+
+bool valid_fmt( std::uint32_t word ) noexcept
+{
+  bool basic = ( fmt( word ) == FMT_S || fmt( word ) == FMT_D ) && ( word & FUNCTION ) < 41;
+  bool cmp   = ( fmt( word ) == CMP_FMT_S || fmt( word ) == CMP_FMT_D ) && ( word & FUNCTION ) >= 41;
+
+  return basic || cmp;
 }
 
 void CP1::set_round_mode() noexcept
@@ -215,64 +223,67 @@ CP1::Exception CP1::execute( std::uint32_t word ) noexcept
 {
   assert( ( ( ( word & 0xFC00'0000 ) >> 26 ) == 0b010001 ) && "Invalid Opcode!" );
 
-  static constexpr std::array<int ( CP1::* )( std::uint32_t ) noexcept, 64> function_table{
-      &CP1::add,
-      &CP1::sub,
-      &CP1::mul,
-      &CP1::div,
-      &CP1::sqrt,
-      &CP1::abs,
-      &CP1::mov,
-      &CP1::neg,
-      &CP1::unimplemented, // ROUND.L
-      &CP1::unimplemented, // TRUNC.L
-      &CP1::unimplemented, // CEIL.L
-      &CP1::unimplemented, // FLOOR.L
-      &CP1::unimplemented, // ROUND.W
-      &CP1::unimplemented, // TRUNC.W
-      &CP1::unimplemented, // CEIL.W
-      &CP1::unimplemented, // FLOOR.W
-      &CP1::sel,
-      &CP1::reserved, // MOVCF [6R]
-      &CP1::reserved, // MOVZ  [6R]
-      &CP1::reserved, // MOVN  [6R]
-      &CP1::seleqz,
-      &CP1::recip,
-      &CP1::rsqrt,
-      &CP1::selnez,
-      &CP1::maddf,
-      &CP1::msubf,
-      &CP1::rint,
-      &CP1::class_,
-      &CP1::min,
-      &CP1::max,
-      &CP1::mina,
-      &CP1::maxa,
-      &CP1::cvt_s,
-      &CP1::cvt_d,
-      &CP1::reserved,      // *
-      &CP1::reserved,      // *
-      &CP1::unimplemented, // CVT.L
-      &CP1::unimplemented, // CVT.W
-      &CP1::unimplemented, // CVT.PS
-      &CP1::reserved,      // *
-      &CP1::cabs_af,
-      &CP1::cabs_un,
-      &CP1::cabs_eq,
-      &CP1::cabs_ueq,
-      &CP1::cabs_lt,
-      &CP1::cabs_ult,
-      &CP1::cabs_le,
-      &CP1::cabs_ule,
-      &CP1::cabs_saf,
-      &CP1::cabs_sun,
-      &CP1::cabs_seq,
-      &CP1::cabs_sueq,
-      &CP1::cabs_slt,
-      &CP1::cabs_sult,
-      &CP1::cabs_sle,
-      &CP1::cabs_sule,
-  };
+  assert( valid_fmt( word ) && "Invalid format!" );
+
+  static constexpr std::array<int ( CP1::* )( std::uint32_t ) noexcept, 64>
+      function_table{
+          &CP1::add,
+          &CP1::sub,
+          &CP1::mul,
+          &CP1::div,
+          &CP1::sqrt,
+          &CP1::abs,
+          &CP1::mov,
+          &CP1::neg,
+          &CP1::unimplemented, // ROUND.L
+          &CP1::unimplemented, // TRUNC.L
+          &CP1::unimplemented, // CEIL.L
+          &CP1::unimplemented, // FLOOR.L
+          &CP1::unimplemented, // ROUND.W
+          &CP1::unimplemented, // TRUNC.W
+          &CP1::unimplemented, // CEIL.W
+          &CP1::unimplemented, // FLOOR.W
+          &CP1::sel,
+          &CP1::reserved, // MOVCF [6R]
+          &CP1::reserved, // MOVZ  [6R]
+          &CP1::reserved, // MOVN  [6R]
+          &CP1::seleqz,
+          &CP1::recip,
+          &CP1::rsqrt,
+          &CP1::selnez,
+          &CP1::maddf,
+          &CP1::msubf,
+          &CP1::rint,
+          &CP1::class_,
+          &CP1::min,
+          &CP1::max,
+          &CP1::mina,
+          &CP1::maxa,
+          &CP1::cvt_s,
+          &CP1::cvt_d,
+          &CP1::reserved,      // *
+          &CP1::reserved,      // *
+          &CP1::unimplemented, // CVT.L
+          &CP1::unimplemented, // CVT.W
+          &CP1::unimplemented, // CVT.PS
+          &CP1::reserved,      // *
+          &CP1::cabs_af,
+          &CP1::cabs_un,
+          &CP1::cabs_eq,
+          &CP1::cabs_ueq,
+          &CP1::cabs_lt,
+          &CP1::cabs_ult,
+          &CP1::cabs_le,
+          &CP1::cabs_ule,
+          &CP1::cabs_saf,
+          &CP1::cabs_sun,
+          &CP1::cabs_seq,
+          &CP1::cabs_sueq,
+          &CP1::cabs_slt,
+          &CP1::cabs_sult,
+          &CP1::cabs_sle,
+          &CP1::cabs_sule,
+      };
 
   int v = ( this->*function_table[word & FUNCTION] )( word );
 

@@ -65,7 +65,7 @@ std::uint32_t &RAM::operator[]( std::uint32_t address ) noexcept
   for ( auto &block : blocks ) {
     if ( contains( block.base_address, address, block_size ) ) {
       // Return the word
-      return block[address & ~0b11 - block.base_address];
+      return block[( address & ~0b11 ) - block.base_address];
     }
   }
 
@@ -87,7 +87,7 @@ std::uint32_t &RAM::operator[]( std::uint32_t address ) noexcept
       block_on_disk.base_address = old_addr;
 
       // Return the word
-      return allocated_block[address & ~0b11 - allocated_block.base_address];
+      return allocated_block[( address & ~0b11 ) - allocated_block.base_address];
     }
   }
 
@@ -107,7 +107,7 @@ std::uint32_t &RAM::operator[]( std::uint32_t address ) noexcept
 
     // Return the word
     auto &block = blocks.back();
-    return block[address & ~0b11 - block.base_address];
+    return block[( address & ~0b11 ) - block.base_address];
   }
   // Case 3.2
   else {
@@ -125,7 +125,7 @@ std::uint32_t &RAM::operator[]( std::uint32_t address ) noexcept
       allocated_block.base_address += block_size;
 
     // Return the word
-    return allocated_block[address & ~0b11 - allocated_block.base_address];
+    return allocated_block[( address & ~0b11 ) - allocated_block.base_address];
   }
 }
 

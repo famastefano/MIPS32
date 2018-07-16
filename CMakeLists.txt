@@ -51,8 +51,9 @@ if (NOT (CMAKE_BUILD_TYPE STREQUAL "Coverage"))
         if(${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang")
 
             target_compile_options(Tests PRIVATE -Wno-logical-op-parentheses)
-            #target_compile_definitions(Tests PRIVATE "-DCATCH_CONFIG_NO_CPP17_UNCAUGHT_EXCEPTIONS")
-
+            
+        else() # GCC
+            target_compile_options(Tests PRIVATE -Wparentheses)
         endif()
 
         target_compile_options(Tests PRIVATE "$<$<STREQUAL:${ARCH},x86>:-m32>")
@@ -66,7 +67,6 @@ endif()
 if (CMAKE_BUILD_TYPE STREQUAL "Coverage")
     target_compile_options(Tests PRIVATE -g -O0 --coverage)
     target_link_libraries(Tests PRIVATE -lgcov --coverage)
-    #set_target_properties(Tests PROPERTIES COMPILE_FLAGS "-g -O0 --coverage" LINK_FLAGS "-lgcov --coverage")
 endif()
 
 include(CTest)

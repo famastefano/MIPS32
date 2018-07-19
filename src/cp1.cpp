@@ -3,6 +3,7 @@
 #include <cassert>
 #include <cfenv>
 #include <cmath>
+#include <cstring>
 #include <limits>
 
 #include <pmmintrin.h>

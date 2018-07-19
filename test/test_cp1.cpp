@@ -3,11 +3,23 @@
 #include <mips32/cp1.hpp>
 #include <mips32/machine_inspector.hpp>
 
+#include <array>
 #include <cfenv>
+#include <cmath>
+#include <string_view>
 
 using namespace mips32;
 
-// TODO: change rounding mode
+// [OPCODE][FMT][R1][R2][R3][FUNCTION]
+// [COP1][S|D][0-31][0-31][0-31][0-63]
+
+constexpr std::uint32_t operator""_inst( char const *c, std::size_t ) noexcept;
+constexpr std::uint32_t operator""_r1( unsigned long long n ) noexcept;
+constexpr std::uint32_t operator""_r2( unsigned long long n ) noexcept;
+constexpr std::uint32_t operator""_r3( unsigned long long n ) noexcept;
+constexpr std::uint32_t FMT_S{0x10 << 21};
+constexpr std::uint32_t FMT_D{0x11 << 21};
+
 // TODO: provoke FPU exception
 // TODO: test every instruction for every format
 
@@ -184,4 +196,642 @@ SCENARIO( "A Coprocessor 1 object exists and it's resetted and inspected" )
       REQUIRE( std::fegetround() == FE_TONEAREST );
     }
   }
+
+  /* * * * * * * * *
+   *               *
+   *  INSTRUCTIONS *
+   *               *
+   * * * * * * * * */
+
+  // In alphabetically order, because that's how the manual order them
+
+  WHEN( "ABS.S $f0, $f2 and ABS.D $f14, $f8 is executed" )
+  {
+    auto abs_s = "ABS"_inst | FMT_S | 0_r1 | 2_r2;
+    auto abs_d = "ABS"_inst | FMT_D | 14_r1 | 8_r2;
+
+    inspector.CP1_fpr( 2 ) = -1.f;   // $f2 = -1.f
+    inspector.CP1_fpr( 8 ) = -897.0; // $f8 == -897.0;
+
+    THEN( "The result must be correct" )
+    {
+      auto rs = cp1.execute( abs_s );
+      auto rd = cp1.execute( abs_d );
+
+      REQUIRE( rs == CP1::Exception::NONE );
+      REQUIRE( rd == CP1::Exception::NONE );
+
+      REQUIRE( inspector.CP1_fpr( 0 ).read_single() == 1.f );
+      REQUIRE( inspector.CP1_fpr( 14 ).read_double() == 897.0 );
+    }
+  }
+
+  WHEN( "ADD.S $f31, $f7, $f21 and ADD.D $f18, $f17, $f16 is executed" )
+  {
+    auto add_s = "ADD"_inst | FMT_S | 31_r1 | 7_r2 | 21_r3;
+    auto add_d = "ADD"_inst | FMT_D | 18_r1 | 17_r2 | 16_r3;
+
+    inspector.CP1_fpr( 7 )  = 38.f;
+    inspector.CP1_fpr( 21 ) = 1285.f;
+
+    inspector.CP1_fpr( 17 ) = 429.0;
+    inspector.CP1_fpr( 16 ) = -2943.0;
+
+    auto res_s = 38.0f + 1285.0f;
+    auto res_d = 429.0 + ( -2943.0 );
+
+    THEN( "The result must be correct" )
+    {
+      auto rs = cp1.execute( add_s );
+      auto rd = cp1.execute( add_d );
+
+      REQUIRE( rs == CP1::Exception::NONE );
+      REQUIRE( rd == CP1::Exception::NONE );
+
+      REQUIRE( inspector.CP1_fpr( 31 ).read_single() == res_s );
+      REQUIRE( inspector.CP1_fpr( 18 ).read_double() == res_d );
+    }
+  }
+
+  // TODO: cmp.condn.fmt
+
+  // TODO: class
+
+  WHEN( "CVT.D.S $f19, $f15 is executed" )
+  {
+    auto cvt_d = "CVT_D"_inst | FMT_S | 19_r1 | 15_r2;
+
+    inspector.CP1_fpr( 15 ) = 1509.f;
+
+    auto res = 1509.0;
+
+    THEN( "The result must be correct" )
+    {
+      auto rs = cp1.execute( cvt_d );
+
+      REQUIRE( rs == CP1::Exception::NONE );
+
+      REQUIRE( inspector.CP1_fpr( 19 ).read_double() == res );
+    }
+  }
+
+  WHEN( "CVT.S.D $f3, $f9 is executed" )
+  {
+    auto cvt_s = "CVT_S"_inst | FMT_D | 3_r1 | 9_r2;
+
+    inspector.CP1_fpr( 9 ) = 8374.0;
+
+    auto res = 8374.0f;
+
+    THEN( "The result must be correct" )
+    {
+      auto rd = cp1.execute( cvt_s );
+
+      REQUIRE( rd == CP1::Exception::NONE );
+
+      REQUIRE( inspector.CP1_fpr( 3 ).read_single() == res );
+    }
+  }
+
+  WHEN( "DIV.S $f1, $f2, $f3 and DIV.D $f4, $f5, $f6 are executed" )
+  {
+    auto div_s = "DIV"_inst | FMT_S | 1_r1 | 2_r2 | 3_r3;
+    auto div_d = "DIV"_inst | FMT_D | 4_r1 | 5_r2 | 6_r3;
+
+    inspector.CP1_fpr( 2 ) = 121.0f;
+    inspector.CP1_fpr( 3 ) = 11.0f;
+
+    inspector.CP1_fpr( 5 ) = 240.0;
+    inspector.CP1_fpr( 6 ) = 2.0;
+
+    auto res_s = 121.0f / 11.0f;
+    auto res_d = 240.0f / 2.0f;
+
+    THEN( "The result must be correct" )
+    {
+      auto rs = cp1.execute( div_s );
+      auto rd = cp1.execute( div_d );
+
+      REQUIRE( rs == CP1::Exception::NONE );
+      REQUIRE( rd == CP1::Exception::NONE );
+
+      REQUIRE( inspector.CP1_fpr( 1 ).read_single() == res_s );
+      REQUIRE( inspector.CP1_fpr( 4 ).read_double() == res_d );
+    }
+  }
+
+  WHEN( "MADDF.S $f10, $f11, $f12 and MADDF.D $f20, $f20, $f20 are executed" )
+  {
+    auto maddf_s = "MADDF"_inst | FMT_S | 10_r1 | 11_r2 | 12_r3;
+    auto maddf_d = "MADDF"_inst | FMT_D | 20_r1 | 20_r2 | 20_r3;
+
+    inspector.CP1_fpr( 10 ) = 31.0f;
+    inspector.CP1_fpr( 11 ) = 89.0f;
+    inspector.CP1_fpr( 12 ) = 61000.0f;
+
+    inspector.CP1_fpr( 20 ) = 14912.0;
+
+    auto res_s = std::fma( 89.0f, 61000.0f, 31.0f );
+    auto res_d = std::fma( 14912.0, 14912.0, 14912.0 );
+
+    THEN( "The result must be correct" )
+    {
+      auto rs = cp1.execute( maddf_s );
+      auto rd = cp1.execute( maddf_d );
+
+      REQUIRE( rs == CP1::Exception::NONE );
+      REQUIRE( rd == CP1::Exception::NONE );
+
+      REQUIRE( inspector.CP1_fpr( 10 ).read_single() == res_s );
+      REQUIRE( inspector.CP1_fpr( 20 ).read_double() == res_d );
+    }
+  }
+
+  WHEN( "MSUBF.S $f9, $f21, $f13 and MSUBF.D $f1, $f1, $f1 are executed" )
+  {
+    auto msubf_s = "MSUBF"_inst | FMT_S | 9_r1 | 21_r2 | 13_r3;
+    auto msubf_d = "MSUBF"_inst | FMT_D | 1_r1 | 1_r2 | 1_r3;
+
+    inspector.CP1_fpr( 9 )  = 9.0f;
+    inspector.CP1_fpr( 21 ) = 40'000.0f;
+    inspector.CP1_fpr( 13 ) = 2.0f;
+
+    inspector.CP1_fpr( 1 ) = 7202.0;
+
+    auto res_s = 9.0f - ( 40'000.0f / 2.0f );
+    auto res_d = 7202.0 - ( 7202.0 / 7202.0 );
+
+    THEN( "The result must be correct" )
+    {
+      auto rs = cp1.execute( msubf_s );
+      auto rd = cp1.execute( msubf_d );
+
+      REQUIRE( rs == CP1::Exception::NONE );
+      REQUIRE( rd == CP1::Exception::NONE );
+
+      REQUIRE( inspector.CP1_fpr( 9 ).read_single() == res_s );
+      REQUIRE( inspector.CP1_fpr( 1 ).read_double() == res_d );
+    }
+  }
+
+  WHEN( "MAX.S $f5, $f8, $f0 and MAX.D $f0, $f11, $f11 are executed" )
+  {
+    auto max_s = "MAX"_inst | FMT_S | 5_r1 | 8_r2 | 0_r3;
+    auto max_d = "MAX"_inst | FMT_D | 0_r1 | 11_r2 | 11_r3;
+
+    inspector.CP1_fpr( 8 ) = 60.0f;
+    inspector.CP1_fpr( 0 ) = 59.0f;
+
+    inspector.CP1_fpr( 11 ) = 239'457.0;
+
+    auto res_s = 60.0f;
+    auto res_d = 239'457.0;
+
+    THEN( "The result must be correct" )
+    {
+      auto rs = cp1.execute( max_s );
+      auto rd = cp1.execute( max_d );
+
+      REQUIRE( rs == CP1::Exception::NONE );
+      REQUIRE( rd == CP1::Exception::NONE );
+
+      REQUIRE( inspector.CP1_fpr( 5 ).read_single() == res_s );
+      REQUIRE( inspector.CP1_fpr( 0 ).read_double() == res_d );
+    }
+  }
+
+  WHEN( "MIN.S $f18, $f30, $f27 and MIN.D $f4, $f25, $f22 are executed" )
+  {
+    auto max_s = "MIN"_inst | FMT_S | 18_r1 | 30_r2 | 27_r3;
+    auto max_d = "MIN"_inst | FMT_D | 4_r1 | 25_r2 | 22_r3;
+
+    inspector.CP1_fpr( 30 ) = 8345.0f;
+    inspector.CP1_fpr( 27 ) = 34'897.0f;
+
+    inspector.CP1_fpr( 25 ) = -98'345.0;
+    inspector.CP1_fpr( 22 ) = 0.0;
+
+    auto res_s = 8345.0f;
+    auto res_d = -98'345.0;
+
+    THEN( "The result must be correct" )
+    {
+      auto rs = cp1.execute( max_s );
+      auto rd = cp1.execute( max_d );
+
+      REQUIRE( rs == CP1::Exception::NONE );
+      REQUIRE( rd == CP1::Exception::NONE );
+
+      REQUIRE( inspector.CP1_fpr( 18 ).read_single() == res_s );
+      REQUIRE( inspector.CP1_fpr( 4 ).read_double() == res_d );
+    }
+  }
+
+  WHEN( "MAXA.S $f26, $f12, $f29 and MAXA.D $f0, $f1, $f6 are executed" )
+  {
+    auto maxa_s = "MAXA"_inst | FMT_S | 26_r1 | 12_r2 | 29_r3;
+    auto maxa_d = "MAXA"_inst | FMT_D | 0_r1 | 1_r2 | 6_r3;
+
+    inspector.CP1_fpr( 12 ) = -3984.0f;
+    inspector.CP1_fpr( 29 ) = -6230.0f;
+
+    inspector.CP1_fpr( 1 ) = 923.0;
+    inspector.CP1_fpr( 6 ) = -18'000.0;
+
+    auto res_s = 6230.0f;
+    auto res_d = 18'000.0;
+
+    THEN( "The result must be correct" )
+    {
+      auto rs = cp1.execute( maxa_s );
+      auto rd = cp1.execute( maxa_d );
+
+      REQUIRE( rs == CP1::Exception::NONE );
+      REQUIRE( rd == CP1::Exception::NONE );
+
+      REQUIRE( inspector.CP1_fpr( 26 ).read_single() == res_s );
+      REQUIRE( inspector.CP1_fpr( 0 ).read_double() == res_d );
+    }
+  }
+
+  WHEN( "MINA.S $f31, $f30, $f29 and MINA.D $f2, $f4, $f8 are executed" )
+  {
+    auto mina_s = "MINA"_inst | FMT_S | 31_r1 | 30_r2 | 29_r3;
+    auto mina_d = "MINA"_inst | FMT_D | 2_r1 | 4_r2 | 8_r3;
+
+    inspector.CP1_fpr( 30 ) = -245.0f;
+    inspector.CP1_fpr( 29 ) = -988.0f;
+
+    inspector.CP1_fpr( 4 ) = 586.0;
+    inspector.CP1_fpr( 8 ) = -6000.0;
+
+    auto res_s = 245.0f;
+    auto res_d = 586.0;
+
+    THEN( "The result must be correct" )
+    {
+      auto rs = cp1.execute( mina_s );
+      auto rd = cp1.execute( mina_d );
+
+      REQUIRE( rs == CP1::Exception::NONE );
+      REQUIRE( rd == CP1::Exception::NONE );
+
+      REQUIRE( inspector.CP1_fpr( 31 ).read_single() == res_s );
+      REQUIRE( inspector.CP1_fpr( 2 ).read_double() == res_d );
+    }
+  }
+
+  WHEN( "MOV.S $f10, $f18 and MOV.D $f21, $f3 are executed" )
+  {
+    auto mov_s = "MOV"_inst | FMT_S | 10_r1 | 18_r2;
+    auto mov_d = "MOV"_inst | FMT_D | 21_r1 | 3_r2;
+
+    inspector.CP1_fpr( 18 ) = 681.0f;
+
+    inspector.CP1_fpr( 3 ) = -50'000.0;
+
+    auto res_s = 681.0f;
+    auto res_d = -50'000.0;
+
+    THEN( "The result must be correct" )
+    {
+      auto rs = cp1.execute( mov_s );
+      auto rd = cp1.execute( mov_d );
+
+      REQUIRE( rs == CP1::Exception::NONE );
+      REQUIRE( rd == CP1::Exception::NONE );
+
+      REQUIRE( inspector.CP1_fpr( 10 ).read_single() == res_s );
+      REQUIRE( inspector.CP1_fpr( 21 ).read_double() == res_d );
+    }
+  }
+
+  WHEN( "MUL.S $f15, $f9, $f2 and MUL.D $f13, $f0, $f7 are executed" )
+  {
+    auto mul_s = "MUL"_inst | FMT_S | 15_r1 | 9_r2 | 2_r3;
+    auto mul_d = "MUL"_inst | FMT_D | 13_r1 | 0_r2 | 7_r3;
+
+    inspector.CP1_fpr( 9 ) = 2.0f;
+    inspector.CP1_fpr( 2 ) = -1024.0f;
+
+    inspector.CP1_fpr( 0 ) = 88.0;
+    inspector.CP1_fpr( 7 ) = 621.0;
+
+    auto res_s = 2.0f * -1024.0f;
+    auto res_d = 88.0 * 621.0;
+
+    THEN( "The result must be correct" )
+    {
+      auto rs = cp1.execute( mul_s );
+      auto rd = cp1.execute( mul_d );
+
+      REQUIRE( rs == CP1::Exception::NONE );
+      REQUIRE( rd == CP1::Exception::NONE );
+
+      REQUIRE( inspector.CP1_fpr( 15 ).read_single() == res_s );
+      REQUIRE( inspector.CP1_fpr( 13 ).read_double() == res_d );
+    }
+  }
+
+  WHEN( "NEG.S $f5, $f6 and NEG.D $f7, $f8 are executed" )
+  {
+    auto neg_s = "NEG"_inst | FMT_S | 5_r1 | 6_r2;
+    auto neg_d = "NEG"_inst | FMT_D | 7_r1 | 8_r2;
+
+    inspector.CP1_fpr( 6 ) = 1234.0f;
+
+    inspector.CP1_fpr( 8 ) = 0.0;
+
+    auto res_s = -1234.0f;
+    auto res_d = -0.0;
+
+    THEN( "The result must be correct" )
+    {
+      auto rs = cp1.execute( neg_s );
+      auto rd = cp1.execute( neg_d );
+
+      REQUIRE( rs == CP1::Exception::NONE );
+      REQUIRE( rd == CP1::Exception::NONE );
+
+      REQUIRE( inspector.CP1_fpr( 5 ).read_single() == res_s );
+      REQUIRE( inspector.CP1_fpr( 7 ).read_double() == res_d );
+    }
+  }
+
+  WHEN( "RECIP.S $f9, $f8 and RECIP.D $f31, $f0 are executed" )
+  {
+    auto recip_s = "RECIP"_inst | FMT_S | 9_r1 | 8_r2;
+    auto recip_d = "RECIP"_inst | FMT_D | 31_r1 | 0_r2;
+
+    inspector.CP1_fpr( 8 ) = 67.0f;
+
+    inspector.CP1_fpr( 0 ) = -851.0;
+
+    auto res_s = 1.0f / 67.0f;
+    auto res_d = 1.0 / -851.0;
+
+    THEN( "The result must be correct" )
+    {
+      auto rs = cp1.execute( recip_s );
+      auto rd = cp1.execute( recip_d );
+
+      REQUIRE( rs == CP1::Exception::NONE );
+      REQUIRE( rd == CP1::Exception::NONE );
+
+      REQUIRE( inspector.CP1_fpr( 9 ).read_single() == res_s );
+      REQUIRE( inspector.CP1_fpr( 31 ).read_double() == res_d );
+    }
+  }
+
+  // TODO: rint
+
+  WHEN( "RSQRT.S $f17, $f21 and RSQRT.D $f24, $f30 are executed" )
+  {
+    auto rsqrt_s = "RSQRT"_inst | FMT_S | 17_r1 | 21_r2;
+    auto rsqrt_d = "RSQRT"_inst | FMT_D | 24_r1 | 30_r2;
+
+    inspector.CP1_fpr( 21 ) = 25.0f;
+
+    inspector.CP1_fpr( 30 ) = 256.0;
+
+    auto res_s = 1.0f / std::sqrt( 25.0f );
+    auto res_d = 1.0 / std::sqrt( 256.0 );
+
+    THEN( "The result must be correct" )
+    {
+      auto rs = cp1.execute( rsqrt_s );
+      auto rd = cp1.execute( rsqrt_d );
+
+      REQUIRE( rs == CP1::Exception::NONE );
+      REQUIRE( rd == CP1::Exception::NONE );
+
+      REQUIRE( inspector.CP1_fpr( 17 ).read_single() == res_s );
+      REQUIRE( inspector.CP1_fpr( 24 ).read_double() == res_d );
+    }
+  }
+
+  WHEN( "SEL.S $f8, $f11, $f12 and SEL.D $f0, $f1, $f3 are executed" )
+  {
+    auto sel_s = "SEL"_inst | FMT_S | 8_r1 | 11_r2 | 12_r3;
+    auto sel_d = "SEL"_inst | FMT_D | 0_r1 | 1_r2 | 3_r3;
+
+    inspector.CP1_fpr( 8 )  = std::uint32_t( 0 );
+    inspector.CP1_fpr( 11 ) = 48.0f;
+    inspector.CP1_fpr( 12 ) = 18'000.0f;
+
+    inspector.CP1_fpr( 0 ) = std::uint64_t( 1 );
+    inspector.CP1_fpr( 1 ) = -8888.0;
+    inspector.CP1_fpr( 3 ) = -141.0;
+
+    auto res_s = 48.0f;
+    auto res_d = -141.0;
+
+    THEN( "The result must be correct" )
+    {
+      auto rs = cp1.execute( sel_s );
+      auto rd = cp1.execute( sel_d );
+
+      REQUIRE( rs == CP1::Exception::NONE );
+      REQUIRE( rd == CP1::Exception::NONE );
+
+      REQUIRE( inspector.CP1_fpr( 8 ).read_single() == res_s );
+      REQUIRE( inspector.CP1_fpr( 0 ).read_double() == res_d );
+    }
+  }
+
+  WHEN( "SELEQZ.S $f9, $f8, $f7 and SELEQZ.D $f27, $f26, $f25 are executed" )
+  {
+    auto seleqz_s = "SELEQZ"_inst | FMT_S | 9_r1 | 8_r2 | 7_r3;
+    auto seleqz_d = "SELEQZ"_inst | FMT_D | 27_r1 | 26_r2 | 25_r3;
+
+    inspector.CP1_fpr( 9 ) = 92'837.0f;
+    inspector.CP1_fpr( 8 ) = 564.0f;
+    inspector.CP1_fpr( 7 ) = std::uint32_t( 1 );
+
+    inspector.CP1_fpr( 27 ) = 39'847.0;
+    inspector.CP1_fpr( 26 ) = 987.0;
+    inspector.CP1_fpr( 25 ) = std::uint64_t( 0 );
+
+    auto res_s = 0.0f;
+    auto res_d = 987.0;
+
+    THEN( "The result must be correct" )
+    {
+      auto rs = cp1.execute( seleqz_s );
+      auto rd = cp1.execute( seleqz_d );
+
+      REQUIRE( rs == CP1::Exception::NONE );
+      REQUIRE( rd == CP1::Exception::NONE );
+
+      REQUIRE( inspector.CP1_fpr( 9 ).read_single() == res_s );
+      REQUIRE( inspector.CP1_fpr( 27 ).read_double() == res_d );
+    }
+  }
+
+  WHEN( "SELNEZ.S $f22, $f3, $f4 and SELNEZ.D $f18, $f22, $f14 are executed" )
+  {
+    auto selnez_s = "SELNEZ"_inst | FMT_S | 22_r1 | 3_r2 | 4_r3;
+    auto selnez_d = "SELNEZ"_inst | FMT_D | 18_r1 | 22_r2 | 14_r3;
+
+    inspector.CP1_fpr( 3 ) = 17.0f;
+    inspector.CP1_fpr( 4 ) = std::uint32_t( 1 );
+
+    inspector.CP1_fpr( 22 ) = -41'000.0;
+    inspector.CP1_fpr( 14 ) = std::uint32_t( 0 );
+
+    auto res_s = 17.0f;
+    auto res_d = 0.0;
+
+    THEN( "The result must be correct" )
+    {
+      auto rs = cp1.execute( selnez_s );
+      auto rd = cp1.execute( selnez_d );
+
+      REQUIRE( rs == CP1::Exception::NONE );
+      REQUIRE( rd == CP1::Exception::NONE );
+
+      REQUIRE( inspector.CP1_fpr( 22 ).read_single() == res_s );
+      REQUIRE( inspector.CP1_fpr( 18 ).read_double() == res_d );
+    }
+  }
+
+  WHEN( "SQRT.S $f13, $f7 and SQRT.D $f14, $f8 are executed" )
+  {
+    auto sqrt_s = "SQRT"_inst | FMT_S | 13_r1 | 7_r2;
+    auto sqrt_d = "SQRT"_inst | FMT_D | 14_r1 | 8_r2;
+
+    inspector.CP1_fpr( 7 ) = 1024.0f;
+
+    inspector.CP1_fpr( 8 ) = 16'000.0;
+
+    auto res_s = std::sqrt( 1024.0f );
+    auto res_d = std::sqrt( 16'000.0 );
+
+    THEN( "The result must be correct" )
+    {
+      auto rs = cp1.execute( sqrt_s );
+      auto rd = cp1.execute( sqrt_d );
+
+      REQUIRE( rs == CP1::Exception::NONE );
+      REQUIRE( rd == CP1::Exception::NONE );
+
+      REQUIRE( inspector.CP1_fpr( 13 ).read_single() == res_s );
+      REQUIRE( inspector.CP1_fpr( 14 ).read_double() == res_d );
+    }
+  }
+
+  WHEN( "SUB.S $f10, $f9, $f10 and SUB.D $f1, $f1, $f1 are executed" )
+  {
+    auto sub_s = "SUB"_inst | FMT_S | 10_r1 | 9_r2 | 10_r3;
+    auto sub_d = "SUB"_inst | FMT_D | 1_r1 | 1_r2 | 1_r3;
+
+    inspector.CP1_fpr( 9 )  = 15.0f;
+    inspector.CP1_fpr( 10 ) = -61'000.0f;
+
+    inspector.CP1_fpr( 1 ) = -1985.0;
+
+    auto res_s = 15.0f - ( -61'000.0f );
+    auto res_d = -1985.0 - ( -1985.0 );
+
+    THEN( "The result must be correct" )
+    {
+      auto rs = cp1.execute( sub_s );
+      auto rd = cp1.execute( sub_d );
+
+      REQUIRE( rs == CP1::Exception::NONE );
+      REQUIRE( rd == CP1::Exception::NONE );
+
+      REQUIRE( inspector.CP1_fpr( 10 ).read_single() == res_s );
+      REQUIRE( inspector.CP1_fpr( 1 ).read_double() == res_d );
+    }
+  }
+}
+
+constexpr std::uint32_t operator""_r1( unsigned long long n ) noexcept
+{
+  return std::uint32_t( n << 6 );
+}
+constexpr std::uint32_t operator""_r2( unsigned long long n ) noexcept
+{
+  return std::uint32_t( n << 11 );
+}
+constexpr std::uint32_t operator""_r3( unsigned long long n ) noexcept
+{
+  return std::uint32_t( n << 16 );
+}
+
+constexpr std::uint32_t operator""_inst( char const *c, std::size_t ) noexcept
+{
+  using namespace std::literals;
+
+  constexpr std::uint32_t opcode{0b010001 << 26};
+
+  std::string_view view( c );
+
+  constexpr std::array<std::string_view, 64> encode_table{
+      "ADD"sv,
+      "SUB"sv,
+      "MUL"sv,
+      "DIV"sv,
+      "SQRT"sv,
+      "ABS"sv,
+      "MOV"sv,
+      "NEG"sv,
+      "ROUND_L"sv,
+      "TRUNC_L"sv,
+      "CEIL_L"sv,
+      "FLOOR_L"sv,
+      "ROUND_W"sv,
+      "TRUNC_W"sv,
+      "CEIL_W"sv,
+      "FLOOR_W"sv,
+      "SEL"sv,
+      "MOVCF"sv,
+      "MOVZ"sv,
+      "MOVN"sv,
+      "SELEQZ"sv,
+      "RECIP"sv,
+      "RSQRT"sv,
+      "SELNEZ"sv,
+      "MADDF"sv,
+      "MSUBF"sv,
+      "RINT"sv,
+      "CLASS_"sv,
+      "MIN"sv,
+      "MAX"sv,
+      "MINA"sv,
+      "MAXA"sv,
+      "CVT_S"sv,
+      "CVT_D"sv,
+      "_"sv,
+      "__"sv,
+      "CVT_L"sv,
+      "CVT_W"sv,
+      "CVT_PS"sv,
+      "___"sv,
+      "CABS_AF"sv,
+      "CABS_UN"sv,
+      "CABS_EQ"sv,
+      "CABS_UEQ"sv,
+      "CABS_LT"sv,
+      "CABS_ULT"sv,
+      "CABS_LE"sv,
+      "CABS_ULE"sv,
+      "CABS_SAF"sv,
+      "CABS_SUN"sv,
+      "CABS_SEQ"sv,
+      "CABS_SUEQ"sv,
+      "CABS_SLT"sv,
+      "CABS_SULT"sv,
+      "CABS_SLE"sv,
+      "CABS_SULE"sv,
+  };
+
+  std::uint32_t code{0};
+  for ( auto const &in : encode_table ) {
+    if ( in == view ) return code | opcode;
+    ++code;
+  }
+
+  return std::uint32_t( -1 );
 }

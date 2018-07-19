@@ -8,7 +8,8 @@
 #include <pmmintrin.h>
 #include <xmmintrin.h>
 
-// TODO: add assertions to every function to check for fmt
+// TODO: add MTC1 and MFC1
+// TODO: add W and L instruction formats (i32, i64 formats)
 
 // Access to the Floating-Point Environment
 #ifdef _MSC_VER
@@ -344,7 +345,7 @@ int CP1::sub( std::uint32_t word ) noexcept
   if ( _fmt == FMT_S )
     return _sub( &FPR::f );
   else
-    return _sub( &FPR::f );
+    return _sub( &FPR::d );
 }
 int CP1::mul( std::uint32_t word ) noexcept
 {
@@ -495,8 +496,9 @@ int CP1::seleqz( std::uint32_t word ) noexcept
   auto _seleqz = [this, word]( auto t, auto i ) {
     auto const _fd = fd( word );
     auto const _fs = fs( word );
+    auto const _ft = ft( word );
 
-    auto const res = this->fpr[_fd].*i & 0x1 ? 0 : this->fpr[_fs].*t;
+    auto const res = this->fpr[_ft].*i & 0x1 ? 0 : this->fpr[_fs].*t;
     if ( handle_fpu_ex() ) return 1;
     this->fpr[_fd].*t = res;
 
@@ -516,7 +518,7 @@ int CP1::recip( std::uint32_t word ) noexcept
     auto const _fd = fd( word );
     auto const _fs = fs( word );
 
-    auto const res = 1.0f / this->fpr[_fs].*t;
+    auto const res = MIPS32_STATIC_CAST( t, 1.0 ) / this->fpr[_fs].*t;
     if ( handle_fpu_ex() ) return 1;
     this->fpr[_fd].*t = res;
 
@@ -557,7 +559,7 @@ int CP1::selnez( std::uint32_t word ) noexcept
     auto const _fs = fs( word );
     auto const _ft = ft( word );
 
-    auto const res = this->fpr[_fd].*i & 0x1 ? this->fpr[_ft].*t : 0;
+    auto const res = this->fpr[_ft].*i & 0x1 ? this->fpr[_fs].*t : 0;
     if ( handle_fpu_ex() ) return 1;
     this->fpr[_fd].*t = res;
 
@@ -599,7 +601,7 @@ int CP1::msubf( std::uint32_t word ) noexcept
     auto const _fs = fs( word );
     auto const _ft = ft( word );
 
-    auto const res = this->fpr[_fd].*t - ( this->fpr[_fs].*t * this->fpr[_ft].*t );
+    auto const res = this->fpr[_fd].*t - ( this->fpr[_fs].*t / this->fpr[_ft].*t );
     if ( handle_fpu_ex() ) return 1;
     this->fpr[_fd].*t = res;
 

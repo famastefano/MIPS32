@@ -43,7 +43,7 @@ SCENARIO( "A Coprocessor 1 object exists and it's resetted and inspected" )
 
     THEN( "They should be equal to those values" )
     {
-      REQUIRE( regs[0] == 0x00C3'0000 );
+      REQUIRE( regs[0] == 0x00F3'0000 );
       REQUIRE( regs[1] == 0x010C'0000 );
       REQUIRE( regs[2] == ( regs[1] & 0x0003'F07C ) );
       REQUIRE( regs[3] == ( regs[1] & 0x0000'0F87 ) );

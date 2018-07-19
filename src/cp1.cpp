@@ -33,6 +33,8 @@ inline constexpr std::uint32_t FUNCTION{0x3F};
 
 inline constexpr std::uint32_t FMT_S{0x10};
 inline constexpr std::uint32_t FMT_D{0x11};
+inline constexpr std::uint32_t FMT_W{0x14};
+inline constexpr std::uint32_t FMT_L{0x15};
 
 inline constexpr std::uint32_t CMP_FMT_S{0b10100};
 inline constexpr std::uint32_t CMP_FMT_D{0b10101};
@@ -131,10 +133,21 @@ constexpr std::uint32_t ft( std::uint32_t word ) noexcept
 
 bool valid_fmt( std::uint32_t word ) noexcept
 {
-  bool basic = ( fmt( word ) == FMT_S || fmt( word ) == FMT_D ) && ( word & FUNCTION ) < 41;
-  bool cmp   = ( fmt( word ) == CMP_FMT_S || fmt( word ) == CMP_FMT_D ) && ( word & FUNCTION ) >= 41;
+  auto const _fmt = fmt( word );
+  auto const _fn  = word & FUNCTION;
 
-  return basic || cmp;
+  bool basic  = ( _fmt == FMT_S || _fmt == FMT_D ) && _fn < 41;
+  bool cmp    = ( _fmt == CMP_FMT_S || _fmt == CMP_FMT_D ) && _fn >= 41;
+  bool cvt_d  = ( _fmt == FMT_L || _fmt == FMT_W || _fmt == FMT_S ) && _fn == 0b100001;       // CVT.D.y
+  bool cvt_s  = ( _fmt == FMT_L || _fmt == FMT_W || _fmt == FMT_D ) && _fn == 0b100000;       // CVT.S.y
+  bool cvt_l  = ( _fmt == FMT_S || _fmt == FMT_D ) && _fn == 0b100101;                        // CVT.L.y
+  bool cvt_w  = ( _fmt == FMT_S || _fmt == FMT_D ) && _fn == 0b100100;                        // CVT.W.y
+  bool _ceil  = ( _fmt == FMT_S || _fmt == FMT_D ) && ( _fn == 0b001110 || _fn == 0b001010 ); // CEIL.[L|W].y
+  bool _floor = ( _fmt == FMT_S || _fmt == FMT_D ) && ( _fn == 0b001011 || _fn == 0b001111 ); // FLOOR.[L|W].y
+  bool _round = ( _fmt == FMT_S || _fmt == FMT_D ) && ( _fn == 0b001000 || _fn == 0b001100 ); // ROUND.[L|W].y
+  bool _trunc = ( _fmt == FMT_S || _fmt == FMT_D ) && ( _fn == 0b001001 || _fn == 0b001101 ); // TRUNC.[L|W].y
+
+  return basic || cmp || cvt_s || cvt_d || cvt_l || cvt_w || _ceil || _floor || _round || _trunc;
 }
 
 void CP1::set_round_mode() noexcept
@@ -166,14 +179,14 @@ void CP1::reset() noexcept
   fir
      23 -> HAS 2008    -> 1
      22 -> F64         -> 1
-     21 -> L           -> 0
-     20 -> W           -> 0
+     21 -> L           -> 1
+     20 -> W           -> 1
      17 -> D           -> 1
      16 -> S           -> 1
   15..8 -> ProcessorID -> 0
    7..0 -> Revision    -> 0
   */
-  fir = 0x00C3'0000;
+  fir = 0x00F3'0000;
 
   /*
   fcsr
@@ -190,17 +203,16 @@ void CP1::reset() noexcept
 
 std::uint32_t CP1::read( std::uint32_t reg ) noexcept
 {
+  assert( ( reg == 0 || reg == 31 || reg == 26 || reg == 28 ) && "Unimplemented Coprocessor 1 Register." );
+
   if ( reg == 0 )
     return fir;
   else if ( reg == 31 )
     return fcsr;
   else if ( reg == 26 )
     return fcsr & 0x0003'F07C;
-  else if ( reg == 28 )
+  else
     return fcsr & 0x0000'0F87;
-
-  assert( "Unimplemented Coprocessor 1 Register." );
-  return 0;
 }
 
 void CP1::write( std::uint32_t reg, std::uint32_t data ) noexcept
@@ -237,14 +249,14 @@ CP1::Exception CP1::execute( std::uint32_t word ) noexcept
           &CP1::abs,
           &CP1::mov,
           &CP1::neg,
-          &CP1::unimplemented, // ROUND.L
-          &CP1::unimplemented, // TRUNC.L
-          &CP1::unimplemented, // CEIL.L
-          &CP1::unimplemented, // FLOOR.L
-          &CP1::unimplemented, // ROUND.W
-          &CP1::unimplemented, // TRUNC.W
-          &CP1::unimplemented, // CEIL.W
-          &CP1::unimplemented, // FLOOR.W
+          &CP1::round_l,
+          &CP1::trunct_l,
+          &CP1::ceil_l,
+          &CP1::floor_l,
+          &CP1::round_w,
+          &CP1::trunct_w,
+          &CP1::ceil_w,
+          &CP1::floor_w,
           &CP1::sel,
           &CP1::reserved, // MOVCF [6R]
           &CP1::reserved, // MOVZ  [6R]
@@ -263,10 +275,10 @@ CP1::Exception CP1::execute( std::uint32_t word ) noexcept
           &CP1::maxa,
           &CP1::cvt_s,
           &CP1::cvt_d,
-          &CP1::reserved,      // *
-          &CP1::reserved,      // *
-          &CP1::unimplemented, // CVT.L
-          &CP1::unimplemented, // CVT.W
+          &CP1::reserved, // *
+          &CP1::reserved, // *
+          &CP1::cvt_l,
+          &CP1::cvt_w,
           &CP1::unimplemented, // CVT.PS
           &CP1::reserved,      // *
           &CP1::cabs_af,
@@ -298,14 +310,30 @@ CP1::Exception CP1::execute( std::uint32_t word ) noexcept
   }
 }
 
+std::uint32_t CP1::mfc1( std::uint32_t reg ) noexcept
+{
+  return std::uint32_t( fpr[reg].i64 & 0xFFFF'FFFF );
+}
+std::uint32_t CP1::mfhc1( std::uint32_t reg ) noexcept
+{
+  return std::uint32_t( ( fpr[reg].i64 & ~0xFFFF'FFFF ) >> 32 );
+}
+
+void CP1::mtc1( std::uint32_t reg, std::uint32_t word ) noexcept
+{
+  fpr[reg].i64 = ( fpr[reg].i64 & ~0xFFFF'FFFF ) | word;
+}
+void CP1::mthc1( std::uint32_t reg, std::uint32_t word ) noexcept
+{
+  fpr[reg].i64 = ( fpr[reg].i64 & 0xFFFF'FFFF ) | ( std::uint64_t( word ) << 32 );
+}
+
 int CP1::reserved( std::uint32_t ) noexcept { return -1; }
 int CP1::unimplemented( std::uint32_t ) noexcept
 {
   set_cause( CP1::UNIMPLEMENTED );
   return 1;
 }
-
-// TODO: Add assertions for `fmt` and correct fpr
 
 int CP1::add( std::uint32_t word ) noexcept
 {
@@ -470,6 +498,166 @@ int CP1::neg( std::uint32_t word ) noexcept
     return _neg( &FPR::f );
   else
     return _neg( &FPR::d );
+}
+int CP1::round_l( std::uint32_t word ) noexcept
+{
+  auto _round_l = [this, word]( auto t ) {
+    auto const _fd = fd( word );
+    auto const _fs = fs( word );
+
+    auto const res = std::llround( this->fpr[_fs].*t );
+    if ( handle_fpu_ex() ) return 1;
+    this->fpr[_fd].i64 = std::uint64_t( res );
+
+    return 0;
+  };
+
+  auto const _fmt = fmt( word );
+
+  if ( _fmt == FMT_S )
+    return _round_l( &FPR::f );
+  else
+    return _round_l( &FPR::d );
+}
+int CP1::trunct_l( std::uint32_t word ) noexcept
+{
+  auto _trunc_l = [this, word]( auto t ) {
+    auto const _fd = fd( word );
+    auto const _fs = fs( word );
+
+    auto const res = (std::uint64_t)std::trunc( this->fpr[_fs].*t );
+    if ( handle_fpu_ex() ) return 1;
+    this->fpr[_fd].i64 = res;
+
+    return 0;
+  };
+
+  auto const _fmt = fmt( word );
+
+  if ( _fmt == FMT_S )
+    return _trunc_l( &FPR::f );
+  else
+    return _trunc_l( &FPR::d );
+}
+int CP1::ceil_l( std::uint32_t word ) noexcept
+{
+  auto _ceil_l = [this, word]( auto t ) {
+    auto const _fd = fd( word );
+    auto const _fs = fs( word );
+
+    auto const res = (std::uint64_t)std::ceil( this->fpr[_fs].*t );
+    if ( handle_fpu_ex() ) return 1;
+    this->fpr[_fd].i64 = res;
+
+    return 0;
+  };
+
+  auto const _fmt = fmt( word );
+
+  if ( _fmt == FMT_S )
+    return _ceil_l( &FPR::f );
+  else
+    return _ceil_l( &FPR::d );
+}
+int CP1::floor_l( std::uint32_t word ) noexcept
+{
+  auto _floor_l = [this, word]( auto t ) {
+    auto const _fd = fd( word );
+    auto const _fs = fs( word );
+
+    auto const res = (std::uint64_t)std::floor( this->fpr[_fs].*t );
+    if ( handle_fpu_ex() ) return 1;
+    this->fpr[_fd].i64 = res;
+
+    return 0;
+  };
+
+  auto const _fmt = fmt( word );
+
+  if ( _fmt == FMT_S )
+    return _floor_l( &FPR::f );
+  else
+    return _floor_l( &FPR::d );
+}
+int CP1::round_w( std::uint32_t word ) noexcept
+{
+  auto _round_w = [this, word]( auto t ) {
+    auto const _fd = fd( word );
+    auto const _fs = fs( word );
+
+    auto const res = std::lround( this->fpr[_fs].*t );
+    if ( handle_fpu_ex() ) return 1;
+    this->fpr[_fd].i32 = std::uint32_t( res );
+
+    return 0;
+  };
+
+  auto const _fmt = fmt( word );
+
+  if ( _fmt == FMT_S )
+    return _round_w( &FPR::f );
+  else
+    return _round_w( &FPR::d );
+}
+int CP1::trunct_w( std::uint32_t word ) noexcept
+{
+  auto _trunc_w = [this, word]( auto t ) {
+    auto const _fd = fd( word );
+    auto const _fs = fs( word );
+
+    auto const res = (std::uint32_t)std::trunc( this->fpr[_fs].*t );
+    if ( handle_fpu_ex() ) return 1;
+    this->fpr[_fd].i32 = res;
+
+    return 0;
+  };
+
+  auto const _fmt = fmt( word );
+
+  if ( _fmt == FMT_S )
+    return _trunc_w( &FPR::f );
+  else
+    return _trunc_w( &FPR::d );
+}
+int CP1::ceil_w( std::uint32_t word ) noexcept
+{
+  auto _ceil_w = [this, word]( auto t ) {
+    auto const _fd = fd( word );
+    auto const _fs = fs( word );
+
+    auto const res = (std::uint32_t)std::ceil( this->fpr[_fs].*t );
+    if ( handle_fpu_ex() ) return 1;
+    this->fpr[_fd].i32 = res;
+
+    return 0;
+  };
+
+  auto const _fmt = fmt( word );
+
+  if ( _fmt == FMT_S )
+    return _ceil_w( &FPR::f );
+  else
+    return _ceil_w( &FPR::d );
+}
+int CP1::floor_w( std::uint32_t word ) noexcept
+{
+  auto _floor_w = [this, word]( auto t ) {
+    auto const _fd = fd( word );
+    auto const _fs = fs( word );
+
+    auto const res = (std::uint32_t)std::floor( this->fpr[_fs].*t );
+    if ( handle_fpu_ex() ) return 1;
+    this->fpr[_fd].i32 = res;
+
+    return 0;
+  };
+
+  auto const _fmt = fmt( word );
+
+  if ( _fmt == FMT_S )
+    return _floor_w( &FPR::f );
+  else
+    return _floor_w( &FPR::d );
 }
 int CP1::sel( std::uint32_t word ) noexcept
 {
@@ -777,23 +965,87 @@ int CP1::maxa( std::uint32_t word ) noexcept
 }
 int CP1::cvt_s( std::uint32_t word ) noexcept
 {
+  auto _cvt_s = [this, word]( auto t ) {
+    auto const _fd = fd( word );
+    auto const _fs = fs( word );
+
+    auto const res = (float)( this->fpr[_fs].*t );
+    if ( handle_fpu_ex() ) return 1;
+    this->fpr[_fd].f = res;
+
+    return 0;
+  };
+
   auto const _fmt = fmt( word );
-  auto const _fd  = fd( word );
-  auto const _fs  = fs( word );
 
-  fpr[_fd].f = (float)fpr[_fs].d;
-
-  return 0;
+  if ( _fmt == FMT_D )
+    return _cvt_s( &FPR::d );
+  else if ( _fmt == FMT_W )
+    return _cvt_s( &FPR::i32 );
+  else
+    return _cvt_s( &FPR::i64 );
 }
 int CP1::cvt_d( std::uint32_t word ) noexcept
 {
+  auto _cvt_d = [this, word]( auto t ) {
+    auto const _fd = fd( word );
+    auto const _fs = fs( word );
+
+    auto const res = (double)( this->fpr[_fs].*t );
+    if ( handle_fpu_ex() ) return 1;
+    this->fpr[_fd].d = res;
+
+    return 0;
+  };
+
   auto const _fmt = fmt( word );
-  auto const _fd  = fd( word );
-  auto const _fs  = fs( word );
 
-  fpr[_fd].d = (double)fpr[_fs].f;
+  if ( _fmt == FMT_S )
+    return _cvt_d( &FPR::f );
+  else if ( _fmt == FMT_W )
+    return _cvt_d( &FPR::i32 );
+  else
+    return _cvt_d( &FPR::i64 );
+}
+int CP1::cvt_l( std::uint32_t word ) noexcept
+{
+  auto _cvt_l = [this, word]( auto t ) {
+    auto const _fd = fd( word );
+    auto const _fs = fs( word );
 
-  return 0;
+    auto const res = ( std::uint64_t )( this->fpr[_fs].*t );
+    if ( handle_fpu_ex() ) return 1;
+    this->fpr[_fd].i64 = res;
+
+    return 0;
+  };
+
+  auto const _fmt = fmt( word );
+
+  if ( _fmt == FMT_D )
+    return _cvt_l( &FPR::d );
+  else
+    return _cvt_l( &FPR::f );
+}
+int CP1::cvt_w( std::uint32_t word ) noexcept
+{
+  auto _cvt_w = [this, word]( auto t ) {
+    auto const _fd = fd( word );
+    auto const _fs = fs( word );
+
+    auto const res = ( std::uint32_t )( this->fpr[_fs].*t );
+    if ( handle_fpu_ex() ) return 1;
+    this->fpr[_fd].i32 = res;
+
+    return 0;
+  };
+
+  auto const _fmt = fmt( word );
+
+  if ( _fmt == FMT_D )
+    return _cvt_w( &FPR::d );
+  else
+    return _cvt_w( &FPR::f );
 }
 int CP1::cabs_af( std::uint32_t word ) noexcept
 {

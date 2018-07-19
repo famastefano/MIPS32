@@ -47,6 +47,14 @@ class CP1
   // Execute an instruction
   Exception execute( std::uint32_t word ) noexcept;
 
+  // Move operations CPU <--> CP1
+
+  std::uint32_t mfc1( std::uint32_t reg ) noexcept;
+  std::uint32_t mfhc1( std::uint32_t reg ) noexcept;
+
+  void mtc1( std::uint32_t reg, std::uint32_t word ) noexcept;
+  void mthc1( std::uint32_t reg, std::uint32_t word ) noexcept;
+
   private:
   // Set the underlying FPU rounding mode based on the RN field in FCSR.
   void set_round_mode() noexcept;
@@ -86,6 +94,14 @@ class CP1
   int abs( std::uint32_t word ) noexcept;
   int mov( std::uint32_t word ) noexcept;
   int neg( std::uint32_t word ) noexcept;
+  int round_l( std::uint32_t word ) noexcept;
+  int trunct_l( std::uint32_t word ) noexcept;
+  int ceil_l( std::uint32_t word ) noexcept;
+  int floor_l( std::uint32_t word ) noexcept;
+  int round_w( std::uint32_t word ) noexcept;
+  int trunct_w( std::uint32_t word ) noexcept;
+  int ceil_w( std::uint32_t word ) noexcept;
+  int floor_w( std::uint32_t word ) noexcept;
   int sel( std::uint32_t word ) noexcept;
   int seleqz( std::uint32_t word ) noexcept;
   int recip( std::uint32_t word ) noexcept;
@@ -101,6 +117,8 @@ class CP1
   int maxa( std::uint32_t word ) noexcept;
   int cvt_s( std::uint32_t word ) noexcept;
   int cvt_d( std::uint32_t word ) noexcept;
+  int cvt_l( std::uint32_t word ) noexcept;
+  int cvt_w( std::uint32_t word ) noexcept;
   int cabs_af( std::uint32_t word ) noexcept;
   int cabs_un( std::uint32_t word ) noexcept;
   int cabs_eq( std::uint32_t word ) noexcept;

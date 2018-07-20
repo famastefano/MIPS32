@@ -42,24 +42,26 @@ target_include_directories(Tests PRIVATE include third-party)
 if (NOT (CMAKE_BUILD_TYPE STREQUAL "Coverage"))
     if(MSVC)
 
-        target_compile_options(Tests PRIVATE "/W4")
-        target_compile_options(Tests PRIVATE "/fp:strict")
+        target_compile_options(Tests PRIVATE /W4 /fp:strict)
         target_compile_definitions(Tests PRIVATE "-D_CRT_SECURE_NO_WARNINGS")
 
     else() # GCC - Clang
         
         if(${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang")
 
-            target_compile_options(Tests PRIVATE -Wno-logical-op-parentheses)
+            target_compile_options(Tests PRIVATE -Wno-logical-op-parentheses -Wno-bitwise-op-parentheses)
             
         else() # GCC
             target_compile_options(Tests PRIVATE -Wparentheses)
         endif()
 
+        # x86 build
         target_compile_options(Tests PRIVATE "$<$<STREQUAL:${ARCH},x86>:-m32>")
         target_link_libraries(Tests PRIVATE "$<$<STREQUAL:${ARCH},x86>:-m32>")
 
+        # x86_64 build
         target_compile_options(Tests PRIVATE "$<$<STREQUAL:${ARCH},x64>:-m64>")
+        target_link_libraries(Tests PRIVATE "$<$<STREQUAL:${ARCH},x64>:-m64>")
 
         target_compile_options(Tests PRIVATE -Wall -Wextra -mfpmath=sse -msse2 -pedantic)
 

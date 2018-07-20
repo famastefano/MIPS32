@@ -9,7 +9,13 @@
 namespace mips32 {
 
 /**
- * MIPS32 FPU with 32/64 bits.
+ * MIPS32 FPU
+ * 
+ * Has 32 register of 64-bit width.
+ * 
+ * It heavily relies on the hardware FPU,
+ * so every calculation is IEEE 754 compliant
+ * based on the hardware FPU compliance itself.
  **/
 class CP1
 {
@@ -21,7 +27,7 @@ class CP1
 
   ~CP1() noexcept;
 
-  // Resets the FPU its default state.
+  // Resets the FPU to its default state.
   void reset() noexcept;
 
   // Reads a FPU's register.
@@ -140,6 +146,7 @@ class CP1
 
   std::uint32_t fir, fcsr;
 
+  // Floating Point Environment
   std::fenv_t env;
 };
 

@@ -6,22 +6,86 @@
 #include <array>
 #include <cfenv>
 #include <cmath>
+#include <limits>
 #include <string_view>
 
 using namespace mips32;
 
 // [OPCODE][FMT][R1][R2][R3][FUNCTION]
-// [COP1][S|D][0-31][0-31][0-31][0-63]
+// [COP1][S|D|W|L][0-31][0-31][0-31][0-63]
 
 constexpr std::uint32_t operator""_inst( char const *c, std::size_t ) noexcept;
 constexpr std::uint32_t operator""_r1( unsigned long long n ) noexcept;
 constexpr std::uint32_t operator""_r2( unsigned long long n ) noexcept;
 constexpr std::uint32_t operator""_r3( unsigned long long n ) noexcept;
+
 constexpr std::uint32_t FMT_S{0x10 << 21};
 constexpr std::uint32_t FMT_D{0x11 << 21};
+constexpr std::uint32_t FMT_W{0x14 << 21};
+constexpr std::uint32_t FMT_L{0x15 << 21};
+
+template <typename T>
+struct QNAN;
+
+template <typename T>
+struct SNAN;
+
+template <typename T>
+struct DENORM;
+
+template <typename T>
+struct INF;
+
+template <>
+struct QNAN<float>
+{
+  constexpr operator float() noexcept { return std::numeric_limits<float>::quiet_NaN(); }
+};
+
+template <>
+struct QNAN<double>
+{
+  constexpr operator double() noexcept { return std::numeric_limits<double>::quiet_NaN(); }
+};
+
+template <>
+struct SNAN<float>
+{
+  constexpr operator float() noexcept { return std::numeric_limits<float>::signaling_NaN(); }
+};
+
+template <>
+struct SNAN<double>
+{
+  constexpr operator double() noexcept { return std::numeric_limits<double>::signaling_NaN(); }
+};
+
+template <>
+struct DENORM<float>
+{
+  constexpr operator float() noexcept { return std::numeric_limits<float>::denorm_min(); }
+};
+
+template <>
+struct DENORM<double>
+{
+  constexpr operator double() noexcept { return std::numeric_limits<double>::denorm_min(); }
+};
+
+template <>
+struct INF<float>
+{
+  constexpr operator float() noexcept { return std::numeric_limits<float>::infinity(); }
+};
+
+template <>
+struct INF<double>
+{
+  constexpr operator double() noexcept { return std::numeric_limits<double>::infinity(); }
+};
 
 // TODO: provoke FPU exception
-// TODO: test every instruction for every format
+// TODO: test instruction related to the W and L format
 
 SCENARIO( "A Coprocessor 1 object exists and it's resetted and inspected" )
 {
@@ -255,7 +319,144 @@ SCENARIO( "A Coprocessor 1 object exists and it's resetted and inspected" )
 
   // TODO: cmp.condn.fmt
 
-  // TODO: class
+  /*
+  The mask has 10 bits as follows.
+  Bits 0 and 1 indicate NaN values:
+  - signaling NaN (bit 0) 
+  - and quiet NaN (bit 1).
+
+  Bits 2, 3, 4, 5 classify negative values:
+  - infinity (bit 2),
+  - normal (bit 3),
+  - subnormal (bit 4),
+  - and zero (bit 5).
+
+  Bits 6, 7, 8, 9 classify positive values:
+  - infinity (bit 6),
+  - normal (bit 7),
+  - subnormal (bit 8),
+  - and zero (bit 9).
+  */
+  WHEN( "CLASS.S $f0, $f2 and CLASS.D $f31, $f31 are executed" )
+  {
+    auto class_s = "CLASS"_inst | FMT_S | 0_r1 | 2_r2;
+    auto class_d = "CLASS"_inst | FMT_D | 31_r1 | 31_r2;
+
+    // Quiet NaN
+    THEN( "Quiet NaN should be classified correctly" )
+    {
+      inspector.CP1_fpr( 2 )  = QNAN<float>{};
+      inspector.CP1_fpr( 31 ) = QNAN<double>{};
+
+      auto res_s = std::uint32_t( 1 << 1 );
+      auto res_d = std::uint64_t( 1 << 1 );
+
+      auto rs = cp1.execute( class_s );
+      auto rd = cp1.execute( class_d );
+
+      REQUIRE( rs == CP1::Exception::NONE );
+      REQUIRE( rd == CP1::Exception::NONE );
+
+      REQUIRE( inspector.CP1_fpr( 0 ).single_binary() == res_s );
+      REQUIRE( inspector.CP1_fpr( 31 ).double_binary() == res_d );
+    }
+
+    // [NEGATIVE] Infinity + Normal + Denormal + Zero
+    AND_THEN( "[NEGATIVE] Infinity + Normal + Denormal + Zero" )
+    {
+      cp1.write( 31, 0x000C'0000 ); // remove the flushing of denormalized numbers to zero
+
+      float f_value_to_test[] = {
+          -INF<float>{},
+          -152.0f,
+          -DENORM<float>{},
+          -0.0f,
+      };
+
+      double d_value_to_test[] = {
+          -INF<double>{},
+          -62'342.0,
+          -DENORM<double>{},
+          -0.0,
+      };
+
+      std::uint32_t res_s[] = {
+          1 << 2, // inf
+          1 << 3, // normal
+          1 << 4, // den
+          1 << 5, // zero
+      };
+
+      std::uint64_t res_d[] = {
+          1 << 2, // inf
+          1 << 3, // normal
+          1 << 4, // den
+          1 << 5, // zero
+      };
+
+      for ( int i = 0; i < 4; ++i ) {
+        inspector.CP1_fpr( 2 )  = f_value_to_test[i];
+        inspector.CP1_fpr( 31 ) = d_value_to_test[i];
+
+        auto rs = cp1.execute( class_s );
+        auto rd = cp1.execute( class_d );
+
+        REQUIRE( rs == CP1::Exception::NONE );
+        REQUIRE( rd == CP1::Exception::NONE );
+
+        REQUIRE( inspector.CP1_fpr( 0 ).single_binary() == res_s[i] );
+        REQUIRE( inspector.CP1_fpr( 31 ).double_binary() == res_d[i] );
+      }
+    }
+
+    // [POSITIVE] Infinity + Normal + Denormal + Zero
+    AND_THEN( "[POSITIVE] Infinity + Normal + Denormal + Zero" )
+    {
+      cp1.write( 31, 0x000C'0000 ); // remove the flushing of denormalized numbers to zero
+
+      float f_value_to_test[] = {
+          INF<float>{},
+          14'000.0f,
+          DENORM<float>{},
+          0.0f,
+      };
+
+      double d_value_to_test[] = {
+          INF<double>{},
+          1.0,
+          DENORM<double>{},
+          0.0,
+      };
+
+      std::uint32_t res_s[] = {
+          1 << 6, // inf
+          1 << 7, // normal
+          1 << 8, // den
+          1 << 9, // zero
+      };
+
+      std::uint64_t res_d[] = {
+          1 << 6, // inf
+          1 << 7, // normal
+          1 << 8, // den
+          1 << 9, // zero
+      };
+
+      for ( int i = 0; i < 4; ++i ) {
+        inspector.CP1_fpr( 2 )  = f_value_to_test[i];
+        inspector.CP1_fpr( 31 ) = d_value_to_test[i];
+
+        auto rs = cp1.execute( class_s );
+        auto rd = cp1.execute( class_d );
+
+        REQUIRE( rs == CP1::Exception::NONE );
+        REQUIRE( rd == CP1::Exception::NONE );
+
+        REQUIRE( inspector.CP1_fpr( 0 ).single_binary() == res_s[i] );
+        REQUIRE( inspector.CP1_fpr( 31 ).double_binary() == res_d[i] );
+      }
+    }
+  }
 
   WHEN( "CVT.D.S $f19, $f15 is executed" )
   {
@@ -583,7 +784,30 @@ SCENARIO( "A Coprocessor 1 object exists and it's resetted and inspected" )
     }
   }
 
-  // TODO: rint
+  WHEN( "RINT.S $f1, $f18 and RINT.D $f4, $f26 are executed" )
+  {
+    auto rint_s = "RINT"_inst | FMT_S | 1_r1 | 18_r2;
+    auto rint_d = "RINT"_inst | FMT_D | 4_r1 | 26_r2;
+
+    inspector.CP1_fpr( 18 ) = 29'842.0f;
+
+    inspector.CP1_fpr( 26 ) = -87'431.0;
+
+    auto res_s = std::uint32_t( std::llrint( 29'842.0f ) );
+    auto res_d = std::uint64_t( std::llrint( -87'431.0 ) );
+
+    THEN( "The result must be correct" )
+    {
+      auto rs = cp1.execute( rint_s );
+      auto rd = cp1.execute( rint_d );
+
+      REQUIRE( rs == CP1::Exception::NONE );
+      REQUIRE( rd == CP1::Exception::NONE );
+
+      REQUIRE( inspector.CP1_fpr( 1 ).single_binary() == res_s );
+      REQUIRE( inspector.CP1_fpr( 4 ).double_binary() == res_d );
+    }
+  }
 
   WHEN( "RSQRT.S $f17, $f21 and RSQRT.D $f24, $f30 are executed" )
   {
@@ -796,19 +1020,19 @@ constexpr std::uint32_t operator""_inst( char const *c, std::size_t ) noexcept
       "MADDF"sv,
       "MSUBF"sv,
       "RINT"sv,
-      "CLASS_"sv,
+      "CLASS"sv,
       "MIN"sv,
       "MAX"sv,
       "MINA"sv,
       "MAXA"sv,
       "CVT_S"sv,
       "CVT_D"sv,
-      "_"sv,
-      "__"sv,
+      "_"sv,  // reserved
+      "__"sv, // reserved
       "CVT_L"sv,
       "CVT_W"sv,
       "CVT_PS"sv,
-      "___"sv,
+      "___"sv, // reserved
       "CABS_AF"sv,
       "CABS_UN"sv,
       "CABS_EQ"sv,

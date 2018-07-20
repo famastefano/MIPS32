@@ -9,9 +9,6 @@
 #include <pmmintrin.h>
 #include <xmmintrin.h>
 
-// TODO: add MTC1 and MFC1
-// TODO: add W and L instruction formats (i32, i64 formats)
-
 // Access to the Floating-Point Environment
 #ifdef _MSC_VER
 #pragma fenv_access( on )
@@ -41,16 +38,21 @@ inline constexpr std::uint32_t CMP_FMT_D{0b10101};
 inline constexpr std::uint64_t CMP_TRUE{0xFFFF'FFFF'FFFF'FFFF};
 inline constexpr std::uint64_t CMP_FALSE{0};
 
-constexpr bool is_SNaN( float f ) noexcept { return f == std::numeric_limits<float>::signaling_NaN(); }
-constexpr bool is_SNaN( double d ) noexcept { return d == std::numeric_limits<double>::signaling_NaN(); }
-
 #define MIPS32_STATIC_CAST( T, v ) static_cast<typename std::remove_reference<decltype( this->fpr[_fs].*T )>::type>( v )
 
 namespace mips32 {
 
-CP1::CP1() noexcept { std::fegetenv( &env ); }
+CP1::CP1() noexcept
+{
+  std::fexcept_t flags;
+  std::fegetenv( &env );
+  std::fesetexceptflag( &flags, FE_ALL_EXCEPT );
+}
 
-CP1::~CP1() noexcept { std::fesetenv( &env ); }
+CP1::~CP1() noexcept
+{
+  std::fesetenv( &env );
+}
 
 std::uint32_t CP1::round() const noexcept
 {
@@ -813,7 +815,6 @@ int CP1::rint( std::uint32_t word ) noexcept
     auto const res = MIPS32_STATIC_CAST( i, std::llrint( this->fpr[_fs].*t ) );
     if ( handle_fpu_ex() ) return 1;
     this->fpr[_fd].*i = res;
-    ;
 
     return 0;
   };
@@ -857,7 +858,11 @@ int CP1::class_( std::uint32_t word ) noexcept
     auto const _fd = fd( word );
     auto const _fs = fs( word );
 
-    switch ( std::fpclassify( this->fpr[_fs].*t ) ) {
+    auto value = this->fpr[_fs].*t; // copy in case fd == fs
+
+    auto class_type = std::fpclassify( value );
+
+    switch ( class_type ) {
     case FP_INFINITE: this->fpr[_fd].*i = INFINITY_; break;
     case FP_NAN: this->fpr[_fd].*i = QNAN; break;
     case FP_NORMAL: this->fpr[_fd].*i = NORMAL; break;
@@ -865,7 +870,7 @@ int CP1::class_( std::uint32_t word ) noexcept
     case FP_ZERO: this->fpr[_fd].*i = ZERO; break;
     }
 
-    if ( this->fpr[_fd].*i != QNAN && this->fpr[_fs].*t > 0 ) {
+    if ( class_type != FP_NAN && !std::signbit( value ) ) {
       this->fpr[_fd].*i <<= 4;
     }
 
@@ -1049,15 +1054,10 @@ int CP1::cvt_w( std::uint32_t word ) noexcept
 }
 int CP1::cabs_af( std::uint32_t word ) noexcept
 {
-  auto _cabs_af = [this, word]( auto t, auto i ) {
+  auto _cabs_af = [this, word]( auto i ) {
     auto const _fd = fd( word );
     auto const _fs = fs( word );
     auto const _ft = ft( word );
-
-    if ( is_SNaN( this->fpr[_fd].*t ) || is_SNaN( this->fpr[_fs].*t ) || is_SNaN( this->fpr[_ft].*t ) ) {
-      set_cause( INVALID );
-      return 1;
-    }
 
     this->fpr[_fd].*i = CMP_FALSE;
 
@@ -1067,9 +1067,9 @@ int CP1::cabs_af( std::uint32_t word ) noexcept
   auto const _fmt = fmt( word );
 
   if ( _fmt == CMP_FMT_S )
-    return _cabs_af( &FPR::f, &FPR::i32 );
+    return _cabs_af( &FPR::i32 );
   else
-    return _cabs_af( &FPR::d, &FPR::i64 );
+    return _cabs_af( &FPR::i64 );
 }
 int CP1::cabs_un( std::uint32_t word ) noexcept
 {
@@ -1078,12 +1078,7 @@ int CP1::cabs_un( std::uint32_t word ) noexcept
     auto const _fs = fs( word );
     auto const _ft = ft( word );
 
-    if ( is_SNaN( this->fpr[_fd].*t ) || is_SNaN( this->fpr[_fs].*t ) || is_SNaN( this->fpr[_ft].*t ) ) {
-      set_cause( INVALID );
-      return 1;
-    }
-
-    if ( std::isunordered( fpr[_fs].d, fpr[_ft].d ) )
+    if ( std::isunordered( fpr[_fs].*t, fpr[_ft].*t ) )
       this->fpr[_fd].*i = MIPS32_STATIC_CAST( i, CMP_TRUE );
     else
       this->fpr[_fd].*i = MIPS32_STATIC_CAST( i, CMP_FALSE );
@@ -1105,11 +1100,6 @@ int CP1::cabs_eq( std::uint32_t word ) noexcept
     auto const _fs = fs( word );
     auto const _ft = ft( word );
 
-    if ( is_SNaN( this->fpr[_fd].*t ) || is_SNaN( this->fpr[_fs].*t ) || is_SNaN( this->fpr[_ft].*t ) ) {
-      set_cause( INVALID );
-      return 1;
-    }
-
     this->fpr[_fd].*i = this->fpr[_fs].*t == this->fpr[_ft].*t ? MIPS32_STATIC_CAST( i, CMP_TRUE ) : MIPS32_STATIC_CAST( i, CMP_FALSE );
 
     return 0;
@@ -1128,11 +1118,6 @@ int CP1::cabs_ueq( std::uint32_t word ) noexcept
     auto const _fd = fd( word );
     auto const _fs = fs( word );
     auto const _ft = ft( word );
-
-    if ( is_SNaN( this->fpr[_fd].*t ) || is_SNaN( this->fpr[_fs].*t ) || is_SNaN( this->fpr[_ft].*t ) ) {
-      set_cause( INVALID );
-      return 1;
-    }
 
     this->fpr[_fd].*i = std::isunordered( this->fpr[_fs].*t, this->fpr[_ft].*t ) ? MIPS32_STATIC_CAST( i, CMP_TRUE ) : MIPS32_STATIC_CAST( i, CMP_FALSE );
     this->fpr[_fd].*i |= this->fpr[_fs].*t == this->fpr[_ft].*t ? MIPS32_STATIC_CAST( i, CMP_TRUE ) : MIPS32_STATIC_CAST( i, CMP_FALSE );
@@ -1154,10 +1139,6 @@ int CP1::cabs_lt( std::uint32_t word ) noexcept
     auto const _fs = fs( word );
     auto const _ft = ft( word );
 
-    if ( is_SNaN( this->fpr[_fd].*t ) || is_SNaN( this->fpr[_fs].*t ) || is_SNaN( this->fpr[_ft].*t ) ) {
-      set_cause( INVALID );
-      return 1;
-    }
     this->fpr[_fd].*i = std::isless( this->fpr[_fs].*t, this->fpr[_ft].*t ) ? MIPS32_STATIC_CAST( i, CMP_TRUE ) : MIPS32_STATIC_CAST( i, CMP_FALSE );
 
     return 0;
@@ -1176,11 +1157,6 @@ int CP1::cabs_ult( std::uint32_t word ) noexcept
     auto const _fd = fd( word );
     auto const _fs = fs( word );
     auto const _ft = ft( word );
-
-    if ( is_SNaN( this->fpr[_fd].*t ) || is_SNaN( this->fpr[_fs].*t ) || is_SNaN( this->fpr[_ft].*t ) ) {
-      set_cause( INVALID );
-      return 1;
-    }
 
     this->fpr[_fd].*i = std::isunordered( this->fpr[_fs].*t, this->fpr[_ft].*t ) ? MIPS32_STATIC_CAST( i, CMP_TRUE ) : MIPS32_STATIC_CAST( i, CMP_FALSE );
     this->fpr[_fd].*i |= std::isless( this->fpr[_fs].*t, this->fpr[_ft].*t ) ? MIPS32_STATIC_CAST( i, CMP_TRUE ) : MIPS32_STATIC_CAST( i, CMP_FALSE );
@@ -1204,11 +1180,6 @@ int CP1::cabs_le( std::uint32_t word ) noexcept
     auto const _fs = fs( word );
     auto const _ft = ft( word );
 
-    if ( is_SNaN( this->fpr[_fd].*t ) || is_SNaN( this->fpr[_fs].*t ) || is_SNaN( this->fpr[_ft].*t ) ) {
-      this->set_cause( CP1::INVALID );
-      return 1;
-    }
-
     this->fpr[_fd].*i = std::islessequal( this->fpr[_fs].*t, this->fpr[_ft].*t ) ? MIPS32_STATIC_CAST( i, CMP_TRUE ) : MIPS32_STATIC_CAST( i, CMP_FALSE );
 
     return 0;
@@ -1226,11 +1197,6 @@ int CP1::cabs_ule( std::uint32_t word ) noexcept
     auto const _fs = fs( word );
     auto const _ft = ft( word );
 
-    if ( is_SNaN( this->fpr[_fd].*t ) || is_SNaN( this->fpr[_fs].*t ) || is_SNaN( this->fpr[_ft].*t ) ) {
-      set_cause( INVALID );
-      return 1;
-    }
-
     this->fpr[_fd].*i = std::isunordered( this->fpr[_fs].*t, this->fpr[_ft].*t ) ? MIPS32_STATIC_CAST( i, CMP_TRUE ) : MIPS32_STATIC_CAST( i, CMP_FALSE );
     this->fpr[_fd].*i |= std::islessequal( this->fpr[_fs].*t, this->fpr[_ft].*t ) ? MIPS32_STATIC_CAST( i, CMP_TRUE ) : MIPS32_STATIC_CAST( i, CMP_FALSE );
 
@@ -1246,15 +1212,10 @@ int CP1::cabs_ule( std::uint32_t word ) noexcept
 }
 int CP1::cabs_saf( std::uint32_t word ) noexcept
 {
-  auto _cabs_saf = [this, word]( auto t, auto i ) {
+  auto _cabs_saf = [this, word]( auto i ) {
     auto const _fd = fd( word );
     auto const _fs = fs( word );
     auto const _ft = ft( word );
-
-    if ( std::isnan( this->fpr[_fd].*t ) || std::isnan( this->fpr[_fs].*t ) || std::isnan( this->fpr[_ft].*t ) ) {
-      set_cause( INVALID );
-      return 1;
-    }
 
     this->fpr[_fd].*i = MIPS32_STATIC_CAST( i, CMP_FALSE );
 
@@ -1264,9 +1225,9 @@ int CP1::cabs_saf( std::uint32_t word ) noexcept
   auto const _fmt = fmt( word );
 
   if ( _fmt == CMP_FMT_S )
-    return _cabs_saf( &FPR::f, &FPR::i32 );
+    return _cabs_saf( &FPR::i32 );
   else
-    return _cabs_saf( &FPR::d, &FPR::i64 );
+    return _cabs_saf( &FPR::i64 );
 }
 int CP1::cabs_sun( std::uint32_t word ) noexcept
 {
@@ -1274,11 +1235,6 @@ int CP1::cabs_sun( std::uint32_t word ) noexcept
     auto const _fd = fd( word );
     auto const _fs = fs( word );
     auto const _ft = ft( word );
-
-    if ( std::isnan( this->fpr[_fd].*t ) || std::isnan( this->fpr[_fs].*t ) || std::isnan( this->fpr[_ft].*t ) ) {
-      set_cause( INVALID );
-      return 1;
-    }
 
     this->fpr[_fd].*i = std::isunordered( this->fpr[_fs].*t, this->fpr[_ft].*t ) ? MIPS32_STATIC_CAST( i, CMP_TRUE ) : MIPS32_STATIC_CAST( i, CMP_FALSE );
 
@@ -1299,11 +1255,6 @@ int CP1::cabs_seq( std::uint32_t word ) noexcept
     auto const _fs = fs( word );
     auto const _ft = ft( word );
 
-    if ( std::isnan( this->fpr[_fd].*t ) || std::isnan( this->fpr[_fs].*t ) || std::isnan( this->fpr[_ft].*t ) ) {
-      set_cause( INVALID );
-      return 1;
-    }
-
     this->fpr[_fd].*i = this->fpr[_fs].*t == this->fpr[_ft].*t ? MIPS32_STATIC_CAST( i, CMP_TRUE ) : MIPS32_STATIC_CAST( i, CMP_FALSE );
 
     return 0;
@@ -1322,11 +1273,6 @@ int CP1::cabs_sueq( std::uint32_t word ) noexcept
     auto const _fd = fd( word );
     auto const _fs = fs( word );
     auto const _ft = ft( word );
-
-    if ( std::isnan( this->fpr[_fd].*t ) || std::isnan( this->fpr[_fs].*t ) || std::isnan( this->fpr[_ft].*t ) ) {
-      set_cause( INVALID );
-      return 1;
-    }
 
     this->fpr[_fd].*i = std::isunordered( this->fpr[_fs].*t, this->fpr[_ft].*t ) ? MIPS32_STATIC_CAST( i, CMP_TRUE ) : MIPS32_STATIC_CAST( i, CMP_FALSE );
     this->fpr[_fd].*i |= this->fpr[_fs].*t == this->fpr[_ft].*t ? MIPS32_STATIC_CAST( i, CMP_TRUE ) : MIPS32_STATIC_CAST( i, CMP_FALSE );
@@ -1348,10 +1294,6 @@ int CP1::cabs_slt( std::uint32_t word ) noexcept
     auto const _fs = fs( word );
     auto const _ft = ft( word );
 
-    if ( std::isnan( this->fpr[_fd].*t ) || std::isnan( this->fpr[_fs].*t ) || std::isnan( this->fpr[_ft].*t ) ) {
-      set_cause( INVALID );
-      return 1;
-    }
     this->fpr[_fd].*i = std::isless( this->fpr[_fs].*t, this->fpr[_ft].*t ) ? MIPS32_STATIC_CAST( i, CMP_TRUE ) : MIPS32_STATIC_CAST( i, CMP_FALSE );
 
     return 0;
@@ -1370,11 +1312,6 @@ int CP1::cabs_sult( std::uint32_t word ) noexcept
     auto const _fd = fd( word );
     auto const _fs = fs( word );
     auto const _ft = ft( word );
-
-    if ( std::isnan( this->fpr[_fd].*t ) || std::isnan( this->fpr[_fs].*t ) || std::isnan( this->fpr[_ft].*t ) ) {
-      set_cause( INVALID );
-      return 1;
-    }
 
     this->fpr[_fd].*i = std::isunordered( this->fpr[_fs].*t, this->fpr[_ft].*t ) ? MIPS32_STATIC_CAST( i, CMP_TRUE ) : MIPS32_STATIC_CAST( i, CMP_FALSE );
     this->fpr[_fd].*i |= std::isless( this->fpr[_fs].*t, this->fpr[_ft].*t ) ? MIPS32_STATIC_CAST( i, CMP_TRUE ) : MIPS32_STATIC_CAST( i, CMP_FALSE );
@@ -1398,11 +1335,6 @@ int CP1::cabs_sle( std::uint32_t word ) noexcept
     auto const _fs = fs( word );
     auto const _ft = ft( word );
 
-    if ( std::isnan( this->fpr[_fd].*t ) || std::isnan( this->fpr[_fs].*t ) || std::isnan( this->fpr[_ft].*t ) ) {
-      this->set_cause( CP1::INVALID );
-      return 1;
-    }
-
     this->fpr[_fd].*i = std::islessequal( this->fpr[_fs].*t, this->fpr[_ft].*t ) ? MIPS32_STATIC_CAST( i, CMP_TRUE ) : MIPS32_STATIC_CAST( i, CMP_FALSE );
 
     return 0;
@@ -1419,11 +1351,6 @@ int CP1::cabs_sule( std::uint32_t word ) noexcept
     auto const _fd = fd( word );
     auto const _fs = fs( word );
     auto const _ft = ft( word );
-
-    if ( std::isnan( this->fpr[_fd].*t ) || std::isnan( this->fpr[_fs].*t ) || std::isnan( this->fpr[_ft].*t ) ) {
-      set_cause( INVALID );
-      return 1;
-    }
 
     this->fpr[_fd].*i = std::isunordered( this->fpr[_fs].*t, this->fpr[_ft].*t ) ? MIPS32_STATIC_CAST( i, CMP_TRUE ) : MIPS32_STATIC_CAST( i, CMP_FALSE );
     this->fpr[_fd].*i |= std::islessequal( this->fpr[_fs].*t, this->fpr[_ft].*t ) ? MIPS32_STATIC_CAST( i, CMP_TRUE ) : MIPS32_STATIC_CAST( i, CMP_FALSE );

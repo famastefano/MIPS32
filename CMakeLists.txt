@@ -52,7 +52,7 @@ if (NOT (CMAKE_BUILD_TYPE STREQUAL "Coverage"))
             target_compile_options(Tests PRIVATE -Wno-logical-op-parentheses -Wno-bitwise-op-parentheses)
             
         else() # GCC
-            target_compile_options(Tests PRIVATE -Wparentheses)
+            target_compile_options(Tests PRIVATE -Wno-parentheses)
         endif()
 
         # x86 build

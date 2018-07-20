@@ -427,7 +427,6 @@ int CP1::sqrt( std::uint32_t word ) noexcept
   auto _sqrt = [this, word]( auto t ) {
     auto const _fd = fd( word );
     auto const _fs = fs( word );
-    auto const _ft = ft( word );
 
     auto const res = std::sqrt( this->fpr[_fs].*t );
     if ( handle_fpu_ex() ) return 1;
@@ -848,7 +847,7 @@ int CP1::class_( std::uint32_t word ) noexcept
   */
 
   auto _classify = [this, word]( auto t, auto i ) {
-    constexpr std::uint32_t SNAN{0x01};
+    //constexpr std::uint32_t SNAN{0x01};
     constexpr std::uint32_t QNAN{0x02};
     constexpr std::uint32_t INFINITY_{0x04};
     constexpr std::uint32_t NORMAL{0x08};
@@ -1056,8 +1055,6 @@ int CP1::cabs_af( std::uint32_t word ) noexcept
 {
   auto _cabs_af = [this, word]( auto i ) {
     auto const _fd = fd( word );
-    auto const _fs = fs( word );
-    auto const _ft = ft( word );
 
     this->fpr[_fd].*i = CMP_FALSE;
 
@@ -1214,10 +1211,8 @@ int CP1::cabs_saf( std::uint32_t word ) noexcept
 {
   auto _cabs_saf = [this, word]( auto i ) {
     auto const _fd = fd( word );
-    auto const _fs = fs( word );
-    auto const _ft = ft( word );
 
-    this->fpr[_fd].*i = MIPS32_STATIC_CAST( i, CMP_FALSE );
+    this->fpr[_fd].*i = CMP_FALSE;
 
     return 0;
   };

@@ -677,6 +677,54 @@ SCENARIO( "A Coprocessor 1 object exists and it's resetted and inspected" )
     }
   }
 
+  WHEN( "CEIL.L.S $f0, $f0 and CEIL.L.D $f13, $f17 are executed" )
+  {
+    auto ceil_l_s = "CEIL_L"_inst | FMT_S | 0_r1 | 0_r2;
+    auto ceil_l_d = "CEIL_L"_inst | FMT_D | 13_r1 | 17_r2;
+
+    inspector.CP1_fpr( 0 )  = 3947.6241f;
+    inspector.CP1_fpr( 17 ) = -20.39;
+
+    auto res_s = std::uint64_t( 3948 );
+    auto res_d = std::uint64_t( -20 );
+
+    THEN( "The result must be correct" )
+    {
+      auto rs = cp1.execute( ceil_l_s );
+      auto rd = cp1.execute( ceil_l_d );
+
+      REQUIRE( rs == CP1::Exception::NONE );
+      REQUIRE( rd == CP1::Exception::NONE );
+
+      REQUIRE( inspector.CP1_fpr( 0 ).double_binary() == res_s );
+      REQUIRE( inspector.CP1_fpr( 13 ).double_binary() == res_d );
+    }
+  }
+
+  WHEN( "CEIL.W.S $f3, $f21 and CEIL.W.D $f8, $f19 are executed" )
+  {
+    auto ceil_w_s = "CEIL_W"_inst | FMT_S | 3_r1 | 21_r2;
+    auto ceil_w_d = "CEIL_W"_inst | FMT_D | 8_r1 | 19_r2;
+
+    inspector.CP1_fpr( 21 ) = -54'876.3487f;
+    inspector.CP1_fpr( 19 ) = 98'723.93;
+
+    auto res_s = std::uint32_t( -54'876 );
+    auto res_d = std::uint32_t( 98'724 );
+
+    THEN( "The result must be correct" )
+    {
+      auto rs = cp1.execute( ceil_w_s );
+      auto rd = cp1.execute( ceil_w_d );
+
+      REQUIRE( rs == CP1::Exception::NONE );
+      REQUIRE( rd == CP1::Exception::NONE );
+
+      REQUIRE( inspector.CP1_fpr( 3 ).single_binary() == res_s );
+      REQUIRE( inspector.CP1_fpr( 8 ).single_binary() == res_d );
+    }
+  }
+
   /*
   The mask has 10 bits as follows.
   Bits 0 and 1 indicate NaN values:
@@ -816,39 +864,111 @@ SCENARIO( "A Coprocessor 1 object exists and it's resetted and inspected" )
     }
   }
 
-  WHEN( "CVT.D.S $f19, $f15 is executed" )
+  WHEN( "CVT.D.S $f19, $f15 and CVT.D.W $f0, $f1 and CVT.D.L $f31, $f31 are executed" )
   {
-    auto cvt_d = "CVT_D"_inst | FMT_S | 19_r1 | 15_r2;
+    auto cvt_d_s = "CVT_D"_inst | FMT_S | 19_r1 | 15_r2;
+    auto cvt_d_w = "CVT_D"_inst | FMT_W | 0_r1 | 1_r2;
+    auto cvt_d_l = "CVT_D"_inst | FMT_L | 31_r1 | 31_r2;
 
     inspector.CP1_fpr( 15 ) = 1509.f;
+    inspector.CP1_fpr( 1 )  = std::uint32_t( -2874 );
+    inspector.CP1_fpr( 31 ) = std::uint64_t( 34'903 );
 
-    auto res = 1509.0;
+    auto res_s = 1509.0;
+    auto res_w = -2874.0;
+    auto res_l = 34'903.0;
 
     THEN( "The result must be correct" )
     {
-      auto rs = cp1.execute( cvt_d );
+      auto rs = cp1.execute( cvt_d_s );
+      auto rw = cp1.execute( cvt_d_w );
+      auto rl = cp1.execute( cvt_d_l );
 
       REQUIRE( rs == CP1::Exception::NONE );
+      REQUIRE( rw == CP1::Exception::NONE );
+      REQUIRE( rl == CP1::Exception::NONE );
 
-      REQUIRE( inspector.CP1_fpr( 19 ).read_double() == res );
+      REQUIRE( inspector.CP1_fpr( 19 ).read_double() == res_s );
+      REQUIRE( inspector.CP1_fpr( 0 ).read_double() == res_w );
+      REQUIRE( inspector.CP1_fpr( 31 ).read_double() == res_l );
     }
   }
 
-  WHEN( "CVT.S.D $f3, $f9 is executed" )
+  WHEN( "CVT.L.S $f8, $f27 and CVT.L.D $f30, $f24 are executed" )
   {
-    auto cvt_s = "CVT_S"_inst | FMT_D | 3_r1 | 9_r2;
+    auto cvt_l_s = "CVT_L"_inst | FMT_S | 8_r1 | 27_r2;
+    auto cvt_l_d = "CVT_L"_inst | FMT_D | 30_r1 | 24_r2;
 
-    inspector.CP1_fpr( 9 ) = 8374.0;
+    inspector.CP1_fpr( 27 ) = -3094.0f;
+    inspector.CP1_fpr( 24 ) = 9074.0;
 
-    auto res = 8374.0f;
+    auto res_s = std::uint64_t( -3094 );
+    auto res_d = std::uint64_t( 9074 );
 
     THEN( "The result must be correct" )
     {
-      auto rd = cp1.execute( cvt_s );
+      auto rs = cp1.execute( cvt_l_s );
+      auto rd = cp1.execute( cvt_l_d );
 
+      REQUIRE( rs == CP1::Exception::NONE );
       REQUIRE( rd == CP1::Exception::NONE );
 
-      REQUIRE( inspector.CP1_fpr( 3 ).read_single() == res );
+      REQUIRE( inspector.CP1_fpr( 8 ).double_binary() == res_s );
+      REQUIRE( inspector.CP1_fpr( 30 ).double_binary() == res_d );
+    }
+  }
+
+  WHEN( "CVT.S.D $f3, $f9 and CVT.S.W $f11, $f0 and CVT.S.L $f4, $f22 are executed" )
+  {
+    auto cvt_s_d = "CVT_S"_inst | FMT_D | 3_r1 | 9_r2;
+    auto cvt_s_w = "CVT_S"_inst | FMT_W | 11_r1 | 0_r2;
+    auto cvt_s_l = "CVT_S"_inst | FMT_L | 4_r1 | 22_r2;
+
+    inspector.CP1_fpr( 9 )  = 8374.0;
+    inspector.CP1_fpr( 0 )  = std::uint32_t( 2166 );
+    inspector.CP1_fpr( 22 ) = std::uint64_t( -348'763'328 );
+
+    auto res_d = 8374.0f;
+    auto res_w = 2166;
+    auto res_l = -348'763'328;
+
+    THEN( "The result must be correct" )
+    {
+      auto rd = cp1.execute( cvt_s_d );
+      auto rw = cp1.execute( cvt_s_w );
+      auto rl = cp1.execute( cvt_s_l );
+
+      REQUIRE( rd == CP1::Exception::NONE );
+      REQUIRE( rw == CP1::Exception::NONE );
+      REQUIRE( rl == CP1::Exception::NONE );
+
+      REQUIRE( inspector.CP1_fpr( 3 ).read_single() == res_d );
+      REQUIRE( inspector.CP1_fpr( 11 ).read_single() == res_w );
+      REQUIRE( inspector.CP1_fpr( 4 ).read_single() == res_l );
+    }
+  }
+
+  WHEN( "CVT.W.S $f13, $f31 and CVT.W.D $f21, $f12 are executed" )
+  {
+    auto cvt_w_s = "CVT_W"_inst | FMT_S | 13_r1 | 31_r2;
+    auto cvt_w_d = "CVT_W"_inst | FMT_D | 21_r1 | 12_r2;
+
+    inspector.CP1_fpr( 31 ) = 23'984.0f;
+    inspector.CP1_fpr( 12 ) = -4309.0;
+
+    auto res_s = std::uint32_t( 23'984 );
+    auto res_d = std::uint32_t( -4309 );
+
+    THEN( "The result must be correct" )
+    {
+      auto rs = cp1.execute( cvt_w_s );
+      auto rd = cp1.execute( cvt_w_d );
+
+      REQUIRE( rs == CP1::Exception::NONE );
+      REQUIRE( rd == CP1::Exception::NONE );
+
+      REQUIRE( inspector.CP1_fpr( 13 ).single_binary() == res_s );
+      REQUIRE( inspector.CP1_fpr( 21 ).single_binary() == res_d );
     }
   }
 
@@ -876,6 +996,54 @@ SCENARIO( "A Coprocessor 1 object exists and it's resetted and inspected" )
 
       REQUIRE( inspector.CP1_fpr( 1 ).read_single() == res_s );
       REQUIRE( inspector.CP1_fpr( 4 ).read_double() == res_d );
+    }
+  }
+
+  WHEN( "FLOOR.L.S $f3, $f3 and FLOOR.L.D $f2, $f7 are executed" )
+  {
+    auto floor_l_s = "FLOOR_L"_inst | FMT_S | 3_r1 | 3_r2;
+    auto floor_l_d = "FLOOR_L"_inst | FMT_D | 2_r1 | 7_r2;
+
+    inspector.CP1_fpr( 3 ) = 23'412.8f;
+    inspector.CP1_fpr( 7 ) = -2038.309;
+
+    auto res_s = std::uint64_t( 23'412 );
+    auto res_d = std::uint64_t( -2039 );
+
+    THEN( "The result must be correct" )
+    {
+      auto rs = cp1.execute( floor_l_s );
+      auto rd = cp1.execute( floor_l_d );
+
+      REQUIRE( rs == CP1::Exception::NONE );
+      REQUIRE( rd == CP1::Exception::NONE );
+
+      REQUIRE( inspector.CP1_fpr( 3 ).double_binary() == res_s );
+      REQUIRE( inspector.CP1_fpr( 2 ).double_binary() == res_d );
+    }
+  }
+
+  WHEN( "FLOOR.W.S $f0, $f9 and FLOOR.W.D $f21, $f17 are executed" )
+  {
+    auto floor_w_s = "FLOOR_W"_inst | FMT_S | 0_r1 | 9_r2;
+    auto floor_w_d = "FLOOR_W"_inst | FMT_D | 21_r1 | 17_r2;
+
+    inspector.CP1_fpr( 9 )  = 23'412.0f;
+    inspector.CP1_fpr( 17 ) = -2038.309;
+
+    auto res_s = std::uint32_t( 23'412 );
+    auto res_d = std::uint32_t( -2039 );
+
+    THEN( "The result must be correct" )
+    {
+      auto rs = cp1.execute( floor_w_s );
+      auto rd = cp1.execute( floor_w_d );
+
+      REQUIRE( rs == CP1::Exception::NONE );
+      REQUIRE( rd == CP1::Exception::NONE );
+
+      REQUIRE( inspector.CP1_fpr( 0 ).single_binary() == res_s );
+      REQUIRE( inspector.CP1_fpr( 21 ).single_binary() == res_d );
     }
   }
 
@@ -1164,6 +1332,56 @@ SCENARIO( "A Coprocessor 1 object exists and it's resetted and inspected" )
 
       REQUIRE( inspector.CP1_fpr( 1 ).single_binary() == res_s );
       REQUIRE( inspector.CP1_fpr( 4 ).double_binary() == res_d );
+    }
+  }
+
+  WHEN( "ROUND.L.S $f1, $f2 and ROUND.L.D $f30, $f28 are executed" )
+  {
+    auto round_l_s = "ROUND_L"_inst | FMT_S | 1_r1 | 2_r2;
+    auto round_l_d = "ROUND_L"_inst | FMT_D | 30_r1 | 28_r2;
+
+    inspector.CP1_fpr( 2 ) = 29'842.0f;
+
+    inspector.CP1_fpr( 28 ) = -87'431.0;
+
+    auto res_s = std::uint64_t( std::llround( 29'842.0f ) );
+    auto res_d = std::uint64_t( std::llround( -87'431.0f ) );
+
+    THEN( "The result must be correct" )
+    {
+      auto rs = cp1.execute( round_l_s );
+      auto rd = cp1.execute( round_l_d );
+
+      REQUIRE( rs == CP1::Exception::NONE );
+      REQUIRE( rd == CP1::Exception::NONE );
+
+      REQUIRE( inspector.CP1_fpr( 1 ).double_binary() == res_s );
+      REQUIRE( inspector.CP1_fpr( 30 ).double_binary() == res_d );
+    }
+  }
+
+  WHEN( "ROUND.W.S $f1, $f2 and ROUND.W.D $f30, $f28 are executed" )
+  {
+    auto round_w_s = "ROUND_W"_inst | FMT_S | 1_r1 | 2_r2;
+    auto round_w_d = "ROUND_W"_inst | FMT_D | 30_r1 | 28_r2;
+
+    inspector.CP1_fpr( 2 ) = 29'842.0f;
+
+    inspector.CP1_fpr( 28 ) = -87'431.0;
+
+    auto res_s = std::uint32_t( std::llround( 29'842.0f ) );
+    auto res_d = std::uint32_t( std::llround( -87'431.0f ) );
+
+    THEN( "The result must be correct" )
+    {
+      auto rs = cp1.execute( round_w_s );
+      auto rd = cp1.execute( round_w_d );
+
+      REQUIRE( rs == CP1::Exception::NONE );
+      REQUIRE( rd == CP1::Exception::NONE );
+
+      REQUIRE( inspector.CP1_fpr( 1 ).single_binary() == res_s );
+      REQUIRE( inspector.CP1_fpr( 30 ).single_binary() == res_d );
     }
   }
 

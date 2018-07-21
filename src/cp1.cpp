@@ -976,11 +976,19 @@ int CP1::maxa( std::uint32_t word ) noexcept
 }
 int CP1::cvt_s( std::uint32_t word ) noexcept
 {
-  auto _cvt_s = [this, word]( auto t ) {
+  auto _cvt_s = [this, word]( auto t, int raw_data_type ) {
     auto const _fd = fd( word );
     auto const _fs = fs( word );
 
-    auto const res = (float)( this->fpr[_fs].*t );
+    float res;
+
+    if ( raw_data_type == 0 )
+      res = (float)( this->fpr[_fs].*t );
+    else if ( raw_data_type == 1 )
+      res = (float)( std::int32_t )( this->fpr[_fs].*t );
+    else
+      res = (float)( std::int64_t )( this->fpr[_fs].*t );
+
     if ( handle_fpu_ex() ) return 1;
     this->fpr[_fd].f = res;
 
@@ -990,19 +998,26 @@ int CP1::cvt_s( std::uint32_t word ) noexcept
   auto const _fmt = fmt( word );
 
   if ( _fmt == FMT_D )
-    return _cvt_s( &FPR::d );
+    return _cvt_s( &FPR::d, 0 );
   else if ( _fmt == FMT_W )
-    return _cvt_s( &FPR::i32 );
+    return _cvt_s( &FPR::i32, 1 );
   else
-    return _cvt_s( &FPR::i64 );
+    return _cvt_s( &FPR::i64, 2 );
 }
 int CP1::cvt_d( std::uint32_t word ) noexcept
 {
-  auto _cvt_d = [this, word]( auto t ) {
+  auto _cvt_d = [this, word]( auto t, int raw_data_type ) {
     auto const _fd = fd( word );
     auto const _fs = fs( word );
 
-    auto const res = (double)( this->fpr[_fs].*t );
+    double res;
+    if ( raw_data_type == 0 )
+      res = (double)( this->fpr[_fs].*t );
+    else if ( raw_data_type == 1 )
+      res = (double)( std::int32_t )( this->fpr[_fs].*t );
+    else
+      res = (double)( std::int64_t )( this->fpr[_fs].*t );
+
     if ( handle_fpu_ex() ) return 1;
     this->fpr[_fd].d = res;
 
@@ -1012,11 +1027,11 @@ int CP1::cvt_d( std::uint32_t word ) noexcept
   auto const _fmt = fmt( word );
 
   if ( _fmt == FMT_S )
-    return _cvt_d( &FPR::f );
+    return _cvt_d( &FPR::f, 0 );
   else if ( _fmt == FMT_W )
-    return _cvt_d( &FPR::i32 );
+    return _cvt_d( &FPR::i32, 1 );
   else
-    return _cvt_d( &FPR::i64 );
+    return _cvt_d( &FPR::i64, 2 );
 }
 int CP1::cvt_l( std::uint32_t word ) noexcept
 {

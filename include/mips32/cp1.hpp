@@ -101,11 +101,11 @@ class CP1
   int mov( std::uint32_t word ) noexcept;
   int neg( std::uint32_t word ) noexcept;
   int round_l( std::uint32_t word ) noexcept;
-  int trunct_l( std::uint32_t word ) noexcept;
+  int trunc_l( std::uint32_t word ) noexcept;
   int ceil_l( std::uint32_t word ) noexcept;
   int floor_l( std::uint32_t word ) noexcept;
   int round_w( std::uint32_t word ) noexcept;
-  int trunct_w( std::uint32_t word ) noexcept;
+  int trunc_w( std::uint32_t word ) noexcept;
   int ceil_w( std::uint32_t word ) noexcept;
   int floor_w( std::uint32_t word ) noexcept;
   int sel( std::uint32_t word ) noexcept;
@@ -125,14 +125,17 @@ class CP1
   int cvt_d( std::uint32_t word ) noexcept;
   int cvt_l( std::uint32_t word ) noexcept;
   int cvt_w( std::uint32_t word ) noexcept;
-  int cabs_af( std::uint32_t word ) noexcept;
-  int cabs_un( std::uint32_t word ) noexcept;
-  int cabs_eq( std::uint32_t word ) noexcept;
-  int cabs_ueq( std::uint32_t word ) noexcept;
-  int cabs_lt( std::uint32_t word ) noexcept;
-  int cabs_ult( std::uint32_t word ) noexcept;
-  int cabs_le( std::uint32_t word ) noexcept;
-  int cabs_ule( std::uint32_t word ) noexcept;
+  int cmp_af( std::uint32_t word ) noexcept;
+  int cmp_un( std::uint32_t word ) noexcept;
+  int cmp_eq( std::uint32_t word ) noexcept;
+  int cmp_ueq( std::uint32_t word ) noexcept;
+  int cmp_lt( std::uint32_t word ) noexcept;
+  int cmp_ult( std::uint32_t word ) noexcept;
+  int cmp_le( std::uint32_t word ) noexcept;
+  int cmp_ule( std::uint32_t word ) noexcept;
+  int cmp_or( std::uint32_t word ) noexcept;
+  int cmp_une( std::uint32_t word ) noexcept;
+  int cmp_ne( std::uint32_t word ) noexcept;
 
   /* Signaling NaN is not supported
   int cabs_saf( std::uint32_t word ) noexcept;

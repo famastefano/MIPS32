@@ -91,8 +91,7 @@ struct INF<double>
 };
 
 // TODO: provoke FPU exception
-// TODO: test instruction related to the W and L format
-// TODO: test for reserved and unimplemented instructions
+// TODO: constexpr the data of every test case
 
 SCENARIO( "A Coprocessor 1 object exists and it's resetted and inspected" )
 {
@@ -326,8 +325,8 @@ SCENARIO( "A Coprocessor 1 object exists and it's resetted and inspected" )
 
   WHEN( "CMP.AF.S $f0, $f0, $f0 and CMP.AF.D $f4, $f5, $f4 are executed" )
   {
-    auto cmp_af_s = "CABS_AF"_inst | CMP_FMT_S | 0_r1 | 0_r2 | 0_r3;
-    auto cmp_af_d = "CABS_AF"_inst | CMP_FMT_D | 4_r1 | 5_r2 | 4_r3;
+    auto cmp_af_s = "CMP_AF"_inst | CMP_FMT_S | 0_r1 | 0_r2 | 0_r3;
+    auto cmp_af_d = "CMP_AF"_inst | CMP_FMT_D | 4_r1 | 5_r2 | 4_r3;
 
     inspector.CP1_fpr( 0 ) = 256.0f;
     inspector.CP1_fpr( 4 ) = 394.0;
@@ -350,8 +349,8 @@ SCENARIO( "A Coprocessor 1 object exists and it's resetted and inspected" )
 
   WHEN( "CMP.UN.S $f3, $f4, $f3 and CMP.AF.D $f18, $f11, $f0 are executed" )
   {
-    auto cmp_un_s = "CABS_UN"_inst | CMP_FMT_S | 3_r1 | 4_r2 | 3_r3;
-    auto cmp_un_d = "CABS_UN"_inst | CMP_FMT_D | 18_r1 | 11_r2 | 0_r3;
+    auto cmp_un_s = "CMP_UN"_inst | CMP_FMT_S | 3_r1 | 4_r2 | 3_r3;
+    auto cmp_un_d = "CMP_UN"_inst | CMP_FMT_D | 18_r1 | 11_r2 | 0_r3;
 
     float f_value_to_check[][2] = {
         {0.0f, -0.0f},
@@ -397,8 +396,8 @@ SCENARIO( "A Coprocessor 1 object exists and it's resetted and inspected" )
 
   WHEN( "CMP.EQ.S $f30, $f29, $f30 and CMP.EQ.D $f1, $f2, $f3 are executed" )
   {
-    auto cmp_eq_s = "CABS_EQ"_inst | CMP_FMT_S | 30_r1 | 29_r2 | 30_r3;
-    auto cmp_eq_d = "CABS_EQ"_inst | CMP_FMT_D | 1_r1 | 2_r2 | 3_r3;
+    auto cmp_eq_s = "CMP_EQ"_inst | CMP_FMT_S | 30_r1 | 29_r2 | 30_r3;
+    auto cmp_eq_d = "CMP_EQ"_inst | CMP_FMT_D | 1_r1 | 2_r2 | 3_r3;
 
     float f_value_to_check[][2] = {
         {1.0f, -0.0f},
@@ -444,8 +443,8 @@ SCENARIO( "A Coprocessor 1 object exists and it's resetted and inspected" )
 
   WHEN( "CMP.UEQ.S $f10, $f9, $f27 and CMP.UEQ.D $f4, $f6, $f26 are executed" )
   {
-    auto cmp_ueq_s = "CABS_UEQ"_inst | CMP_FMT_S | 10_r1 | 9_r2 | 27_r3;
-    auto cmp_ueq_d = "CABS_UEQ"_inst | CMP_FMT_D | 4_r1 | 6_r2 | 26_r3;
+    auto cmp_ueq_s = "CMP_UEQ"_inst | CMP_FMT_S | 10_r1 | 9_r2 | 27_r3;
+    auto cmp_ueq_d = "CMP_UEQ"_inst | CMP_FMT_D | 4_r1 | 6_r2 | 26_r3;
 
     float f_value_to_check[][2] = {
         {0.0f, -0.0f},
@@ -491,8 +490,8 @@ SCENARIO( "A Coprocessor 1 object exists and it's resetted and inspected" )
 
   WHEN( "CMP.LT.S $f5, $f10, $f15 and CMP.LT.D $f6, $f12, $18 are executed" )
   {
-    auto cmp_lt_s = "CABS_LT"_inst | CMP_FMT_S | 5_r1 | 10_r2 | 15_r3;
-    auto cmp_lt_d = "CABS_LT"_inst | CMP_FMT_D | 6_r1 | 12_r2 | 18_r3;
+    auto cmp_lt_s = "CMP_LT"_inst | CMP_FMT_S | 5_r1 | 10_r2 | 15_r3;
+    auto cmp_lt_d = "CMP_LT"_inst | CMP_FMT_D | 6_r1 | 12_r2 | 18_r3;
 
     float f_value_to_check[][2] = {
         {-0.0f, 0.0f},
@@ -538,8 +537,8 @@ SCENARIO( "A Coprocessor 1 object exists and it's resetted and inspected" )
 
   WHEN( "CMP.ULT.S $f5, $f10, $f15 and CMP.ULT.D $f6, $f12, $18 are executed" )
   {
-    auto cmp_ult_s = "CABS_ULT"_inst | CMP_FMT_S | 5_r1 | 10_r2 | 15_r3;
-    auto cmp_ult_d = "CABS_ULT"_inst | CMP_FMT_D | 6_r1 | 12_r2 | 18_r3;
+    auto cmp_ult_s = "CMP_ULT"_inst | CMP_FMT_S | 5_r1 | 10_r2 | 15_r3;
+    auto cmp_ult_d = "CMP_ULT"_inst | CMP_FMT_D | 6_r1 | 12_r2 | 18_r3;
 
     float f_value_to_check[][2] = {
         {-0.0f, 0.0f},
@@ -585,8 +584,8 @@ SCENARIO( "A Coprocessor 1 object exists and it's resetted and inspected" )
 
   WHEN( "CMP.LE.S $f5, $f10, $f15 and CMP.LE.D $f6, $f12, $18 are executed" )
   {
-    auto cmp_le_s = "CABS_LE"_inst | CMP_FMT_S | 5_r1 | 10_r2 | 15_r3;
-    auto cmp_le_d = "CABS_LE"_inst | CMP_FMT_D | 6_r1 | 12_r2 | 18_r3;
+    auto cmp_le_s = "CMP_LE"_inst | CMP_FMT_S | 5_r1 | 10_r2 | 15_r3;
+    auto cmp_le_d = "CMP_LE"_inst | CMP_FMT_D | 6_r1 | 12_r2 | 18_r3;
 
     float f_value_to_check[][2] = {
         {-0.0f, 0.0f},
@@ -632,8 +631,8 @@ SCENARIO( "A Coprocessor 1 object exists and it's resetted and inspected" )
 
   WHEN( "CMP.ULE.S $f5, $f10, $f15 and CMP.ULE.D $f6, $f12, $18 are executed" )
   {
-    auto cmp_ule_s = "CABS_ULE"_inst | CMP_FMT_S | 5_r1 | 10_r2 | 15_r3;
-    auto cmp_ule_d = "CABS_ULE"_inst | CMP_FMT_D | 6_r1 | 12_r2 | 18_r3;
+    auto cmp_ule_s = "CMP_ULE"_inst | CMP_FMT_S | 5_r1 | 10_r2 | 15_r3;
+    auto cmp_ule_d = "CMP_ULE"_inst | CMP_FMT_D | 6_r1 | 12_r2 | 18_r3;
 
     float f_value_to_check[][2] = {
         {-0.0f, 0.0f},
@@ -1545,6 +1544,168 @@ SCENARIO( "A Coprocessor 1 object exists and it's resetted and inspected" )
       REQUIRE( inspector.CP1_fpr( 1 ).read_double() == res_d );
     }
   }
+
+  WHEN( "TRUNC.L.S $f1, $f3 and TRUNC.L.D $f30, $f29 are executed" )
+  {
+    auto trunc_l_s = "TRUNC_L"_inst | FMT_S | 1_r1 | 3_r2;
+    auto trunc_l_d = "TRUNC_L"_inst | FMT_D | 30_r1 | 29_r2;
+
+    inspector.CP1_fpr( 3 )  = 39.89f;
+    inspector.CP1_fpr( 29 ) = -1.85;
+
+    auto res_s = std::uint64_t( 39 );
+    auto res_d = std::uint64_t( -1 );
+
+    THEN( "The result must be correct" )
+    {
+      auto rs = cp1.execute( trunc_l_s );
+      auto rd = cp1.execute( trunc_l_d );
+
+      REQUIRE( rs == CP1::Exception::NONE );
+      REQUIRE( rd == CP1::Exception::NONE );
+
+      REQUIRE( inspector.CP1_fpr( 1 ).double_binary() == res_s );
+      REQUIRE( inspector.CP1_fpr( 30 ).double_binary() == res_d );
+    }
+  }
+
+  WHEN( "TRUNC.W.S $f6, $f10 and TRUNC.W.D $f4, $f13 are executed" )
+  {
+    auto trunc_w_s = "TRUNC_W"_inst | FMT_S | 6_r1 | 10_r2;
+    auto trunc_w_d = "TRUNC_W"_inst | FMT_D | 4_r1 | 13_r2;
+
+    inspector.CP1_fpr( 10 ) = -290.3463f;
+    inspector.CP1_fpr( 13 ) = 0.025;
+
+    auto res_s = std::uint32_t( -290 );
+    auto res_d = std::uint32_t( 0 );
+
+    THEN( "The result must be correct" )
+    {
+      auto rs = cp1.execute( trunc_w_s );
+      auto rd = cp1.execute( trunc_w_d );
+
+      REQUIRE( rs == CP1::Exception::NONE );
+      REQUIRE( rd == CP1::Exception::NONE );
+
+      REQUIRE( inspector.CP1_fpr( 6 ).single_binary() == res_s );
+      REQUIRE( inspector.CP1_fpr( 4 ).single_binary() == res_d );
+    }
+  }
+
+  WHEN( "I execute reserved instructions" )
+  {
+    constexpr std::uint32_t opcode{0b010001 << 26};
+
+    constexpr std::uint32_t fmt_S_D_reserved_functions[] = {
+        0b100'010,
+        0b100'011,
+        0b100'110,
+        0b100'111,
+
+        0b101'000,
+        0b101'001,
+        0b101'010,
+        0b101'011,
+        0b101'100,
+        0b101'101,
+        0b101'110,
+        0b101'111,
+
+        0b110'000,
+        0b110'001,
+        0b110'010,
+        0b110'011,
+        0b110'100,
+        0b110'101,
+        0b110'110,
+        0b110'111,
+
+        0b111'000,
+        0b111'001,
+        0b111'010,
+        0b111'011,
+        0b111'100,
+        0b111'101,
+        0b111'110,
+        0b111'111,
+    };
+
+    constexpr std::uint32_t fmt_W_L_reserved_functions[] = {
+        0b010'000,
+        0b010'100,
+        0b010'101,
+        0b010'110,
+        0b010'111,
+
+        0b011'000,
+        0b011'100,
+        0b011'101,
+        0b011'110,
+        0b011'111,
+
+        0b100'010,
+        0b100'011,
+        0b100'100,
+        0b100'101,
+        0b100'110,
+        0b100'111,
+
+        0b101'000,
+        0b101'001,
+        0b101'010,
+        0b101'011,
+        0b101'100,
+        0b101'101,
+        0b101'110,
+        0b101'111,
+
+        0b110'000,
+        0b110'001,
+        0b110'010,
+        0b110'011,
+        0b110'100,
+        0b110'101,
+        0b110'110,
+        0b110'111,
+
+        0b111'000,
+        0b111'001,
+        0b111'010,
+        0b111'011,
+        0b111'100,
+        0b111'101,
+        0b111'110,
+        0b111'111,
+    };
+
+    THEN( "Executing them shall yield a Reserved Instruction Exception" )
+    {
+      for ( auto fn : fmt_S_D_reserved_functions ) {
+        auto const r = cp1.execute( opcode | FMT_S | fn );
+        REQUIRE( r == CP1::Exception::RESERVED );
+      }
+
+      for ( auto fn : fmt_W_L_reserved_functions ) {
+        auto const r = cp1.execute( opcode | FMT_W | fn );
+        REQUIRE( r == CP1::Exception::RESERVED );
+      }
+    }
+  }
+
+  /*  WHEN( "I execute unimplemented instructions" )
+  {
+    constexpr std::uint32_t opcode{0b010001 << 26};
+    constexpr std::uint32_t unimplemented_functions[] = {
+
+    };
+
+    THEN( "Executing them shall yield a Unimplemented Operation Exception" )
+    {
+      for ( auto fn : unimplemented_functions )
+        REQUIRE( cp1.execute( opcode | fn ) == CP1::Exception::UNIMPLEMENTED );
+    }
+  }*/
 }
 
 constexpr std::uint32_t operator""_r1( unsigned long long n ) noexcept
@@ -1568,7 +1729,7 @@ constexpr std::uint32_t operator""_inst( char const *c, std::size_t ) noexcept
 
   std::string_view view( c );
 
-  constexpr std::array<std::string_view, 64> encode_table{
+  constexpr std::array<std::string_view, 40> fmt_S_D_encode_table{
       "ADD"sv,
       "SUB"sv,
       "MUL"sv,
@@ -1603,35 +1764,48 @@ constexpr std::uint32_t operator""_inst( char const *c, std::size_t ) noexcept
       "MAXA"sv,
       "CVT_S"sv,
       "CVT_D"sv,
-      "_"sv,  // reserved
-      "__"sv, // reserved
-      "CVT_L"sv,
+      "_"sv, // reserved *
+      "_"sv, // reserved *
       "CVT_W"sv,
+      "CVT_L"sv,
       "CVT_PS"sv,
-      "___"sv, // reserved
-      "CABS_AF"sv,
-      "CABS_UN"sv,
-      "CABS_EQ"sv,
-      "CABS_UEQ"sv,
-      "CABS_LT"sv,
-      "CABS_ULT"sv,
-      "CABS_LE"sv,
-      "CABS_ULE"sv,
-      "CABS_SAF"sv,
-      "CABS_SUN"sv,
-      "CABS_SEQ"sv,
-      "CABS_SUEQ"sv,
-      "CABS_SLT"sv,
-      "CABS_SULT"sv,
-      "CABS_SLE"sv,
-      "CABS_SULE"sv,
+      "_"sv, // reserved *
+  };
+
+  constexpr std::array<std::string_view, 20> fmt_W_L_encode_table{
+      "CMP_AF"sv,
+      "CMP_UN"sv,
+      "CMP_EQ"sv,
+      "CMP_UEQ"sv,
+      "CMP_LT"sv,
+      "CMP_ULT"sv,
+      "CMP_LE"sv,
+      "CMP_ULE"sv,
+      "CMP_SAF"sv,
+      "CMP_SUN"sv,
+      "CMP_SEQ"sv,
+      "CMP_SUEQ"sv,
+      "CMP_SLT"sv,
+      "CMP_SULT"sv,
+      "CMP_SLE"sv,
+      "CMP_SULE"sv,
+      "_"sv, // reserved *
+      "CMP_OR"sv,
+      "CMP_UNE"sv,
+      "CMP_NE"sv,
   };
 
   std::uint32_t code{0};
-  for ( auto const &in : encode_table ) {
+  for ( auto const &in : fmt_S_D_encode_table ) {
     if ( in == view ) return code | opcode;
     ++code;
   }
 
-  return std::uint32_t( -1 );
+  code = 0;
+  for ( auto const &in : fmt_W_L_encode_table ) {
+    if ( in == view ) return code | opcode;
+    ++code;
+  }
+
+  return std::uint32_t( 63 ); // function 63 is always reserved
 }

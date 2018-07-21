@@ -676,6 +676,147 @@ SCENARIO( "A Coprocessor 1 object exists and it's resetted and inspected" )
     }
   }
 
+  WHEN( "CMP.OR.S $f0, $f3, $f6 and CMP.OR.D $f13, $f14, $f13 are executed" )
+  {
+    auto cmp_or_s = "CMP_OR"_inst | CMP_FMT_S | 0_r1 | 3_r2 | 6_r3;
+    auto cmp_or_d = "CMP_OR"_inst | CMP_FMT_D | 13_r1 | 14_r2 | 13_r3;
+
+    float f_value_to_check[][2] = {
+        {QNAN<float>{}, QNAN<float>{}},
+        {QNAN<float>{}, 9.0f},
+        {-14.0f, QNAN<float>{}},
+        {+6'797'895.0f, -41'000.0f},
+    };
+
+    double d_value_to_check[][2] = {
+        {QNAN<double>{}, 0.0},
+        {QNAN<double>{}, QNAN<double>{}},
+        {23.0, QNAN<double>{}},
+        {+312.9999999, -18.0},
+    };
+
+    std::uint64_t res[] = {
+        CMP_FALSE,
+        CMP_FALSE,
+        CMP_FALSE,
+        CMP_TRUE,
+    };
+
+    THEN( "The result must be correct" )
+    {
+      for ( int i = 0; i < 4; ++i ) {
+        inspector.CP1_fpr( 3 ) = f_value_to_check[i][0];
+        inspector.CP1_fpr( 6 ) = f_value_to_check[i][1];
+
+        inspector.CP1_fpr( 14 ) = d_value_to_check[i][0];
+        inspector.CP1_fpr( 13 ) = d_value_to_check[i][1];
+
+        auto rs = cp1.execute( cmp_or_s );
+        auto rd = cp1.execute( cmp_or_d );
+
+        REQUIRE( rs == CP1::Exception::NONE );
+        REQUIRE( rd == CP1::Exception::NONE );
+
+        REQUIRE( inspector.CP1_fpr( 0 ).single_binary() == std::uint32_t( res[i] ) );
+        REQUIRE( inspector.CP1_fpr( 13 ).double_binary() == res[i] );
+      }
+    }
+  }
+
+  WHEN( "CMP.UNE.S $f31, $f30, $f29 and CMP.UNE.D $f18, $f21, $f2 are executed" )
+  {
+    auto cmp_une_s = "CMP_UNE"_inst | CMP_FMT_S | 0_r1 | 3_r2 | 6_r3;
+    auto cmp_une_d = "CMP_UNE"_inst | CMP_FMT_D | 13_r1 | 14_r2 | 13_r3;
+
+    float f_value_to_check[][2] = {
+        {QNAN<float>{}, QNAN<float>{}},
+        {QNAN<float>{}, 9.0f},
+        {-14.0f, QNAN<float>{}},
+        {-41'000.0f, -41'000.0f},
+    };
+
+    double d_value_to_check[][2] = {
+        {QNAN<double>{}, 0.0},
+        {QNAN<double>{}, QNAN<double>{}},
+        {23.0, QNAN<double>{}},
+        {312.0, 312.0},
+    };
+
+    std::uint64_t res[] = {
+        CMP_TRUE,
+        CMP_TRUE,
+        CMP_TRUE,
+        CMP_FALSE,
+    };
+
+    THEN( "The result must be correct" )
+    {
+      for ( int i = 0; i < 4; ++i ) {
+        inspector.CP1_fpr( 3 ) = f_value_to_check[i][0];
+        inspector.CP1_fpr( 6 ) = f_value_to_check[i][1];
+
+        inspector.CP1_fpr( 14 ) = d_value_to_check[i][0];
+        inspector.CP1_fpr( 13 ) = d_value_to_check[i][1];
+
+        auto rs = cp1.execute( cmp_une_s );
+        auto rd = cp1.execute( cmp_une_d );
+
+        REQUIRE( rs == CP1::Exception::NONE );
+        REQUIRE( rd == CP1::Exception::NONE );
+
+        REQUIRE( inspector.CP1_fpr( 0 ).single_binary() == std::uint32_t( res[i] ) );
+        REQUIRE( inspector.CP1_fpr( 13 ).double_binary() == res[i] );
+      }
+    }
+  }
+
+  WHEN( "CMP.NE.S $f6, $f12, $f0 and CMP.NE.D $f3, $f5, $f19 are executed" )
+  {
+    auto cmp_ne_s = "CMP_NE"_inst | CMP_FMT_S | 0_r1 | 3_r2 | 6_r3;
+    auto cmp_ne_d = "CMP_NE"_inst | CMP_FMT_D | 13_r1 | 14_r2 | 13_r3;
+
+    float f_value_to_check[][2] = {
+        {QNAN<float>{}, QNAN<float>{}},
+        {QNAN<float>{}, 9.0f},
+        {+14.0f, -14.0f},
+        {-41'000.0f, -41'000.0f},
+    };
+
+    double d_value_to_check[][2] = {
+        {QNAN<double>{}, 0.0},
+        {QNAN<double>{}, QNAN<double>{}},
+        {+23.0, -23.0},
+        {2397.0, 2397.0},
+    };
+
+    std::uint64_t res[] = {
+        CMP_TRUE,
+        CMP_TRUE,
+        CMP_TRUE,
+        CMP_FALSE,
+    };
+
+    THEN( "The result must be correct" )
+    {
+      for ( int i = 0; i < 4; ++i ) {
+        inspector.CP1_fpr( 3 ) = f_value_to_check[i][0];
+        inspector.CP1_fpr( 6 ) = f_value_to_check[i][1];
+
+        inspector.CP1_fpr( 14 ) = d_value_to_check[i][0];
+        inspector.CP1_fpr( 13 ) = d_value_to_check[i][1];
+
+        auto rs = cp1.execute( cmp_ne_s );
+        auto rd = cp1.execute( cmp_ne_d );
+
+        REQUIRE( rs == CP1::Exception::NONE );
+        REQUIRE( rd == CP1::Exception::NONE );
+
+        REQUIRE( inspector.CP1_fpr( 0 ).single_binary() == std::uint32_t( res[i] ) );
+        REQUIRE( inspector.CP1_fpr( 13 ).double_binary() == res[i] );
+      }
+    }
+  }
+
   WHEN( "CEIL.L.S $f0, $f0 and CEIL.L.D $f13, $f17 are executed" )
   {
     auto ceil_l_s = "CEIL_L"_inst | FMT_S | 0_r1 | 0_r2;

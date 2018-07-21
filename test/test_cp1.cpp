@@ -24,6 +24,12 @@ constexpr std::uint32_t FMT_D{0x11 << 21};
 constexpr std::uint32_t FMT_W{0x14 << 21};
 constexpr std::uint32_t FMT_L{0x15 << 21};
 
+constexpr std::uint32_t CMP_FMT_S{0b10100 << 21};
+constexpr std::uint32_t CMP_FMT_D{0b10101 << 21};
+
+constexpr std::uint64_t CMP_FALSE( 0 );
+constexpr std::uint64_t CMP_TRUE( 0xFFFF'FFFF'FFFF'FFFF );
+
 template <typename T>
 struct QNAN;
 
@@ -86,6 +92,7 @@ struct INF<double>
 
 // TODO: provoke FPU exception
 // TODO: test instruction related to the W and L format
+// TODO: test for reserved and unimplemented instructions
 
 SCENARIO( "A Coprocessor 1 object exists and it's resetted and inspected" )
 {
@@ -317,7 +324,358 @@ SCENARIO( "A Coprocessor 1 object exists and it's resetted and inspected" )
     }
   }
 
-  // TODO: cmp.condn.fmt
+  WHEN( "CMP.AF.S $f0, $f0, $f0 and CMP.AF.D $f4, $f5, $f4 are executed" )
+  {
+    auto cmp_af_s = "CABS_AF"_inst | CMP_FMT_S | 0_r1 | 0_r2 | 0_r3;
+    auto cmp_af_d = "CABS_AF"_inst | CMP_FMT_D | 4_r1 | 5_r2 | 4_r3;
+
+    inspector.CP1_fpr( 0 ) = 256.0f;
+    inspector.CP1_fpr( 4 ) = 394.0;
+
+    auto res_s = CMP_FALSE;
+    auto res_d = CMP_FALSE;
+
+    THEN( "The result must be correct" )
+    {
+      auto rs = cp1.execute( cmp_af_s );
+      auto rd = cp1.execute( cmp_af_d );
+
+      REQUIRE( rs == CP1::Exception::NONE );
+      REQUIRE( rd == CP1::Exception::NONE );
+
+      REQUIRE( inspector.CP1_fpr( 0 ).single_binary() == res_s );
+      REQUIRE( inspector.CP1_fpr( 4 ).double_binary() == res_d );
+    }
+  }
+
+  WHEN( "CMP.UN.S $f3, $f4, $f3 and CMP.AF.D $f18, $f11, $f0 are executed" )
+  {
+    auto cmp_un_s = "CABS_UN"_inst | CMP_FMT_S | 3_r1 | 4_r2 | 3_r3;
+    auto cmp_un_d = "CABS_UN"_inst | CMP_FMT_D | 18_r1 | 11_r2 | 0_r3;
+
+    float f_value_to_check[][2] = {
+        {0.0f, -0.0f},
+        {QNAN<float>{}, 298'375.0f},
+        {-0.389f, QNAN<float>{}},
+        {349.0f, -4959.0f},
+    };
+
+    double d_value_to_check[][2] = {
+        {0.0, -0.0},
+        {QNAN<double>{}, 3409.0},
+        {-0.0005, QNAN<double>{}},
+        {7.0, -0.0},
+    };
+
+    std::uint64_t res[] = {
+        CMP_FALSE,
+        CMP_TRUE,
+        CMP_TRUE,
+        CMP_FALSE,
+    };
+
+    THEN( "The result must be correct" )
+    {
+      for ( int i = 0; i < 4; ++i ) {
+        inspector.CP1_fpr( 4 ) = f_value_to_check[i][0];
+        inspector.CP1_fpr( 3 ) = f_value_to_check[i][1];
+
+        inspector.CP1_fpr( 11 ) = d_value_to_check[i][0];
+        inspector.CP1_fpr( 0 )  = d_value_to_check[i][1];
+
+        auto rs = cp1.execute( cmp_un_s );
+        auto rd = cp1.execute( cmp_un_d );
+
+        REQUIRE( rs == CP1::Exception::NONE );
+        REQUIRE( rd == CP1::Exception::NONE );
+
+        REQUIRE( inspector.CP1_fpr( 3 ).single_binary() == std::uint32_t( res[i] ) );
+        REQUIRE( inspector.CP1_fpr( 18 ).double_binary() == res[i] );
+      }
+    }
+  }
+
+  WHEN( "CMP.EQ.S $f30, $f29, $f30 and CMP.EQ.D $f1, $f2, $f3 are executed" )
+  {
+    auto cmp_eq_s = "CABS_EQ"_inst | CMP_FMT_S | 30_r1 | 29_r2 | 30_r3;
+    auto cmp_eq_d = "CABS_EQ"_inst | CMP_FMT_D | 1_r1 | 2_r2 | 3_r3;
+
+    float f_value_to_check[][2] = {
+        {1.0f, -0.0f},
+        {QNAN<float>{}, 9.0f},
+        {-14.0f, QNAN<float>{}},
+        {6'797'895.0f, 6'797'895.0f},
+    };
+
+    double d_value_to_check[][2] = {
+        {QNAN<double>{}, QNAN<double>{}},
+        {QNAN<double>{}, 23.0},
+        {-312.9999999, QNAN<double>{}},
+        {+0.0, -0.0},
+    };
+
+    std::uint64_t res[] = {
+        CMP_FALSE,
+        CMP_FALSE,
+        CMP_FALSE,
+        CMP_TRUE,
+    };
+
+    THEN( "The result must be correct" )
+    {
+      for ( int i = 0; i < 4; ++i ) {
+        inspector.CP1_fpr( 29 ) = f_value_to_check[i][0];
+        inspector.CP1_fpr( 30 ) = f_value_to_check[i][1];
+
+        inspector.CP1_fpr( 2 ) = d_value_to_check[i][0];
+        inspector.CP1_fpr( 3 ) = d_value_to_check[i][1];
+
+        auto rs = cp1.execute( cmp_eq_s );
+        auto rd = cp1.execute( cmp_eq_d );
+
+        REQUIRE( rs == CP1::Exception::NONE );
+        REQUIRE( rd == CP1::Exception::NONE );
+
+        REQUIRE( inspector.CP1_fpr( 30 ).single_binary() == std::uint32_t( res[i] ) );
+        REQUIRE( inspector.CP1_fpr( 1 ).double_binary() == res[i] );
+      }
+    }
+  }
+
+  WHEN( "CMP.UEQ.S $f10, $f9, $f27 and CMP.UEQ.D $f4, $f6, $f26 are executed" )
+  {
+    auto cmp_ueq_s = "CABS_UEQ"_inst | CMP_FMT_S | 10_r1 | 9_r2 | 27_r3;
+    auto cmp_ueq_d = "CABS_UEQ"_inst | CMP_FMT_D | 4_r1 | 6_r2 | 26_r3;
+
+    float f_value_to_check[][2] = {
+        {0.0f, -0.0f},
+        {QNAN<float>{}, 9.0f},
+        {-14.0f, QNAN<float>{}},
+        {6'797'895.0f, 6'797'895.0f},
+    };
+
+    double d_value_to_check[][2] = {
+        {-0.0, 0.0},
+        {QNAN<double>{}, QNAN<double>{}},
+        {QNAN<double>{}, 23.0},
+        {-312.9999999, QNAN<double>{}},
+    };
+
+    std::uint64_t res[] = {
+        CMP_TRUE,
+        CMP_TRUE,
+        CMP_TRUE,
+        CMP_TRUE,
+    };
+
+    THEN( "The result must be correct" )
+    {
+      for ( int i = 0; i < 4; ++i ) {
+        inspector.CP1_fpr( 9 )  = f_value_to_check[i][0];
+        inspector.CP1_fpr( 27 ) = f_value_to_check[i][1];
+
+        inspector.CP1_fpr( 6 )  = d_value_to_check[i][0];
+        inspector.CP1_fpr( 26 ) = d_value_to_check[i][1];
+
+        auto rs = cp1.execute( cmp_ueq_s );
+        auto rd = cp1.execute( cmp_ueq_d );
+
+        REQUIRE( rs == CP1::Exception::NONE );
+        REQUIRE( rd == CP1::Exception::NONE );
+
+        REQUIRE( inspector.CP1_fpr( 10 ).single_binary() == std::uint32_t( res[i] ) );
+        REQUIRE( inspector.CP1_fpr( 4 ).double_binary() == res[i] );
+      }
+    }
+  }
+
+  WHEN( "CMP.LT.S $f5, $f10, $f15 and CMP.LT.D $f6, $f12, $18 are executed" )
+  {
+    auto cmp_lt_s = "CABS_LT"_inst | CMP_FMT_S | 5_r1 | 10_r2 | 15_r3;
+    auto cmp_lt_d = "CABS_LT"_inst | CMP_FMT_D | 6_r1 | 12_r2 | 18_r3;
+
+    float f_value_to_check[][2] = {
+        {-0.0f, 0.0f},
+        {QNAN<float>{}, 9.0f},
+        {-14.0f, QNAN<float>{}},
+        {-6'797'895.0f, 41'000.0f},
+    };
+
+    double d_value_to_check[][2] = {
+        {-0.0, 0.0},
+        {QNAN<double>{}, QNAN<double>{}},
+        {QNAN<double>{}, 23.0},
+        {-312.9999999, 18.0},
+    };
+
+    std::uint64_t res[] = {
+        CMP_FALSE,
+        CMP_FALSE,
+        CMP_FALSE,
+        CMP_TRUE,
+    };
+
+    THEN( "The result must be correct" )
+    {
+      for ( int i = 0; i < 4; ++i ) {
+        inspector.CP1_fpr( 10 ) = f_value_to_check[i][0];
+        inspector.CP1_fpr( 15 ) = f_value_to_check[i][1];
+
+        inspector.CP1_fpr( 12 ) = d_value_to_check[i][0];
+        inspector.CP1_fpr( 18 ) = d_value_to_check[i][1];
+
+        auto rs = cp1.execute( cmp_lt_s );
+        auto rd = cp1.execute( cmp_lt_d );
+
+        REQUIRE( rs == CP1::Exception::NONE );
+        REQUIRE( rd == CP1::Exception::NONE );
+
+        REQUIRE( inspector.CP1_fpr( 5 ).single_binary() == std::uint32_t( res[i] ) );
+        REQUIRE( inspector.CP1_fpr( 6 ).double_binary() == res[i] );
+      }
+    }
+  }
+
+  WHEN( "CMP.ULT.S $f5, $f10, $f15 and CMP.ULT.D $f6, $f12, $18 are executed" )
+  {
+    auto cmp_ult_s = "CABS_ULT"_inst | CMP_FMT_S | 5_r1 | 10_r2 | 15_r3;
+    auto cmp_ult_d = "CABS_ULT"_inst | CMP_FMT_D | 6_r1 | 12_r2 | 18_r3;
+
+    float f_value_to_check[][2] = {
+        {-0.0f, 0.0f},
+        {QNAN<float>{}, 9.0f},
+        {-14.0f, QNAN<float>{}},
+        {-6'797'895.0f, 41'000.0f},
+    };
+
+    double d_value_to_check[][2] = {
+        {-0.0, 0.0},
+        {QNAN<double>{}, QNAN<double>{}},
+        {QNAN<double>{}, 23.0},
+        {-312.9999999, 18.0},
+    };
+
+    std::uint64_t res[] = {
+        CMP_FALSE,
+        CMP_TRUE,
+        CMP_TRUE,
+        CMP_TRUE,
+    };
+
+    THEN( "The result must be correct" )
+    {
+      for ( int i = 0; i < 4; ++i ) {
+        inspector.CP1_fpr( 10 ) = f_value_to_check[i][0];
+        inspector.CP1_fpr( 15 ) = f_value_to_check[i][1];
+
+        inspector.CP1_fpr( 12 ) = d_value_to_check[i][0];
+        inspector.CP1_fpr( 18 ) = d_value_to_check[i][1];
+
+        auto rs = cp1.execute( cmp_ult_s );
+        auto rd = cp1.execute( cmp_ult_d );
+
+        REQUIRE( rs == CP1::Exception::NONE );
+        REQUIRE( rd == CP1::Exception::NONE );
+
+        REQUIRE( inspector.CP1_fpr( 5 ).single_binary() == std::uint32_t( res[i] ) );
+        REQUIRE( inspector.CP1_fpr( 6 ).double_binary() == res[i] );
+      }
+    }
+  }
+
+  WHEN( "CMP.LE.S $f5, $f10, $f15 and CMP.LE.D $f6, $f12, $18 are executed" )
+  {
+    auto cmp_le_s = "CABS_LE"_inst | CMP_FMT_S | 5_r1 | 10_r2 | 15_r3;
+    auto cmp_le_d = "CABS_LE"_inst | CMP_FMT_D | 6_r1 | 12_r2 | 18_r3;
+
+    float f_value_to_check[][2] = {
+        {-0.0f, 0.0f},
+        {QNAN<float>{}, 9.0f},
+        {-14.0f, -14.0f},
+        {-6'797'895.0f, 41'000.0f},
+    };
+
+    double d_value_to_check[][2] = {
+        {-0.0, 0.0},
+        {QNAN<double>{}, QNAN<double>{}},
+        {23.0, 23.0},
+        {-312.9999999, 18.0},
+    };
+
+    std::uint64_t res[] = {
+        CMP_TRUE,
+        CMP_FALSE,
+        CMP_TRUE,
+        CMP_TRUE,
+    };
+
+    THEN( "The result must be correct" )
+    {
+      for ( int i = 0; i < 4; ++i ) {
+        inspector.CP1_fpr( 10 ) = f_value_to_check[i][0];
+        inspector.CP1_fpr( 15 ) = f_value_to_check[i][1];
+
+        inspector.CP1_fpr( 12 ) = d_value_to_check[i][0];
+        inspector.CP1_fpr( 18 ) = d_value_to_check[i][1];
+
+        auto rs = cp1.execute( cmp_le_s );
+        auto rd = cp1.execute( cmp_le_d );
+
+        REQUIRE( rs == CP1::Exception::NONE );
+        REQUIRE( rd == CP1::Exception::NONE );
+
+        REQUIRE( inspector.CP1_fpr( 5 ).single_binary() == std::uint32_t( res[i] ) );
+        REQUIRE( inspector.CP1_fpr( 6 ).double_binary() == res[i] );
+      }
+    }
+  }
+
+  WHEN( "CMP.ULE.S $f5, $f10, $f15 and CMP.ULE.D $f6, $f12, $18 are executed" )
+  {
+    auto cmp_ule_s = "CABS_ULE"_inst | CMP_FMT_S | 5_r1 | 10_r2 | 15_r3;
+    auto cmp_ule_d = "CABS_ULE"_inst | CMP_FMT_D | 6_r1 | 12_r2 | 18_r3;
+
+    float f_value_to_check[][2] = {
+        {-0.0f, 0.0f},
+        {QNAN<float>{}, 9.0f},
+        {-14.0f, QNAN<float>{}},
+        {+6'797'895.0f, -41'000.0f},
+    };
+
+    double d_value_to_check[][2] = {
+        {-0.0, 0.0},
+        {QNAN<double>{}, QNAN<double>{}},
+        {23.0, 23.0},
+        {+312.9999999, -18.0},
+    };
+
+    std::uint64_t res[] = {
+        CMP_TRUE,
+        CMP_TRUE,
+        CMP_TRUE,
+        CMP_FALSE,
+    };
+
+    THEN( "The result must be correct" )
+    {
+      for ( int i = 0; i < 4; ++i ) {
+        inspector.CP1_fpr( 10 ) = f_value_to_check[i][0];
+        inspector.CP1_fpr( 15 ) = f_value_to_check[i][1];
+
+        inspector.CP1_fpr( 12 ) = d_value_to_check[i][0];
+        inspector.CP1_fpr( 18 ) = d_value_to_check[i][1];
+
+        auto rs = cp1.execute( cmp_ule_s );
+        auto rd = cp1.execute( cmp_ule_d );
+
+        REQUIRE( rs == CP1::Exception::NONE );
+        REQUIRE( rd == CP1::Exception::NONE );
+
+        REQUIRE( inspector.CP1_fpr( 5 ).single_binary() == std::uint32_t( res[i] ) );
+        REQUIRE( inspector.CP1_fpr( 6 ).double_binary() == res[i] );
+      }
+    }
+  }
 
   /*
   The mask has 10 bits as follows.

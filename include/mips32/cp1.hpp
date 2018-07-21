@@ -133,6 +133,8 @@ class CP1
   int cabs_ult( std::uint32_t word ) noexcept;
   int cabs_le( std::uint32_t word ) noexcept;
   int cabs_ule( std::uint32_t word ) noexcept;
+
+  /* Signaling NaN is not supported
   int cabs_saf( std::uint32_t word ) noexcept;
   int cabs_sun( std::uint32_t word ) noexcept;
   int cabs_seq( std::uint32_t word ) noexcept;
@@ -141,6 +143,7 @@ class CP1
   int cabs_sult( std::uint32_t word ) noexcept;
   int cabs_sle( std::uint32_t word ) noexcept;
   int cabs_sule( std::uint32_t word ) noexcept;
+  */
 
   std::array<FPR, 32> fpr;
 

@@ -138,18 +138,15 @@ bool valid_fmt( std::uint32_t word ) noexcept
   auto const _fmt = fmt( word );
   auto const _fn  = word & FUNCTION;
 
-  bool basic  = ( _fmt == FMT_S || _fmt == FMT_D ) && _fn < 41;
-  bool cmp    = ( _fmt == CMP_FMT_S || _fmt == CMP_FMT_D ) && _fn >= 41;
-  bool cvt_d  = ( _fmt == FMT_L || _fmt == FMT_W || _fmt == FMT_S ) && _fn == 0b100001;       // CVT.D.y
-  bool cvt_s  = ( _fmt == FMT_L || _fmt == FMT_W || _fmt == FMT_D ) && _fn == 0b100000;       // CVT.S.y
-  bool cvt_l  = ( _fmt == FMT_S || _fmt == FMT_D ) && _fn == 0b100101;                        // CVT.L.y
-  bool cvt_w  = ( _fmt == FMT_S || _fmt == FMT_D ) && _fn == 0b100100;                        // CVT.W.y
-  bool _ceil  = ( _fmt == FMT_S || _fmt == FMT_D ) && ( _fn == 0b001110 || _fn == 0b001010 ); // CEIL.[L|W].y
-  bool _floor = ( _fmt == FMT_S || _fmt == FMT_D ) && ( _fn == 0b001011 || _fn == 0b001111 ); // FLOOR.[L|W].y
-  bool _round = ( _fmt == FMT_S || _fmt == FMT_D ) && ( _fn == 0b001000 || _fn == 0b001100 ); // ROUND.[L|W].y
-  bool _trunc = ( _fmt == FMT_S || _fmt == FMT_D ) && ( _fn == 0b001001 || _fn == 0b001101 ); // TRUNC.[L|W].y
-
-  return basic || cmp || cvt_s || cvt_d || cvt_l || cvt_w || _ceil || _floor || _round || _trunc;
+  if ( _fn == 0b100000 ) { // CVT.S.x
+    return _fmt == FMT_D || _fmt == FMT_W || _fmt == FMT_L;
+  } else if ( _fn == 0b100001 ) { // CVT.D.x
+    return _fmt == FMT_S || _fmt == FMT_W || _fmt == FMT_L;
+  } else if ( _fn >= 40 ) {
+    return _fmt == CMP_FMT_S || _fmt == CMP_FMT_D;
+  } else {
+    return _fmt == FMT_S || _fmt == FMT_D;
+  }
 }
 
 void CP1::set_round_mode() noexcept
@@ -291,6 +288,15 @@ CP1::Exception CP1::execute( std::uint32_t word ) noexcept
           &CP1::cabs_ult,
           &CP1::cabs_le,
           &CP1::cabs_ule,
+          &CP1::unimplemented,
+          &CP1::unimplemented,
+          &CP1::unimplemented,
+          &CP1::unimplemented,
+          &CP1::unimplemented,
+          &CP1::unimplemented,
+          &CP1::unimplemented,
+          &CP1::unimplemented,
+          /* Signaling NaN is not supported
           &CP1::cabs_saf,
           &CP1::cabs_sun,
           &CP1::cabs_seq,
@@ -299,6 +305,7 @@ CP1::Exception CP1::execute( std::uint32_t word ) noexcept
           &CP1::cabs_sult,
           &CP1::cabs_sle,
           &CP1::cabs_sule,
+          */
       };
 
   int v = ( this->*function_table[word & FUNCTION] )( word );
@@ -1207,6 +1214,9 @@ int CP1::cabs_ule( std::uint32_t word ) noexcept
   else
     return _cabs_ule( &FPR::d, &FPR::i64 );
 }
+
+// Signaling NaN is not supported
+/*
 int CP1::cabs_saf( std::uint32_t word ) noexcept
 {
   auto _cabs_saf = [this, word]( auto i ) {
@@ -1360,6 +1370,7 @@ int CP1::cabs_sule( std::uint32_t word ) noexcept
   else
     return _cabs_sule( &FPR::d, &FPR::i64 );
 }
+*/
 
 } // namespace mips32
 

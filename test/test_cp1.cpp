@@ -352,21 +352,21 @@ SCENARIO( "A Coprocessor 1 object exists and it's resetted and inspected" )
     auto cmp_un_s = "CMP_UN"_inst | CMP_FMT_S | 3_r1 | 4_r2 | 3_r3;
     auto cmp_un_d = "CMP_UN"_inst | CMP_FMT_D | 18_r1 | 11_r2 | 0_r3;
 
-    float f_value_to_check[][2] = {
+    constexpr float f_value_to_check[][2] = {
         {0.0f, -0.0f},
         {QNAN<float>{}, 298'375.0f},
         {-0.389f, QNAN<float>{}},
         {349.0f, -4959.0f},
     };
 
-    double d_value_to_check[][2] = {
+    constexpr double d_value_to_check[][2] = {
         {0.0, -0.0},
         {QNAN<double>{}, 3409.0},
         {-0.0005, QNAN<double>{}},
         {7.0, -0.0},
     };
 
-    std::uint64_t res[] = {
+    constexpr std::uint64_t res[] = {
         CMP_FALSE,
         CMP_TRUE,
         CMP_TRUE,
@@ -399,21 +399,21 @@ SCENARIO( "A Coprocessor 1 object exists and it's resetted and inspected" )
     auto cmp_eq_s = "CMP_EQ"_inst | CMP_FMT_S | 30_r1 | 29_r2 | 30_r3;
     auto cmp_eq_d = "CMP_EQ"_inst | CMP_FMT_D | 1_r1 | 2_r2 | 3_r3;
 
-    float f_value_to_check[][2] = {
+    constexpr float f_value_to_check[][2] = {
         {1.0f, -0.0f},
         {QNAN<float>{}, 9.0f},
         {-14.0f, QNAN<float>{}},
         {6'797'895.0f, 6'797'895.0f},
     };
 
-    double d_value_to_check[][2] = {
+    constexpr double d_value_to_check[][2] = {
         {QNAN<double>{}, QNAN<double>{}},
         {QNAN<double>{}, 23.0},
         {-312.9999999, QNAN<double>{}},
         {+0.0, -0.0},
     };
 
-    std::uint64_t res[] = {
+    constexpr std::uint64_t res[] = {
         CMP_FALSE,
         CMP_FALSE,
         CMP_FALSE,
@@ -446,21 +446,21 @@ SCENARIO( "A Coprocessor 1 object exists and it's resetted and inspected" )
     auto cmp_ueq_s = "CMP_UEQ"_inst | CMP_FMT_S | 10_r1 | 9_r2 | 27_r3;
     auto cmp_ueq_d = "CMP_UEQ"_inst | CMP_FMT_D | 4_r1 | 6_r2 | 26_r3;
 
-    float f_value_to_check[][2] = {
+    constexpr float f_value_to_check[][2] = {
         {0.0f, -0.0f},
         {QNAN<float>{}, 9.0f},
         {-14.0f, QNAN<float>{}},
         {6'797'895.0f, 6'797'895.0f},
     };
 
-    double d_value_to_check[][2] = {
+    constexpr double d_value_to_check[][2] = {
         {-0.0, 0.0},
         {QNAN<double>{}, QNAN<double>{}},
         {QNAN<double>{}, 23.0},
         {-312.9999999, QNAN<double>{}},
     };
 
-    std::uint64_t res[] = {
+    constexpr std::uint64_t res[] = {
         CMP_TRUE,
         CMP_TRUE,
         CMP_TRUE,
@@ -493,21 +493,21 @@ SCENARIO( "A Coprocessor 1 object exists and it's resetted and inspected" )
     auto cmp_lt_s = "CMP_LT"_inst | CMP_FMT_S | 5_r1 | 10_r2 | 15_r3;
     auto cmp_lt_d = "CMP_LT"_inst | CMP_FMT_D | 6_r1 | 12_r2 | 18_r3;
 
-    float f_value_to_check[][2] = {
+    constexpr float f_value_to_check[][2] = {
         {-0.0f, 0.0f},
         {QNAN<float>{}, 9.0f},
         {-14.0f, QNAN<float>{}},
         {-6'797'895.0f, 41'000.0f},
     };
 
-    double d_value_to_check[][2] = {
+    constexpr double d_value_to_check[][2] = {
         {-0.0, 0.0},
         {QNAN<double>{}, QNAN<double>{}},
         {QNAN<double>{}, 23.0},
         {-312.9999999, 18.0},
     };
 
-    std::uint64_t res[] = {
+    constexpr std::uint64_t res[] = {
         CMP_FALSE,
         CMP_FALSE,
         CMP_FALSE,
@@ -540,21 +540,21 @@ SCENARIO( "A Coprocessor 1 object exists and it's resetted and inspected" )
     auto cmp_ult_s = "CMP_ULT"_inst | CMP_FMT_S | 5_r1 | 10_r2 | 15_r3;
     auto cmp_ult_d = "CMP_ULT"_inst | CMP_FMT_D | 6_r1 | 12_r2 | 18_r3;
 
-    float f_value_to_check[][2] = {
+    constexpr float f_value_to_check[][2] = {
         {-0.0f, 0.0f},
         {QNAN<float>{}, 9.0f},
         {-14.0f, QNAN<float>{}},
         {-6'797'895.0f, 41'000.0f},
     };
 
-    double d_value_to_check[][2] = {
+    constexpr double d_value_to_check[][2] = {
         {-0.0, 0.0},
         {QNAN<double>{}, QNAN<double>{}},
         {QNAN<double>{}, 23.0},
         {-312.9999999, 18.0},
     };
 
-    std::uint64_t res[] = {
+    constexpr std::uint64_t res[] = {
         CMP_FALSE,
         CMP_TRUE,
         CMP_TRUE,
@@ -587,21 +587,21 @@ SCENARIO( "A Coprocessor 1 object exists and it's resetted and inspected" )
     auto cmp_le_s = "CMP_LE"_inst | CMP_FMT_S | 5_r1 | 10_r2 | 15_r3;
     auto cmp_le_d = "CMP_LE"_inst | CMP_FMT_D | 6_r1 | 12_r2 | 18_r3;
 
-    float f_value_to_check[][2] = {
+    constexpr float f_value_to_check[][2] = {
         {-0.0f, 0.0f},
         {QNAN<float>{}, 9.0f},
         {-14.0f, -14.0f},
         {-6'797'895.0f, 41'000.0f},
     };
 
-    double d_value_to_check[][2] = {
+    constexpr double d_value_to_check[][2] = {
         {-0.0, 0.0},
         {QNAN<double>{}, QNAN<double>{}},
         {23.0, 23.0},
         {-312.9999999, 18.0},
     };
 
-    std::uint64_t res[] = {
+    constexpr std::uint64_t res[] = {
         CMP_TRUE,
         CMP_FALSE,
         CMP_TRUE,
@@ -634,21 +634,21 @@ SCENARIO( "A Coprocessor 1 object exists and it's resetted and inspected" )
     auto cmp_ule_s = "CMP_ULE"_inst | CMP_FMT_S | 5_r1 | 10_r2 | 15_r3;
     auto cmp_ule_d = "CMP_ULE"_inst | CMP_FMT_D | 6_r1 | 12_r2 | 18_r3;
 
-    float f_value_to_check[][2] = {
+    constexpr float f_value_to_check[][2] = {
         {-0.0f, 0.0f},
         {QNAN<float>{}, 9.0f},
         {-14.0f, QNAN<float>{}},
         {+6'797'895.0f, -41'000.0f},
     };
 
-    double d_value_to_check[][2] = {
+    constexpr double d_value_to_check[][2] = {
         {-0.0, 0.0},
         {QNAN<double>{}, QNAN<double>{}},
         {23.0, 23.0},
         {+312.9999999, -18.0},
     };
 
-    std::uint64_t res[] = {
+    constexpr std::uint64_t res[] = {
         CMP_TRUE,
         CMP_TRUE,
         CMP_TRUE,
@@ -681,21 +681,21 @@ SCENARIO( "A Coprocessor 1 object exists and it's resetted and inspected" )
     auto cmp_or_s = "CMP_OR"_inst | CMP_FMT_S | 0_r1 | 3_r2 | 6_r3;
     auto cmp_or_d = "CMP_OR"_inst | CMP_FMT_D | 13_r1 | 14_r2 | 13_r3;
 
-    float f_value_to_check[][2] = {
+    constexpr float f_value_to_check[][2] = {
         {QNAN<float>{}, QNAN<float>{}},
         {QNAN<float>{}, 9.0f},
         {-14.0f, QNAN<float>{}},
         {+6'797'895.0f, -41'000.0f},
     };
 
-    double d_value_to_check[][2] = {
+    constexpr double d_value_to_check[][2] = {
         {QNAN<double>{}, 0.0},
         {QNAN<double>{}, QNAN<double>{}},
         {23.0, QNAN<double>{}},
         {+312.9999999, -18.0},
     };
 
-    std::uint64_t res[] = {
+    constexpr std::uint64_t res[] = {
         CMP_FALSE,
         CMP_FALSE,
         CMP_FALSE,
@@ -728,21 +728,21 @@ SCENARIO( "A Coprocessor 1 object exists and it's resetted and inspected" )
     auto cmp_une_s = "CMP_UNE"_inst | CMP_FMT_S | 0_r1 | 3_r2 | 6_r3;
     auto cmp_une_d = "CMP_UNE"_inst | CMP_FMT_D | 13_r1 | 14_r2 | 13_r3;
 
-    float f_value_to_check[][2] = {
+    constexpr float f_value_to_check[][2] = {
         {QNAN<float>{}, QNAN<float>{}},
         {QNAN<float>{}, 9.0f},
         {-14.0f, QNAN<float>{}},
         {-41'000.0f, -41'000.0f},
     };
 
-    double d_value_to_check[][2] = {
+    constexpr double d_value_to_check[][2] = {
         {QNAN<double>{}, 0.0},
         {QNAN<double>{}, QNAN<double>{}},
         {23.0, QNAN<double>{}},
         {312.0, 312.0},
     };
 
-    std::uint64_t res[] = {
+    constexpr std::uint64_t res[] = {
         CMP_TRUE,
         CMP_TRUE,
         CMP_TRUE,
@@ -775,21 +775,21 @@ SCENARIO( "A Coprocessor 1 object exists and it's resetted and inspected" )
     auto cmp_ne_s = "CMP_NE"_inst | CMP_FMT_S | 0_r1 | 3_r2 | 6_r3;
     auto cmp_ne_d = "CMP_NE"_inst | CMP_FMT_D | 13_r1 | 14_r2 | 13_r3;
 
-    float f_value_to_check[][2] = {
+    constexpr float f_value_to_check[][2] = {
         {QNAN<float>{}, QNAN<float>{}},
         {QNAN<float>{}, 9.0f},
         {+14.0f, -14.0f},
         {-41'000.0f, -41'000.0f},
     };
 
-    double d_value_to_check[][2] = {
+    constexpr double d_value_to_check[][2] = {
         {QNAN<double>{}, 0.0},
         {QNAN<double>{}, QNAN<double>{}},
         {+23.0, -23.0},
         {2397.0, 2397.0},
     };
 
-    std::uint64_t res[] = {
+    constexpr std::uint64_t res[] = {
         CMP_TRUE,
         CMP_TRUE,
         CMP_TRUE,

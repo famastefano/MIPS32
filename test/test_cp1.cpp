@@ -91,7 +91,6 @@ struct INF<double>
 };
 
 // TODO: provoke FPU exception
-// TODO: constexpr the data of every test case
 
 SCENARIO( "A Coprocessor 1 object exists and it's resetted and inspected" )
 {

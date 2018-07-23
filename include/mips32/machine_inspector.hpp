@@ -10,19 +10,16 @@ namespace mips32 {
 
 class RAM;
 class Cache;
-
 class CP1;
 
+/**
+ * This class allows the inspection and manipulation of the entire Machine.
+ * It was created to ease the debugging purposes that a simulator creates,
+ * like inspecting the RAM, CPU registers and so on.
+ */
 class MachineInspector
 {
   public:
-  enum class Component
-  {
-    RAM,
-    //CACHE,
-    CP1,
-  };
-
   void inspect( RAM &ram ) noexcept;
   // void inspect( Cache &cache ) noexcept;
   void inspect( CP1 &cp1 ) noexcept;
@@ -32,6 +29,29 @@ class MachineInspector
    * STATE *
    *       *
    * * * * */
+
+  /**
+   * The Machine's state is created by composing all the
+   * component's states togheter.
+   * Each state has its own binary representation.
+   * **Do not** modify it manually nor try to recreate it.
+   * The representation can change at any time and it is
+   * *not* guaranteed to be compatible with previous versions of this library.
+   */
+
+  enum class Component
+  {
+    RAM,
+    //CACHE,
+    CP1,
+  };
+
+  // Save and restore the entire Machine state to a file.
+
+  void save_state( char const *name ) const noexcept;
+  void restore_state( char const *name ) noexcept;
+
+  // Save and restore the state of the specified component to a file.
 
   void save_state( Component c, char const *name ) const noexcept;
   void restore_state( Component c, char const *name ) noexcept;

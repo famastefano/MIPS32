@@ -28,7 +28,6 @@ void CP0::reset() noexcept
   /*
   IntCtl
   31..29 -> HW0 -> 2
-
   */
   int_ctl = 0xC000'0000;
 
@@ -46,8 +45,10 @@ void CP0::reset() noexcept
 
   /*
   EBase
+  31   -> 1
   9..0 -> # CPU -> 0
   */
+  e_base = 0x8000'0000;
 
   /*
   Config
@@ -79,9 +80,8 @@ void CP0::reset() noexcept
       26 -> BadInstr                 -> 1
       13 -> UserLocal                -> 1
       12                             -> 1
-       5 -> Vector Int. Ena          -> 1
   */
-  config[3] = 0x8C00'2020;
+  config[3] = 0x8C00'2000;
 
   /*
   Config4

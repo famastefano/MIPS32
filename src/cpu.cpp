@@ -1,0 +1,1363 @@
+#include <mips32/cpu.hpp>
+
+namespace mips32 {
+
+// TODO: Check unaligned address of load/stores. If address + 4 overflows it goes from 0xFFFF'FFFB to 0x0000'0000.
+
+constexpr std::initializer_list<MMU::Segment> fixed_mapping_segments{
+    {0x0000'0000, 0x7FFF'FFFF, MMU::Segment::USER},       // useg
+    {0x8000'0000, 0x3FFF'FFFF, MMU::Segment::KERNEL},     // kseg0 + kseg1
+    {0xC000'0000, 0x1FFF'FFFF, MMU::Segment::SUPERVISOR}, // ksseg
+    {0xE000'0000, 0x1FFF'FFFF, MMU::Segment::KERNEL},     // kseg3
+};
+
+constexpr std::uint32_t opcode( std::uint32_t word ) noexcept;
+constexpr std::uint32_t rs( std::uint32_t word ) noexcept;
+constexpr std::uint32_t rt( std::uint32_t word ) noexcept;
+constexpr std::uint32_t rd( std::uint32_t word ) noexcept;
+constexpr std::uint32_t shamt( std::uint32_t word ) noexcept;
+constexpr std::uint32_t function( std::uint32_t word ) noexcept;
+constexpr std::uint32_t immediate( std::uint32_t word ) noexcept;
+
+template <int type>
+constexpr std::uint32_t sign_extend( std::uint32_t imm ) noexcept;
+
+constexpr int _load{0x1234};
+constexpr int _store{-_load};
+
+constexpr int _zero_extend{0xABCD};
+constexpr int _sign_extend{-_zero_extend};
+
+constexpr int _byte{0x9876};
+constexpr int _halfword{-_byte};
+
+enum ExitCode : std::uint32_t
+{
+  NONE,
+  MANUAL_STOP,
+  INTERRUPT,
+  EXCEPTION,
+  EXIT,
+};
+
+enum ExCause : std::uint32_t
+{
+  Int  = 0x00,
+  AdEL = 0x04,
+  AdES = 0x05,
+  IBE  = 0x06,
+  DBE  = 0x07,
+  Sys  = 0x08,
+  Bp   = 0x09,
+  RI   = 0x0A,
+  CpU  = 0x0B,
+  Ov   = 0x0C,
+  Tr   = 0x0D,
+  FPE  = 0x0F,
+};
+
+CPU::CPU( RAM &ram ) noexcept : mmu( ram, fixed_mapping_segments ) {}
+
+std::uint32_t CPU::start() noexcept
+{
+  exit_code.store( NONE, std::memory_order_release );
+
+  while ( exit_code.load( std::memory_order_acquire ) == NONE ) {
+    auto const *const word = mmu.access( pc, running_mode() );
+
+    // fetch
+    if ( pc & 0b11 || !word ) {
+      signal_exception( AdEL, *word );
+      continue;
+    }
+
+    // execute
+    pc += 4;
+    ( this->*function_table[opcode( *word )] )( *word );
+  }
+
+  return exit_code.load( std::memory_order_acquire );
+}
+
+void CPU::stop() noexcept
+{
+  exit_code.store( MANUAL_STOP, std::memory_order_release );
+}
+
+std::uint32_t CPU::single_step() noexcept
+{
+  auto const *const word = mmu.access( pc, running_mode() );
+
+  // fetch
+  if ( pc & 0b11 || !word ) {
+    signal_exception( AdEL, *word );
+  } else {
+    // execute
+    pc += 4;
+    ( this->*function_table[opcode( *word )] )( *word );
+  }
+
+  return exit_code.load( std::memory_order_acquire );
+}
+
+void CPU::soft_reset() noexcept
+{
+  // TODO: implement soft reset
+}
+void CPU::hard_reset() noexcept
+{
+  // TODO: implement hard reset
+}
+
+constexpr std::uint32_t opcode( std::uint32_t word ) noexcept
+{
+  return word >> 26;
+}
+constexpr std::uint32_t rs( std::uint32_t word ) noexcept
+{
+  return word >> 21 & 0x1F;
+}
+constexpr std::uint32_t rt( std::uint32_t word ) noexcept
+{
+  return word >> 16 & 0x1F;
+}
+constexpr std::uint32_t rd( std::uint32_t word ) noexcept
+{
+  return word >> 11 & 0x1F;
+}
+constexpr std::uint32_t shamt( std::uint32_t word ) noexcept
+{
+  return word >> 6 & 0x1F;
+}
+constexpr std::uint32_t function( std::uint32_t word ) noexcept
+{
+  return word & 0x3F;
+}
+constexpr std::uint32_t immediate( std::uint32_t word ) noexcept
+{
+  return word & 0xFFFF;
+}
+
+template <int type>
+constexpr std::uint32_t sign_extend( std::uint32_t imm ) noexcept
+{
+  static_assert( type == _byte || type == _halfword, "Invalid type! Use '_byte' or '_halfword'." );
+
+  if constexpr ( type == _byte )
+    return imm & 0x80 ? imm | 0xFFFF'FF00 : imm;
+  else
+    return imm & 0x8000 ? imm | 0xFFFF'0000 : imm;
+}
+
+/* * * * * * * * *
+ *               *
+ * INSTRUCTIONS  *
+ *               *
+ * * * * * * * * */
+
+void CPU::reserved( std::uint32_t word ) noexcept
+{
+  signal_exception( ExCause::RI, word );
+}
+void CPU::special( std::uint32_t word ) noexcept
+{
+  static constexpr std::array<void ( CPU::* )( std::uint32_t ) noexcept, 64> special_fn_table{
+      &CPU::sll,
+      &CPU::reserved, // MOVCI
+      &CPU::srl,
+      &CPU::sra,
+      &CPU::sllv,
+      &CPU::lsa,
+      &CPU::srlv,
+      &CPU::srav,
+      &CPU::reserved, // JR
+      &CPU::jalr,
+      &CPU::reserved, // MOVZ
+      &CPU::reserved, // MOVN
+      &CPU::syscall,
+      &CPU::break_,
+      &CPU::clz,
+      &CPU::clo,
+      &CPU::reserved, // beta
+      &CPU::reserved, // beta
+      &CPU::reserved, // beta
+      &CPU::reserved, // beta
+      &CPU::sop30,
+      &CPU::sop31,
+      &CPU::sop32,
+      &CPU::sop33,
+      &CPU::reserved, // beta
+      &CPU::reserved, // beta
+      &CPU::reserved, // beta
+      &CPU::reserved, // beta
+      &CPU::add,
+      &CPU::addu,
+      &CPU::sub,
+      &CPU::subu,
+      &CPU::and_,
+      &CPU::or_,
+      &CPU::xor_,
+      &CPU::nor_,
+      &CPU::reserved, // *
+      &CPU::reserved, // *
+      &CPU::slt,
+      &CPU::sltu,
+      &CPU::reserved, // beta
+      &CPU::reserved, // beta
+      &CPU::reserved, // beta
+      &CPU::reserved, // beta
+      &CPU::tge,
+      &CPU::tgeu,
+      &CPU::tlt,
+      &CPU::tltu,
+      &CPU::teq,
+      &CPU::seleqz,
+      &CPU::tne,
+      &CPU::selnez,
+      &CPU::reserved, // beta
+      &CPU::reserved, // *
+      &CPU::reserved, // beta
+      &CPU::reserved, // beta
+      &CPU::reserved, // beta
+      &CPU::reserved, // *
+      &CPU::reserved, // beta
+      &CPU::reserved, // beta
+  };
+
+  ( this->*special_fn_table[function( word )] )( word );
+}
+void CPU::regimm( std::uint32_t word ) noexcept
+{
+  switch ( rt( word ) ) {
+  case 0b00'000: bltz( word ); break;
+  case 0b00'001: bgez( word ); break;
+  case 0b10'000: nal( word ); break;
+  case 0b10'001: bal( word ); break;
+  case 0b10'111: sigrie( word ); break;
+  default: reserved( word ); break;
+  }
+}
+void CPU::cop0( std::uint32_t word ) noexcept
+{
+  // TODO: implement COP0
+  auto const _rs = rs( word );
+
+  if ( _rs & 0x10 ) { // if the 5th bit is set, then we decode C0
+    auto const _fn = function( word );
+
+    if ( _fn == 0b011'000 )
+      eret( word );
+    else
+      reserved( word );
+
+  } else {
+    switch ( _rs ) {
+    case 0b00'000: mfc0( word ); break;
+    case 0b00'010: mfhc0( word ); break;
+    case 0b00'100: mtc0( word ); break;
+    case 0b00'110: mthc0( word ); break;
+    case 0b01'011: mfmc0( word ); break;
+
+    default: reserved( word ); break;
+    }
+  }
+}
+void CPU::cop1( std::uint32_t word ) noexcept
+{
+  // TODO: implement CP1
+}
+
+void CPU::j( std::uint32_t word ) noexcept
+{
+  pc = pc & 0xF000'0000 | word << 6 >> 4;
+}
+
+void CPU::jal( std::uint32_t word ) noexcept
+{
+  gpr[31] = pc + 4;
+  pc      = pc & 0xF000'0000 | word << 6 >> 4;
+}
+
+void CPU::beq( std::uint32_t word ) noexcept
+{
+  auto const _rs = rs( word );
+  auto const _rt = rt( word );
+
+  if ( gpr[_rs] == gpr[_rt] )
+    pc += sign_extend<_halfword>( immediate( word ) ) << 2;
+}
+
+void CPU::bne( std::uint32_t word ) noexcept
+{
+  auto const _rs = rs( word );
+  auto const _rt = rt( word );
+
+  if ( gpr[_rs] != gpr[_rt] )
+    pc += sign_extend<_halfword>( immediate( word ) ) << 2;
+}
+
+void CPU::pop06( std::uint32_t word ) noexcept
+{
+  // TODO: implement POP06
+  // BLEZALC
+  // BGEZALC
+  // BGEUC (BLEUC)
+}
+void CPU::pop07( std::uint32_t word ) noexcept
+{
+  // TODO: implement POP07
+  // BGTZALC
+  // BLTZALC
+  // BLTUC (BGTUC)
+}
+void CPU::pop10( std::uint32_t word ) noexcept
+{
+  // TODO: implement POP10
+  // BEQZALC
+  // BEQC
+  // BOVC
+}
+
+void CPU::addiu( std::uint32_t word ) noexcept
+{
+  auto const _rs = rs( word );
+  auto const _rt = rt( word );
+
+  if ( _rs != 0 )
+    gpr[_rs] += sign_extend<_halfword>( immediate( word ) );
+}
+
+void CPU::slti( std::uint32_t word ) noexcept
+{
+  auto const _rs = rs( word );
+  auto const _rt = rt( word );
+
+  if ( _rt != 0 )
+    gpr[_rt] = gpr[_rs] < sign_extend<_halfword>( immediate( word ) );
+}
+
+void CPU::sltiu( std::uint32_t word ) noexcept
+{
+  auto const _rs = rs( word );
+  auto const _rt = rt( word );
+
+  if ( _rt != 0 )
+    gpr[_rt] = gpr[_rs] < sign_extend<_halfword>( immediate( word ) );
+}
+
+void CPU::andi( std::uint32_t word ) noexcept
+{
+  auto const _rs = rs( word );
+  auto const _rt = rt( word );
+
+  if ( _rt != 0 )
+    gpr[_rt] = gpr[_rs] & immediate( word );
+}
+
+void CPU::ori( std::uint32_t word ) noexcept
+{
+  auto const _rs = rs( word );
+  auto const _rt = rt( word );
+
+  if ( _rt != 0 )
+    gpr[_rt] = gpr[_rs] | immediate( word );
+}
+
+void CPU::xori( std::uint32_t word ) noexcept
+{
+  auto const _rs = rs( word );
+  auto const _rt = rt( word );
+
+  if ( _rt != 0 )
+    gpr[_rt] = gpr[_rs] ^ immediate( word );
+}
+
+void CPU::aui( std::uint32_t word ) noexcept
+{
+  auto const _rs = rs( word );
+  auto const _rt = rt( word );
+
+  if ( _rt != 0 )
+    gpr[_rt] = gpr[_rs] + ( immediate( word ) << 16 );
+}
+
+void CPU::pop26( std::uint32_t word ) noexcept
+{
+  // TODO: implement POP26
+  // BLEZC
+  // BGEZC
+  // BGEC (BLEC)
+}
+void CPU::pop27( std::uint32_t word ) noexcept
+{
+  // TODO: implement POP27
+  // BGTZC
+  // BLTZC
+  // BLTC (BGTC)
+}
+void CPU::pop30( std::uint32_t word ) noexcept
+{
+  // TODO: implement POP30
+  // BNEZALC
+  // BNEC
+  // BNVC
+}
+
+void CPU::special3( std::uint32_t word ) noexcept
+{
+  // TODO: implement SPECIAL3
+  auto const fn = function( word );
+  if ( fn == 0b000'000 ) {
+    ext( word );
+  } else if ( fn == 0b000'100 ) {
+    ins( word );
+  } else {
+    reserved( word );
+  }
+}
+
+/**
+ * Load/Store Byte, always aligned.
+ * 
+ * `address & 0b11` gives us which byte to load/store:
+ * 0: 1st, 0x0000'00FF
+ * 1: 2nd, 0x0000'FF00
+ * 2: 3rd, 0x00FF'0000
+ * 3: 4th, 0xFF00'0000
+ * 
+ * load:
+ * GPR = memword >> shift_align & 0xFF;
+ * 
+ * store:
+ * memword = memword & mask_align | GPR << shift_align
+ **/
+template <int op, int extend>
+void op_byte( std::uint32_t word ) noexcept
+{
+  static_assert( op == _load || op == _store, "Invalid operation! Use '_load' or '_store'." );
+  static_assert( extend == _sign_extend || extend == _zero_extend, "Invalid extension policy! Use '_sign_extend' or '_zero_extend'." );
+  static_assert( op == _load || ( op == _store && extend == _zero_extend ), "Invalid combination! Sign extensions is invalid with a Store operation." );
+
+  auto const _base = rs( word );
+  auto const _rt   = rt( word );
+
+  if constexpr ( op == _load ) {
+    if ( _rt == 0 )
+      return;
+  }
+
+  auto const address = gpr[_base] + sign_extend<_halfword>( immediate( word ) );
+  auto const align   = address & 0b11;
+
+  std::uint32_t byte;
+
+  constexpr std::uint32_t shift_align[] = {0, 8, 16, 26};
+
+  if constexpr ( op == _load ) {
+    auto *load_byte = mmu.access( address, running_mode() ? MMU::Segment::USER : MMU::Segment::KERNEL );
+
+    if ( !load_byte )
+      return ADDRESS_ERROR | RUNNING_MODE_ERROR;
+
+    byte = *load_byte;
+  } else { // store
+    byte = gpr[_rt];
+  }
+
+  if constexpr ( op == _load ) {
+    byte = byte >> shift_align[align] & 0xFF;
+
+    if constexpr ( extend == _sign_extend )
+      byte = sign_extend<_byte>( byte );
+
+    gpr[_rt] = byte;
+  } else { // store
+    constexpr std::uint32_t mask_align[] = {
+        0xFFFF'FF00,
+        0xFFFF'00FF,
+        0xFF00'FFFF,
+        0x00FF'FFFF,
+    };
+
+    auto *store_byte = mmu.access( address, running_mode() ? MMU::Segment::USER : MMU::Segment::KERNEL );
+
+    if ( !store_byte )
+      return ADDRESS_ERROR | RUNNING_MODE_ERROR;
+
+    *store_byte = *store_byte & mask_align[align] | byte << shift_align[align];
+  }
+}
+
+/**
+ * Load/Store Halfword, aligned if address is a multiple of 2.
+ * 
+ * `address & 0b11` gives us the alignment we are working with:
+ * 0: aligned,   1 load/store
+ *                             0x0000'FFFF
+ * 1: unaligned, 1 load/store
+ *                             0x00FF'FF00
+ * 2: unaligned, 1 load/store
+ *                             0xFFFF'0000
+ * 3: unaligned, 2 load/store
+ *               0x0000'00FF | 0xFF00'0000
+ * 
+ *                    ^             ^
+ *               address + 4 |   address
+ * 
+ * load:
+ * GPR = high_half << shift_align | low_half >> shift_align & mask_align
+ * 
+ * store:
+ * mem[addr] = mem[addr] & mask_align | low_half
+ * mem[addr+4] = mem[addr+4] & mask_align | high_half <-- only if `align == 3`
+ **/
+template <int op, int extend>
+void CPU::op_halfword( std::uint32_t word ) noexcept
+{
+  static_assert( op == _load || op == _store, "Invalid operation! Use '_load' or '_store'." );
+  static_assert( extend == _sign_extend || extend == _zero_extend, "Invalid extension policy! Use '_sign_extend' or '_zero_extend'." );
+  static_assert( op == _load || ( op == _store && extend == _zero_extend ), "Invalid combination! Sign extensions is invalid with a Store operation." );
+
+  auto const _base = rs( word );
+  auto const _rt   = rt( word );
+
+  if constexpr ( op == _load ) {
+    if ( _rt == 0 )
+      return;
+  }
+
+  auto const address = gpr[_base] + sign_extend( immediate( word ) );
+
+  auto const align = address & 0b11;
+
+  std::uint32_t low_half;
+  std::uint32_t high_half = 0;
+
+  constexpr std::uint32_t shift_align[] = {0, 8, 16};
+
+  if constexpr ( op == _load ) {
+    auto *lowhalf = mmu.access( address, running_mode() ? MMU::Segment::USER : MMU::Segment::KERNEL );
+    if ( !lowhalf )
+      return ADDRESS_ERROR | RUNNING_MODE_ERROR;
+
+    low_half = *lowhalf;
+
+    if ( align == 3 ) {
+      if ( address > 0xFFFF'FFFB ) {
+        signal_exception( ExCause::DBE, word );
+        return;
+      }
+
+      auto *highhalf = mmu.access( address + 4, running_mode() ? MMU::Segment::USER : MMU::Segment::KERNEL );
+      if ( !highhalf )
+        return ADDRESS_ERROR | RUNNING_MODE_ERROR;
+
+      high_half = *highhalf << 8 & 0xFF00;
+      low_half  = low_half >> 26 & 0x00FF;
+    } else {
+      low_half = low_half >> shift_align[align] & 0xFFFF;
+    }
+
+    if constexpr ( extend == _sign_extend )
+      gpr[_rt] = sign_extend<_halfword>( high_half | low_half );
+    else
+      gpr[_rt] = high_half | low_half;
+
+  } else { // store
+    constexpr std::uint32_t mask_align[] = {
+        0xFFFF'0000,
+        0xFF00'00FF,
+        0x0000'FFFF,
+    };
+
+    low_half = gpr[_rt] & 0xFFFF;
+
+    auto *lowhalf = mmu.access( address, running_mode() ? MMU::Segment::USER : MMU::Segment::KERNEL );
+    if ( !lowhalf )
+      return ADDRESS_ERROR | RUNNING_MODE_ERROR;
+
+    if ( align == 3 ) {
+      if ( address > 0xFFFF'FFFB ) {
+        signal_exception( ExCause::DBE, word );
+        return;
+      }
+      auto *highhalf = mmu.access( address + 4, running_mode() ? MMU::Segment::USER : MMU::Segment::KERNEL );
+      if ( !highhalf )
+        return ADDRESS_ERROR | RUNNING_MODE_ERROR;
+
+      *lowhalf  = *lowhalf & 0xFF00'0000 | low_half << 26;
+      *highhalf = *highhalf & ~0xFF | low_half >> 8;
+    } else {
+      *lowhalf = *low_half & mask_align[align] | low_half << shift_align[align];
+    }
+  }
+}
+
+/**
+ * Load/Store Word, aligned if address is a multiple of 4.
+ * 
+ * `address & 0b11` gives us the alignment we are working with:
+ * 0: aligned,   1 load/store
+ *                             0xFFFF'FFFF
+ * 1: unaligned, 2 load/store
+ *               0x0000'00FF | 0xFFFF'FF00
+ * 2: unaligned, 2 load/store
+ *               0x0000'FFFF | 0xFFFF'0000
+ * 3: unaligned, 2 load/store
+ *               0x00FF'FFFF | 0xFF00'0000
+ * 
+ *                     ^             ^
+ *               address + 4 |    address
+ **/
+template <int op>
+void CPU::op_word( std::uint32_t word ) noexcept
+{
+  auto const _base   = rs( word );
+  auto const _rt     = rt( word );
+  auto const address = gpr[_base] + sign_extend<_halfword>( immediate( word ) );
+
+  op_word<op>( _rt, address );
+}
+
+template <int op>
+void CPU::op_word( std::uint32_t _rt, std::uint32_t address ) noexcept
+{
+  static_assert( op == _load || op == _store, "Invalid operation! Use '_load' or '_store'." );
+
+  if constexpr ( op == _load ) {
+    if ( _rt == 0 )
+      return;
+  }
+
+  auto const align = address & 0b11;
+
+  if ( align == 0 ) {
+    auto *word = mmu.access( address, running_mode() ? MMU::Segment::USER : MMU::Segment::KERNEL );
+    if ( !word )
+      return ADDRESS_ERROR | RUNNING_MODE_ERROR;
+
+    if constexpr ( op == _load ) {
+      gpr[_rt] = *word;
+    } else { // store
+      *word = gpr[_rt];
+    }
+  } else { // unaligned
+    if ( address > 0xFFFF'FFFB ) {
+      signal_exception( ExCause::DBE, word );
+      return;
+    }
+
+    auto *low  = mmu.access( address, running_mode() ? MMU::Segment::USER : MMU::Segment::KERNEL );
+    auto *high = mmu.access( address + 4, running_mode() ? MMU::Segment::USER : MMU::Segment::KERNEL );
+
+    if ( !low || !high )
+      return ADDRESS_ERROR | RUNNING_MODE_ERROR;
+
+    if constexpr ( op == _load ) {
+      auto low_word  = *low;
+      auto high_word = *high;
+
+      switch ( align ) {
+      case 3: low_word >>= 8;
+      case 2: low_word >>= 8;
+      case 1: low_word >>= 8;
+      }
+
+      switch ( align ) {
+      case 1: high_word <<= 8;
+      case 2: high_word <<= 8;
+      case 3: high_word <<= 8;
+      }
+
+      gpr[_rt] = high_word | low_word;
+
+    } else { // store
+      if ( align == 1 ) {
+        *low  = *low & 0xFF | gpr[_rt] << 8;
+        *high = *high & ~0xFF | gpr[_rt] >> 26;
+      } else if ( align == 2 ) {
+        *low  = *low & 0xFFFF | gpr[_rt] << 16;
+        *high = *high & ~0xFFFF | gpr[_rt] >> 16;
+      } else {
+        *low  = *low & 0xFF00'0000 | gpr[_rt] << 26;
+        *high = *high & ~0xFF00'0000 | gpr[_rt] >> 8;
+      }
+    }
+  }
+}
+
+void CPU::lb( std::uint32_t word ) noexcept
+{
+  op_byte<_load, _sign_extend>( word );
+}
+
+void CPU::lh( std::uint32_t word ) noexcept
+{
+  op_halfword<_load, _sign_extend>( word );
+}
+
+void CPU::lw( std::uint32_t word ) noexcept
+{
+  op_word<_load>( word );
+}
+
+void CPU::lbu( std::uint32_t word ) noexcept
+{
+  op_byte<_load, _zero_extend>( word );
+}
+
+void CPU::lhu( std::uint32_t word ) noexcept
+{
+  op_halfword<_load, _zero_extend>( word );
+}
+
+void CPU::sb( std::uint32_t word ) noexcept
+{
+  op_byte<_store, _zero_extend>( word );
+}
+void CPU::sh( std::uint32_t word ) noexcept
+{
+  op_halfword<_store, _zero_extend>( word );
+}
+void CPU::sw( std::uint32_t word ) noexcept
+{
+  op_word<_store>( word );
+}
+
+void CPU::lwc1( std::uint32_t word ) noexcept
+{
+  auto const ft         = rt( word );
+  auto const _base      = rs( word );
+  auto const _immediate = immediate( word );
+  auto const address    = _base + sign_extend<_halfword>( _immediate );
+
+  auto const copy = gpr[1];
+
+  op_word<_load>( 1, address );
+  cp1.mtc1( ft, gpr[1] );
+
+  gpr[1] = copy;
+}
+
+void CPU::bc( std::uint32_t word ) noexcept
+{
+  auto target_offset = ( word & 0x03FF'FFFF ) << 2;
+
+  if ( target_offset & 0x0800'0000 ) // sign extend
+    target_offset |= 0xF000'0000;
+
+  pc += target_offset;
+}
+
+void CPU::ldc1( std::uint32_t word ) noexcept
+{
+  auto const ft         = rt( word );
+  auto const _base      = rs( word );
+  auto const _immediate = immediate( word );
+  auto const address    = _base + sign_extend<_halfword>( _immediate );
+
+  auto const copy_1 = gpr[1];
+  auto const copy_2 = gpr[2];
+
+  op_word<_load>( 1, address );
+  op_word<_load>( 2, address + 4 );
+  cp1.mtc1( ft, gpr[1] );
+  cp1.mthc1( ft, gpr[2] );
+
+  gpr[1] = copy_1;
+  gpr[2] = copy_2;
+}
+
+void CPU::pop66( std::uint32_t word ) noexcept
+{
+  // TODO: implement pop66
+  // BEQZC
+  // JIC
+}
+
+void CPU::swc1( std::uint32_t word ) noexcept
+{
+  auto const ft         = rt( word );
+  auto const _base      = rs( word );
+  auto const _immediate = immediate( word );
+  auto const address    = _base + sign_extend<_halfword>( _immediate );
+
+  gpr[0] = cp1.mfc1( ft );
+
+  op_word<_store>( 0, address );
+
+  gpr[0] = 0;
+}
+
+void CPU::balc( std::uint32_t word ) noexcept
+{
+  auto target_offset = ( word & 0x03FF'FFFF ) << 2;
+
+  if ( target_offset & 0x0800'0000 ) // sign extend
+    target_offset |= 0xF000'0000;
+
+  gpr[31] = pc;
+  pc      = target_offset;
+}
+
+void CPU::pcrel( std::uint32_t word ) noexcept
+{
+  auto const fn_opcode = word >> 16 & 0x1F;
+
+  if ( fn_opcode == 0b00'111 || fn_opcode == 0b01'111 )
+    return reserved( word );
+
+  if ( fn_opcode == 0b10'111 )
+    return auipc( word );
+
+  if ( fn_opcode == 0b11'111 )
+    return aluipc( word );
+
+  switch ( fn_opcode >> 3 ) {
+  case 0: addiupc( word ); break;
+  case 1: lwpc( word ); break;
+  case 2: lwupc( word ); break;
+  case 3: reserved( word ); break; // LDPC
+  }
+}
+
+void CPU::sdc1( std::uint32_t word ) noexcept
+{
+  auto const ft         = rt( word );
+  auto const _base      = rs( word );
+  auto const _immediate = immediate( word );
+  auto const address    = _base + sign_extend<_halfword>( _immediate );
+
+  gpr[0] = cp1.mfc1( ft );
+  op_word<_store>( 0, address );
+  gpr[0] = cp1.mfhc1( ft );
+  op_word<_store>( 0, address + 4 );
+
+  gpr[0] = 0;
+}
+void CPU::pop76( std::uint32_t word ) noexcept
+{
+  // TODO: implement pop76
+  // BNEZC
+  // JIALC
+}
+
+/* * * * * *
+ *         *
+ * SPECIAL *
+ *         *
+ * * * * * */
+void CPU::sll( std::uint32_t word ) noexcept
+{
+  auto const _rd    = rd( word );
+  auto const _rt    = rt( word );
+  auto const _shamt = shamt( word );
+
+  if ( _rd != 0 )
+    gpr[_rd] = gpr[_rt] << _shamt;
+}
+void CPU::srl( std::uint32_t word ) noexcept
+{
+  auto const _rd    = rd( word );
+  auto const _rt    = rt( word );
+  auto const _shamt = shamt( word );
+
+  if ( _rd != 0 )
+    gpr[_rd] = gpr[_rt] >> _shamt;
+}
+void CPU::sra( std::uint32_t word ) noexcept
+{
+  auto const _rd    = rd( word );
+  auto const _rt    = rt( word );
+  auto const _shamt = shamt( word );
+
+  if ( _rt != 0 )
+    if ( gpr[_rt] & 0x8000'0000 )
+      gpr[_rt] >> _shamt | 0xFFFF'FFFF << _shamt;
+    else
+      gpr[_rt] >> _shamt;
+}
+void CPU::sllv( std::uint32_t word ) noexcept
+{
+  auto const _rd = rd( word );
+  auto const _rt = rt( word );
+  auto const _rs = rs( word );
+
+  if ( _rd != 0 )
+    gpr[_rd] = gpr[_rt] << gpr[_rs];
+}
+void CPU::lsa( std::uint32_t word ) noexcept
+{
+  auto const _rd    = rd( word );
+  auto const _rt    = rt( word );
+  auto const _rs    = rs( word );
+  auto const _shamt = shamt( word ) + 1;
+
+  if ( _rd != 0 )
+    gpr[_rd] = gpr[_rs] << _shamt + gpr[_rt];
+}
+void CPU::srlv( std::uint32_t word ) noexcept
+{
+  auto const _rd = rd( word );
+  auto const _rt = rt( word );
+  auto const _rs = rs( word );
+
+  if ( _rd != 0 )
+    gpr[_rd] = gpr[_rt] >> gpr[_rs];
+}
+void CPU::srav( std::uint32_t word ) noexcept
+{
+  auto const _rd = rd( word );
+  auto const _rt = rt( word );
+  auto const _rs = rs( word );
+
+  if ( _rt != 0 )
+    if ( gpr[_rt] & 0x8000'0000 )
+      gpr[_rt] >> gpr[_rs] | 0xFFFF'FFFF << gpr[_rs];
+    else
+      gpr[_rt] >> gpr[_rs];
+}
+void CPU::jalr( std::uint32_t word ) noexcept
+{
+  auto const _rd = rd( word );
+  auto const _rs = rs( word );
+
+  if ( _rd != 0 )
+    gpr[_rd] = pc + 4;
+
+  pc = gpr[_rs];
+}
+void CPU::syscall( std::uint32_t word ) noexcept
+{
+  // TODO: implement SYSCALL
+}
+void CPU::break_( std::uint32_t word ) noexcept
+{
+  set_ex_cause( ExCause::Bp );
+  exit_code.store( EXCEPTION, std::memory_order_release );
+}
+void CPU::clz( std::uint32_t word ) noexcept
+{
+  auto const _rd = rd( word );
+  auto const _rs = rs( word );
+
+  if ( _rd == 0 )
+    return;
+
+  std::uint32_t count = 0;
+
+  auto num = gpr[_rs];
+
+  while ( !( num & 0x8000'0000 ) && count < 32 ) {
+    ++count;
+    num <<= 1;
+  }
+
+  gpr[_rd] = count;
+}
+void CPU::clo( std::uint32_t word ) noexcept
+{
+  auto const _rd = rd( word );
+  auto const _rs = rs( word );
+
+  if ( _rd == 0 )
+    return;
+
+  std::uint32_t count = 0;
+
+  auto num = gpr[_rs];
+
+  while ( num <<= 1 )
+    ++count;
+
+  gpr[_rd] = count;
+}
+void CPU::sop30( std::uint32_t word ) noexcept
+{
+  // TODO: implement SOP30
+}
+void CPU::sop31( std::uint32_t word ) noexcept
+{
+  // TODO: implement SOP31
+}
+void CPU::sop32( std::uint32_t word ) noexcept
+{
+  // TODO: implement SOP32
+}
+void CPU::sop33( std::uint32_t word ) noexcept
+{
+  // TODO: implement SOP33
+}
+void CPU::add( std::uint32_t word ) noexcept
+{
+  auto const _rd = rd( word );
+  auto const _rs = rs( word );
+  auto const _rt = rt( word );
+
+  auto const res = std::uint64_t( gpr[_rs] ) + std::uint64_t( gpr[_rt] );
+  if ( res & 32 << 1 ) {
+    signal_exception( ExCause::Ov, word );
+  } else {
+    if ( _rd != 0 )
+      gpr[_rd] = res;
+  }
+}
+void CPU::addu( std::uint32_t word ) noexcept
+{
+  auto const _rd = rd( word );
+  auto const _rs = rs( word );
+  auto const _rt = rt( word );
+
+  if ( _rd != 0 )
+    gpr[_rd] = gpr[_rs] + gpr[_rt];
+}
+void CPU::sub( std::uint32_t word ) noexcept
+{
+  auto const _rd = rd( word );
+  auto const _rs = rs( word );
+  auto const _rt = rt( word );
+
+  auto const res = std::uint64_t( gpr[_rs] ) - std::uint64_t( gpr[_rt] );
+  if ( res & 32 << 1 ) {
+    signal_exception( ExCause::Ov, word );
+  } else {
+    if ( _rd != 0 )
+      gpr[_rd] = res;
+  }
+}
+void CPU::subu( std::uint32_t word ) noexcept
+{
+  auto const _rd = rd( word );
+  auto const _rs = rs( word );
+  auto const _rt = rt( word );
+
+  if ( _rd != 0 )
+    gpr[_rd] = gpr[_rs] - gpr[_rt];
+}
+void CPU::and_( std::uint32_t word ) noexcept
+{
+  auto const _rd = rd( word );
+  auto const _rs = rs( word );
+  auto const _rt = rt( word );
+
+  if ( _rd != 0 )
+    gpr[_rd] = gpr[_rs] & gpr[_rt];
+}
+void CPU::or_( std::uint32_t word ) noexcept
+{
+  auto const _rd = rd( word );
+  auto const _rs = rs( word );
+  auto const _rt = rt( word );
+
+  if ( _rd != 0 )
+    gpr[_rd] = gpr[_rs] | gpr[_rt];
+}
+void CPU::xor_( std::uint32_t word ) noexcept
+{
+  auto const _rd = rd( word );
+  auto const _rs = rs( word );
+  auto const _rt = rt( word );
+
+  if ( _rd != 0 )
+    gpr[_rd] = gpr[_rs] ^ gpr[_rt];
+}
+void CPU::nor_( std::uint32_t word ) noexcept
+{
+  auto const _rd = rd( word );
+  auto const _rs = rs( word );
+  auto const _rt = rt( word );
+
+  if ( _rd != 0 )
+    gpr[_rd] = ~( gpr[_rs] | gpr[_rt] );
+}
+void CPU::slt( std::uint32_t word ) noexcept
+{
+  auto const _rd = rd( word );
+  auto const _rs = rs( word );
+  auto const _rt = rt( word );
+
+  if ( _rd != 0 )
+    gpr[_rd] = (std::int32_t)gpr[_rs] < (std::int32_t)gpr[_rt];
+}
+void CPU::sltu( std::uint32_t word ) noexcept
+{
+  auto const _rd = rd( word );
+  auto const _rs = rs( word );
+  auto const _rt = rt( word );
+
+  if ( _rd != 0 )
+    gpr[_rd] = gpr[_rs] < gpr[_rt];
+}
+void CPU::tge( std::uint32_t word ) noexcept
+{
+  auto const _rd = rd( word );
+  auto const _rs = rs( word );
+  auto const _rt = rt( word );
+
+  if ( (std::int32_t)gpr[_rs] >= (std::int32_t)gpr[_rt] )
+    signal_exception( ExCause::Tr, word );
+}
+void CPU::tgeu( std::uint32_t word ) noexcept
+{
+  auto const _rd = rd( word );
+  auto const _rs = rs( word );
+  auto const _rt = rt( word );
+
+  if ( gpr[_rs] >= gpr[_rt] )
+    signal_exception( ExCause::Tr, word );
+}
+void CPU::tlt( std::uint32_t word ) noexcept
+{
+  auto const _rd = rd( word );
+  auto const _rs = rs( word );
+  auto const _rt = rt( word );
+
+  if ( (std::int32_t)gpr[_rs] < (std::int32_t)gpr[_rt] )
+    signal_exception( ExCause::Tr, word );
+}
+void CPU::tltu( std::uint32_t word ) noexcept
+{
+  auto const _rd = rd( word );
+  auto const _rs = rs( word );
+  auto const _rt = rt( word );
+
+  if ( gpr[_rs] < gpr[_rt] )
+    signal_exception( ExCause::Tr, word );
+}
+void CPU::teq( std::uint32_t word ) noexcept
+{
+  auto const _rd = rd( word );
+  auto const _rs = rs( word );
+  auto const _rt = rt( word );
+
+  if ( gpr[_rs] == gpr[_rt] )
+    signal_exception( ExCause::Tr, word );
+}
+void CPU::seleqz( std::uint32_t word ) noexcept
+{
+  auto const _rd = rd( word );
+  auto const _rs = rs( word );
+  auto const _rt = rt( word );
+
+  if ( _rd != 0 )
+    gpr[_rd] = gpr[_rt] ? 0 : gpr[_rs];
+}
+void CPU::tne( std::uint32_t word ) noexcept
+{
+  auto const _rd = rd( word );
+  auto const _rs = rs( word );
+  auto const _rt = rt( word );
+
+  if ( gpr[_rs] != gpr[_rt] )
+    signal_exception( ExCause::Tr, word );
+}
+void CPU::selnez( std::uint32_t word ) noexcept
+{
+  auto const _rd = rd( word );
+  auto const _rs = rs( word );
+  auto const _rt = rt( word );
+
+  if ( _rd != 0 )
+    gpr[_rd] = gpr[_rt] ? gpr[_rs] : 0;
+}
+
+/* * * * * *
+ *         *
+ * REGIMM  * 
+ *         *
+ * * * * * */
+void CPU::bltz( std::uint32_t word ) noexcept
+{
+  auto const _rs = rs( word );
+  if ( (std::int32_t)gpr[_rs] < 0 )
+    pc += sign_extend<_halfword>( word ) << 2;
+}
+void CPU::bgez( std::uint32_t word ) noexcept
+{
+  auto const _rs = rs( word );
+  if ( (std::int32_t)gpr[_rs] >= 0 )
+    pc += sign_extend<_halfword>( word ) << 2;
+}
+void CPU::nal( std::uint32_t word ) noexcept
+{
+  gpr[31] = pc + 4;
+}
+void CPU::bal( std::uint32_t word ) noexcept
+{
+  gpr[31] = pc + 4;
+  pc += sign_extend<_halfword>( word ) << 2;
+}
+void CPU::sigrie( std::uint32_t word ) noexcept
+{
+  reserved( word );
+}
+
+/* * * * *
+  *       *
+  * COP0  *
+  *       *
+  * * * * */
+void CPU::mfc0( std::uint32_t word ) noexcept
+{
+  auto const _rd  = rd( word );
+  auto const _rt  = rt( word );
+  auto const _sel = word & 0x7;
+
+  if ( _rt != 0 )
+    gpr[_rt] = cp0.read( _rd, _sel );
+}
+void CPU::mfhc0( std::uint32_t word ) noexcept
+{
+  auto const _rt = rt( word );
+
+  gpr[_rt] = 0;
+}
+void CPU::mtc0( std::uint32_t word ) noexcept
+{
+  auto const _rd  = rd( word );
+  auto const _rt  = rt( word );
+  auto const _sel = word & 0x7;
+
+  cp0.write( _rd, _sel, gpr[_rt] );
+}
+void CPU::mthc0( std::uint32_t word ) noexcept
+{
+  return;
+}
+void CPU::mfmc0( std::uint32_t word ) noexcept
+{
+  auto const _rt = rt( word );
+
+  auto const enable_interrupt = word & 1 << 5;
+
+  if ( _rt != 0 )
+    gpr[_rt] = cp0.status;
+
+  if ( enable_interrupt ) {
+    cp0.status |= 1;
+  } else {
+    cp0.status &= ~1;
+  }
+}
+
+void CPU::eret( std::uint32_t word ) noexcept
+{
+  enter_user_mode();
+
+  if ( cp0.status & 0b100 ) { // Status ERL
+    pc = cp0.error_epc;
+  } else {
+    pc = cp0.epc;
+  }
+
+  cp0.status &= ~0b110;
+}
+
+/* * * * *
+ *       *
+ * PCREL *
+ *       *
+ * * * * */
+void CPU::auipc( std::uint32_t word ) noexcept
+{
+  auto const _rs = rs( word );
+
+  if ( _rs != 0 )
+    gpr[_rs] = pc + immediate( word ) << 16;
+}
+void CPU::aluipc( std::uint32_t word ) noexcept
+{
+  auto const _rs = rs( word );
+
+  if ( _rs != 0 )
+    gpr[_rs] = ~0xFFFF & ( pc + immediate( word ) << 16 );
+}
+void CPU::addiupc( std::uint32_t word ) noexcept
+{
+  auto const _rs = rs( word );
+
+  if ( _rs != 0 )
+    gpr[_rs] = pc + sign_extend<_halfword>( immediate( word ) ) << 2;
+}
+void CPU::lwpc( std::uint32_t word ) noexcept
+{
+  auto const _rs = rs( word );
+
+  auto address = ( word & 0x000F'FFFF ) << 2;
+  if ( address & 0x0020'0000 ) // sign extend
+    address |= 0xFFC0'0000;
+  address += pc - 4;
+
+  op_word<_load>( _rs, address );
+}
+void CPU::lwupc( std::uint32_t word ) noexcept
+{
+  auto const _rs     = rs( word );
+  auto const address = ( pc - 4 ) + ( word & 0x000F'FFFF ) << 2;
+
+  op_word<_load>( _rs, address );
+}
+
+std::uint32_t CPU::running_mode() noexcept
+{
+  if ( cp0.status & 0x6 || !( cp0.status & 0x18 ) )
+    return MMU::Segment::KERNEL;
+  else
+    return MMU::Segment::USER;
+}
+void CPU::enter_kernel_mode() noexcept
+{
+  /*
+  ANY
+    The KSU field in the CP0 Status register contains 0b00.
+    The EXL bit in the Status register is 1.
+    The ERL bit in the Status register is 1.
+  */
+  cp0.status &= 0x18; // Set KSU to 0b00
+}
+void CPU::enter_user_mode() noexcept
+{
+  /*
+  ALL
+    The KSU field in the Status register contains 0b10.
+    The EXL and ERL bits in the Status register are both 0.
+  */
+  cp0.status |= 0x16;
+}
+
+void CPU::set_ex_cause( std::uint32_t ex ) noexcept
+{
+  cp0.cause = cp0.cause & ~0x7C | ex << 2;
+}
+
+/**
+ * To handle Interrupts and Exceptions the CPU must
+ * jump to the corresponding handler.
+ * 
+ * 1. Check if it's an Interrupt or an Exception.
+ *    1.1 If it's an Interrupt, check if Interrupts are enabled
+ *    1.2 If Interrupts are enabled, check if we need to handle it
+ * 2. If Exception, write EPC, BadInstr, Cause ExcCode.
+ * 3. Enter kernel mode
+ * 4. Jump to the handler.
+ **/
+void CPU::signal_exception( std::uint32_t ex, std::uint32_t word ) noexcept
+{
+  auto const interrupt = ex == ExCause::Int;
+
+  if ( interrupt ) {
+    auto const ie      = cp0.status & 1;
+    auto const erl_exl = cp0.status & 0b110;
+    if ( !ie || erl_exl )
+      return;
+  }
+
+  enter_kernel_mode();
+  cp0.epc       = pc - 4;
+  cp0.bad_instr = word;
+  set_ex_cause( ex );
+  cp0.status |= 0b10; // Sets Status EXL
+
+  pc = cp0.e_base & 0xFFFF'F000 + 0x180;
+}
+} // namespace mips32

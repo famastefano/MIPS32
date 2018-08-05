@@ -3,6 +3,7 @@
 #include <mips32/fpr.hpp>
 #include <mips32/header.hpp>
 
+#include <array>
 #include <cstdint>
 #include <vector>
 
@@ -11,6 +12,7 @@ namespace mips32 {
 class RAM;
 class Cache;
 class CP1;
+//class CPU;
 
 /**
  * This class allows the inspection and manipulation of the entire Machine.
@@ -23,6 +25,7 @@ class MachineInspector
   void inspect( RAM &ram ) noexcept;
   // void inspect( Cache &cache ) noexcept;
   void inspect( CP1 &cp1 ) noexcept;
+  //void inspect( CPU &cpu ) noexcept;
 
   /* * * * *
    *       *
@@ -44,6 +47,7 @@ class MachineInspector
     RAM,
     //CACHE,
     CP1,
+    CPU
   };
 
   // Save and restore the entire Machine state to a file.
@@ -102,26 +106,38 @@ class MachineInspector
    *       *
    * * * * */
 
-  class FPR;
+  using CP1_FPR_iterator = typename std::array<FPR, 32>::iterator;
+
+  CP1_FPR_iterator CP1_fpr_begin() noexcept;
+  CP1_FPR_iterator CP1_fpr_end() noexcept;
 
   std::uint32_t CP1_fir() const noexcept;
   std::uint32_t CP1_fcsr() const noexcept;
 
-  FPR CP1_fpr( std::uint32_t index ) noexcept;
+  /* * * *
+   *     *
+   * CPU *
+   *     *
+   * * * */
+  /*
+  using CPU_GPR_iterator = typename std::array<std::uint32_t, 32>::iterator;
 
-  FPR CP1_fpr_begin() noexcept;
-  FPR CP1_fpr_end() noexcept;
+  CPU_GPR_iterator CPU_gpr_begin() noexcept;
+  CPU_GPR_iterator CPU_gpr_end() noexcept;
+
+  std::uint32_t &CPU_pc() noexcept;
+
+  std::uint32_t CPU_read_exit_code() const noexcept;
+  void          CPU_write_exit_code( std::uint32_t value ) noexcept;
+  */
 
   private:
   RAM *ram;
-
   //Cache *cache;
-
   CP1 *cp1;
+  //CPU *cpu;
 };
 
 //#include <mips32/inspector_iterators/cache_iterator.hpp>
-
-#include <mips32/inspector_iterators/cp1_iterator.hpp>
 
 } // namespace mips32

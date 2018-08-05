@@ -127,18 +127,13 @@ std::uint32_t MachineInspector::CP1_fcsr() const noexcept
   return cp1->fcsr;
 }
 
-MachineInspector::FPR MachineInspector::CP1_fpr( std::uint32_t index ) noexcept
+MachineInspector::CP1_FPR_iterator MachineInspector::CP1_fpr_begin() noexcept
 {
-  return FPR{cp1->fpr.data() + index};
+  return cp1->fpr.begin();
 }
-
-MachineInspector::FPR MachineInspector::CP1_fpr_begin() noexcept
+MachineInspector::CP1_FPR_iterator MachineInspector::CP1_fpr_end() noexcept
 {
-  return FPR{cp1->fpr.data()};
-}
-MachineInspector::FPR MachineInspector::CP1_fpr_end() noexcept
-{
-  return FPR{cp1->fpr.data() + cp1->fpr.size()};
+  return cp1->fpr.end();
 }
 
 } // namespace mips32

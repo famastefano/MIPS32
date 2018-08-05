@@ -20,6 +20,7 @@ namespace mips32 {
  **/
 class IODevice
 {
+  public:
   // Writes an integer to the device
   virtual void write_integer( std::uint32_t value ) noexcept = 0;
 
@@ -35,7 +36,7 @@ class IODevice
   // #!#!#!
   // [WARNING] `string` could be NOT null terminated.
   // !#!#!#
-  virtual void write_string( char *string ) noexcept = 0;
+  virtual void write_string( char const *string ) noexcept = 0;
 
   // Reads an integer from the device and stores it inside `value`
   // `value` is guaranteed to point to a valid address.
@@ -56,5 +57,7 @@ class IODevice
   // [WARNING] Writing more than `max_count` characters is undefined behaviour.
   // !#!#!#
   virtual void read_string( char *string, std::uint32_t max_count ) noexcept = 0;
+
+  virtual ~IODevice() = 0;
 };
 } // namespace mips32

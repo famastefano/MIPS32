@@ -6,9 +6,7 @@
 namespace mips32 {
 MMU::MMU( RAM &ram, std::initializer_list<Segment> segments ) noexcept
     : ram( ram ), segments( segments )
-{
-  // TODO: asserts if the entire address space isn't covered from the segments.
-}
+{}
 
 std::uint32_t *MMU::access( std::uint32_t address, std::uint32_t access_flags ) noexcept
 {

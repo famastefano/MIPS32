@@ -2,8 +2,10 @@
 
 #include <mips32/cp0.hpp>
 #include <mips32/cp1.hpp>
+#include <mips32/file_handler.hpp>
 #include <mips32/io_device.hpp>
 #include <mips32/mmu.hpp>
+#include <mips32/ram_string.hpp>
 
 #include <array>
 #include <atomic>
@@ -17,7 +19,8 @@ class CPU
   public:
   explicit CPU( RAM &ram ) noexcept;
 
-  IODevice *attach_iodevice( IODevice *device ) noexcept;
+  IODevice *   attach_iodevice( IODevice *device ) noexcept;
+  FileHandler *attach_file_handler( FileHandler *handler ) noexcept;
 
   std::uint32_t start() noexcept;
   void          stop() noexcept;
@@ -28,6 +31,8 @@ class CPU
   void hard_reset() noexcept;
 
   private:
+  RAMString string_handler;
+
   MMU mmu;
   CP1 cp1;
   CP0 cp0;
@@ -37,6 +42,9 @@ class CPU
   std::array<std::uint32_t, 32> gpr;
 
   std::atomic<std::uint32_t> exit_code;
+
+  IODevice *   io_device;
+  FileHandler *file_handler;
 
   void reserved( std::uint32_t word ) noexcept;
 
@@ -186,7 +194,6 @@ class CPU
   void set_ex_cause( std::uint32_t ex ) noexcept;
   void signal_exception( std::uint32_t ex, std::uint32_t word ) noexcept;
 
-  // TODO: check function table
   static inline constexpr std::array<void ( CPU::* )( std::uint32_t ) noexcept, 64> function_table{
       &CPU::special,
       &CPU::regimm,
@@ -232,6 +239,8 @@ class CPU
       &CPU::sh,
       &CPU::reserved, // SWL
       &CPU::sw,
+      &CPU::reserved, // beta
+      &CPU::reserved, // beta
       &CPU::reserved, // SWR
       &CPU::reserved, // CACHE (moved)
       &CPU::reserved, // LL (moved)

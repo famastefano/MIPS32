@@ -152,7 +152,7 @@ RAM::Block &RAM::Block::serialize() noexcept
   char file_name[18]{'\0'};
   addr_to_string( file_name, base_address );
 
-  std::FILE *out = std::fopen( file_name, "w+b" );
+  std::FILE *out = std::fopen( file_name, "wb" );
   assert( out && "Couldn't open the file." );
 
   [[maybe_unused]] auto write_count = std::fwrite( data.get(), sizeof( std::uint32_t ), RAM::block_size, out );
@@ -171,7 +171,7 @@ RAM::Block &RAM::Block::deserialize() noexcept
   char file_name[18]{'\0'};
   addr_to_string( file_name, base_address );
 
-  std::FILE *in = std::fopen( file_name, "r+b" );
+  std::FILE *in = std::fopen( file_name, "rb" );
   assert( in && "Couldn't open the file." );
 
   [[maybe_unused]] auto read_count = std::fread( data.get(), sizeof( std::uint32_t ), RAM::block_size, in );

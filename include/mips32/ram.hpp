@@ -32,6 +32,7 @@ using namespace literals;
 class RAM
 {
   friend class MachineInspector;
+  friend class RAMString;
 
   public:
   // A block holds 16K words (64KB).

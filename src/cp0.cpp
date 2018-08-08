@@ -3,7 +3,8 @@
 #include <cassert>
 #include <cstring>
 
-namespace mips32 {
+namespace mips32
+{
 /*
 k_scratch[6];
 */
@@ -93,29 +94,39 @@ void CP0::reset() noexcept
 
 void CP0::write( std::uint32_t reg, std::uint32_t sel, std::uint32_t data ) noexcept
 {
-  if ( reg == 4 ) {
+  if ( reg == 4 )
+  {
 
     if ( sel == 2 ) user_local = data;
 
-  } else if ( reg == 7 ) {
+  }
+  else if ( reg == 7 )
+  {
 
     if ( sel == 0 ) hwr_ena = data;
 
-  } else if ( reg == 8 ) {
+  }
+  else if ( reg == 8 )
+  {
 
     if ( sel == 0 ) return; // bad_vaddr is read only
     if ( sel == 1 ) return; // bad_instr is read only
 
-  } else if ( reg == 12 ) {
+  }
+  else if ( reg == 12 )
+  {
 
-    if ( sel == 0 ) {
+    if ( sel == 0 )
+    {
       status = status & ~0x3040'FF13 | data & 0x3040FF13;
       return;
     }
-    if ( sel == 1 ) {
+    if ( sel == 1 )
+    {
       data &= 0x3E0;
 
-      switch ( data >> 5 ) {
+      switch ( data >> 5 )
+      {
       case 0x01:
       case 0x02:
       case 0x04:
@@ -126,31 +137,45 @@ void CP0::write( std::uint32_t reg, std::uint32_t sel, std::uint32_t data ) noex
 
       return;
     }
-    if ( sel == 2 ) {
+    if ( sel == 2 )
+    {
       srs_ctl = srs_ctl & ~0xF3C0 | data & 0xF3C0;
       return;
     }
-  } else if ( reg == 13 ) {
+  }
+  else if ( reg == 13 )
+  {
 
     if ( sel == 0 ) return; // cause is read only
-  } else if ( reg == 14 ) {
+  }
+  else if ( reg == 14 )
+  {
 
     if ( sel == 0 ) epc = data;
-  } else if ( reg == 15 ) {
+  }
+  else if ( reg == 15 )
+  {
 
     if ( sel == 0 ) return; // pr_id is read only
-    if ( sel == 1 ) {
-      // Write Gate enabled
+    if ( sel == 1 )
+    {
+// Write Gate enabled
       if ( e_base & ( 1 << 11 ) ) e_base = e_base & ~0x3FFF'F000 | data & 0x3FFF'F000;
       return;
     }
-  } else if ( reg == 16 ) {
+  }
+  else if ( reg == 16 )
+  {
 
     if ( sel < 5 ) return; // config registers are read only
-  } else if ( reg == 30 ) {
+  }
+  else if ( reg == 30 )
+  {
 
     if ( sel == 0 ) error_epc = data;
-  } else if ( reg == 31 ) {
+  }
+  else if ( reg == 31 )
+  {
 
     if ( sel > 1 && sel < 8 ) k_scratch[sel] = data;
   }
@@ -160,47 +185,66 @@ void CP0::write( std::uint32_t reg, std::uint32_t sel, std::uint32_t data ) noex
 
 std::uint32_t CP0::read( std::uint32_t reg, std::uint32_t sel ) noexcept
 {
-  if ( reg == 4 ) {
+  if ( reg == 4 )
+  {
 
     if ( sel == 2 ) return user_local;
 
-  } else if ( reg == 7 ) {
+  }
+  else if ( reg == 7 )
+  {
 
     if ( sel == 0 ) return hwr_ena;
 
-  } else if ( reg == 8 ) {
+  }
+  else if ( reg == 8 )
+  {
 
     if ( sel == 0 ) return bad_vaddr;
     if ( sel == 1 ) return bad_instr;
 
-  } else if ( reg == 12 ) {
+  }
+  else if ( reg == 12 )
+  {
 
     if ( sel == 0 ) return status;
     if ( sel == 1 ) return int_ctl;
     if ( sel == 2 ) return srs_ctl;
 
-  } else if ( reg == 13 ) {
+  }
+  else if ( reg == 13 )
+  {
 
     if ( sel == 0 ) return cause;
 
-  } else if ( reg == 14 ) {
+  }
+  else if ( reg == 14 )
+  {
 
     if ( sel == 0 ) return epc;
 
-  } else if ( reg == 15 ) {
+  }
+  else if ( reg == 15 )
+  {
 
     if ( sel == 0 ) return pr_id;
     if ( sel == 1 ) return e_base;
 
-  } else if ( reg == 16 ) {
+  }
+  else if ( reg == 16 )
+  {
 
     if ( sel < 5 ) return config[sel];
 
-  } else if ( reg == 30 ) {
+  }
+  else if ( reg == 30 )
+  {
 
     if ( sel == 0 ) return error_epc;
 
-  } else if ( reg == 31 ) {
+  }
+  else if ( reg == 31 )
+  {
 
     if ( sel > 1 && sel < 8 ) return k_scratch[sel];
   }

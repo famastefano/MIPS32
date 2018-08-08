@@ -4,7 +4,8 @@
 #include <cstdio>
 #include <new>
 
-namespace mips32 {
+namespace mips32
+{
 
 void addr_to_string( char *buf, std::uint32_t addr )
 {
@@ -21,7 +22,7 @@ RAM::RAM( std::uint32_t alloc_limit ) : alloc_limit( alloc_limit / sizeof( std::
 
 RAM::Block &RAM::least_accessed() noexcept
 {
-  std::sort( blocks.begin(), blocks.end(), []( Block &lhs, Block &rhs ) -> bool { return lhs.access_count > rhs.access_count; } );
+  std::sort( blocks.begin(), blocks.end(), [] ( Block &lhs, Block &rhs ) -> bool { return lhs.access_count > rhs.access_count; } );
 
   for ( auto &block : blocks ) block.access_count = 0;
 
@@ -62,17 +63,21 @@ RAM::Block &RAM::least_accessed() noexcept
 std::uint32_t &RAM::operator[]( std::uint32_t address ) noexcept
 {
   // Case 1
-  for ( auto &block : blocks ) {
-    if ( contains( block.base_address, address, block_size ) ) {
-      // Return the word
+  for ( auto &block : blocks )
+  {
+    if ( contains( block.base_address, address, block_size ) )
+    {
+// Return the word
       return block[( address & ~0b11 ) - block.base_address];
     }
   }
 
   // Case 2
-  for ( auto &block_on_disk : swapped ) {
-    if ( contains( block_on_disk.base_address, address, block_size ) ) {
-      // Find a block to swap
+  for ( auto &block_on_disk : swapped )
+  {
+    if ( contains( block_on_disk.base_address, address, block_size ) )
+    {
+// Find a block to swap
       auto &allocated_block = least_accessed();
 
       auto old_addr = allocated_block.base_address;
@@ -92,7 +97,8 @@ std::uint32_t &RAM::operator[]( std::uint32_t address ) noexcept
   }
 
   // Case 3.1
-  if ( blocks.size() * ( block_size + 1 ) <= alloc_limit ) {
+  if ( blocks.size() * ( block_size + 1 ) <= alloc_limit )
+  {
     Block new_block;
 
     // Allocate block
@@ -110,11 +116,12 @@ std::uint32_t &RAM::operator[]( std::uint32_t address ) noexcept
     return block[( address & ~0b11 ) - block.base_address];
   }
   // Case 3.2
-  else {
-    // Find a block to swap
+  else
+  {
+// Find a block to swap
     auto &allocated_block = least_accessed();
 
-    swapped.push_back( {allocated_block.base_address} );
+    swapped.push_back( { allocated_block.base_address } );
 
     // Swap that block on disk
     allocated_block.serialize();
@@ -149,7 +156,7 @@ RAM::Block &RAM::Block::serialize() noexcept
 {
   assert( data && "Block::serialize() called without allocated data." );
 
-  char file_name[18]{'\0'};
+  char file_name[18]{ '\0' };
   addr_to_string( file_name, base_address );
 
   std::FILE *out = std::fopen( file_name, "wb" );
@@ -168,7 +175,7 @@ RAM::Block &RAM::Block::deserialize() noexcept
 {
   assert( data && "Block::deserialize() called without allocated data." );
 
-  char file_name[18]{'\0'};
+  char file_name[18]{ '\0' };
   addr_to_string( file_name, base_address );
 
   std::FILE *in = std::fopen( file_name, "rb" );

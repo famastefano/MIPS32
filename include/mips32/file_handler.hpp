@@ -2,10 +2,11 @@
 #include <cstdio>
 #include <vector>
 
-namespace mips32 {
+namespace mips32
+{
 class FileHandler
 {
-  public:
+public:
   virtual std::uint32_t open( char const *name, char const *flags ) noexcept = 0;
 
   virtual std::uint32_t read( std::uint32_t fd, char const *dst, std::uint32_t count ) noexcept = 0;

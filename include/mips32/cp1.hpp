@@ -6,13 +6,14 @@
 #include <cfenv>
 #include <cstdint>
 
-namespace mips32 {
+namespace mips32
+{
 
 /**
  * MIPS32 FPU
- * 
+ *
  * Has 32 register of 64-bit width.
- * 
+ *
  * It heavily relies on the hardware FPU,
  * so every calculation is IEEE 754 compliant
  * based on the hardware FPU compliance itself.
@@ -21,9 +22,9 @@ class CP1
 {
   friend class MachineInspector;
 
-  public:
+public:
   CP1()
-  noexcept;
+    noexcept;
 
   ~CP1() noexcept;
 
@@ -40,14 +41,14 @@ class CP1
   // Trapped exception that will be signaled to the CPU.
   enum Exception : std::uint32_t
   {
-    NONE          = 0x00,
+    NONE = 0x00,
     UNIMPLEMENTED = 0x20,
-    INVALID       = 0x10,
-    DIVBYZERO     = 0x08,
-    OVERFLOW_     = 0x04,
-    UNDERFLOW_    = 0x02,
-    INEXACT       = 0x01,
-    RESERVED      = 0xFFFF'FFFF,
+    INVALID = 0x10,
+    DIVBYZERO = 0x08,
+    OVERFLOW_ = 0x04,
+    UNDERFLOW_ = 0x02,
+    INEXACT = 0x01,
+    RESERVED = 0xFFFF'FFFF,
   };
 
   // Execute an instruction
@@ -61,8 +62,8 @@ class CP1
   void mtc1( std::uint32_t reg, std::uint32_t word ) noexcept;
   void mthc1( std::uint32_t reg, std::uint32_t word ) noexcept;
 
-  private:
-  // Set the underlying FPU rounding mode based on the RN field in FCSR.
+private:
+// Set the underlying FPU rounding mode based on the RN field in FCSR.
   void set_round_mode() noexcept;
   // Set the underlying FPU to flush to zero or not denormalized numbers
   // based on the FS flag in FCSR.

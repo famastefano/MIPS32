@@ -1,15 +1,31 @@
 #include <mips32/cache.hpp>
 #include <mips32/cp1.hpp>
+#include <mips32/cpu.hpp>
 #include <mips32/ram.hpp>
 
 #include <mips32/machine_inspector.hpp>
 
-namespace mips32 {
-void MachineInspector::inspect( RAM &_ram ) noexcept { this->ram = &_ram; }
+namespace mips32
+{
+MachineInspector &MachineInspector::inspect( RAM &ram ) noexcept
+{
+  this->ram = &ram;
+  return *this;
+}
 
-//void MachineInspector::inspect( Cache &cache ) noexcept { this->cache = &cache; }
+//void MachineInspector::inspect( Cache &cache ) noexcept { this->cache = &cache; return *this; }
 
-void MachineInspector::inspect( CP1 &_cp1 ) noexcept { this->cp1 = &_cp1; }
+MachineInspector &MachineInspector::inspect( CP1 &cp1 ) noexcept
+{
+  this->cp1 = &cp1;
+  return *this;
+}
+
+MachineInspector &MachineInspector::inspect( CPU &cpu ) noexcept
+{
+  this->cpu = &cpu;
+  return *this;
+}
 
 /* * * * *
  *       *
@@ -28,9 +44,9 @@ void MachineInspector::restore_state( Component, char const * ) noexcept {}
 
 MachineInspector::RAMInfo MachineInspector::RAM_info() const noexcept
 {
-  return {RAM_alloc_limit(), RAM_block_size(),
+  return { RAM_alloc_limit(), RAM_block_size(),
           RAM_allocated_blocks_no(), RAM_swapped_blocks_no(),
-          RAM_allocated_addresses(), RAM_swapped_addresses()};
+          RAM_allocated_addresses(), RAM_swapped_addresses() };
 }
 
 std::uint32_t MachineInspector::RAM_alloc_limit() const noexcept
@@ -45,16 +61,16 @@ std::uint32_t MachineInspector::RAM_block_size() const noexcept
 
 std::uint32_t MachineInspector::RAM_allocated_blocks_no() const noexcept
 {
-  return (std::uint32_t)ram->blocks.size();
+  return ( std::uint32_t )ram->blocks.size();
 }
 
 std::uint32_t MachineInspector::RAM_swapped_blocks_no() const noexcept
 {
-  return (std::uint32_t)ram->swapped.size();
+  return ( std::uint32_t )ram->swapped.size();
 }
 
 std::vector<std::uint32_t> MachineInspector::RAM_allocated_addresses() const
-    noexcept
+noexcept
 {
   std::vector<std::uint32_t> addresses;
   addresses.reserve( RAM_allocated_blocks_no() );
@@ -66,7 +82,7 @@ std::vector<std::uint32_t> MachineInspector::RAM_allocated_addresses() const
 }
 
 std::vector<std::uint32_t> MachineInspector::RAM_swapped_addresses() const
-    noexcept
+noexcept
 {
   std::vector<std::uint32_t> addresses;
   addresses.reserve( RAM_swapped_blocks_no() );
@@ -117,7 +133,14 @@ std::uint32_t MachineInspector::CACHE_block_size() const noexcept
  * COP 1 *
  *       *
  * * * * */
-
+MachineInspector::CP1_FPR_iterator MachineInspector::CP1_fpr_begin() noexcept
+{
+  return cp1->fpr.begin();
+}
+MachineInspector::CP1_FPR_iterator MachineInspector::CP1_fpr_end() noexcept
+{
+  return cp1->fpr.end();
+}
 std::uint32_t MachineInspector::CP1_fir() const noexcept
 {
   return cp1->fir;
@@ -126,14 +149,33 @@ std::uint32_t MachineInspector::CP1_fcsr() const noexcept
 {
   return cp1->fcsr;
 }
+/* * * *
+ *     *
+ * CPU *
+ *     *
+ * * * */
 
-MachineInspector::CP1_FPR_iterator MachineInspector::CP1_fpr_begin() noexcept
+MachineInspector::CPU_GPR_iterator MachineInspector::CPU_gpr_begin() noexcept
 {
-  return cp1->fpr.begin();
+  return cpu->gpr.begin();
 }
-MachineInspector::CP1_FPR_iterator MachineInspector::CP1_fpr_end() noexcept
+MachineInspector::CPU_GPR_iterator MachineInspector::CPU_gpr_end() noexcept
 {
-  return cp1->fpr.end();
+  return cpu->gpr.end();
+}
+
+std::uint32_t &MachineInspector::CPU_pc() noexcept
+{
+  return cpu->pc;
+}
+
+std::uint32_t MachineInspector::CPU_read_exit_code() const noexcept
+{
+  return cpu->exit_code.load( std::memory_order_acquire );
+}
+void MachineInspector::CPU_write_exit_code( std::uint32_t value ) noexcept
+{
+  cpu->exit_code.store( value, std::memory_order_release );
 }
 
 } // namespace mips32

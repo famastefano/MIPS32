@@ -5,18 +5,20 @@
 #include <mips32/file_handler.hpp>
 #include <mips32/io_device.hpp>
 #include <mips32/mmu.hpp>
+#include <mips32/ram.hpp>
 #include <mips32/ram_string.hpp>
 
 #include <array>
 #include <atomic>
 #include <cstdint>
 
-namespace mips32 {
+namespace mips32
+{
 class CPU
 {
   friend class MachineInspector;
 
-  public:
+public:
   explicit CPU( RAM &ram ) noexcept;
 
   IODevice *   attach_iodevice( IODevice *device ) noexcept;
@@ -30,7 +32,7 @@ class CPU
   void soft_reset() noexcept;
   void hard_reset() noexcept;
 
-  private:
+private:
   RAMString string_handler;
 
   MMU mmu;
@@ -131,7 +133,7 @@ class CPU
 
   /* * * * * *
    *         *
-   * REGIMM  * 
+   * REGIMM  *
    *         *
    * * * * * */
   void bltz( std::uint32_t word ) noexcept;
@@ -186,7 +188,7 @@ class CPU
   void op_word( std::uint32_t word ) noexcept;
 
   template <int op>
-  void op_word( std::uint32_t _rt, std::uint32_t address ) noexcept;
+  void op_word( std::uint32_t _rt, std::uint32_t address, std::uint32_t word ) noexcept;
 
   void enter_kernel_mode() noexcept;
   void enter_user_mode() noexcept;

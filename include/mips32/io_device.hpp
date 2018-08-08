@@ -2,26 +2,27 @@
 
 #include <cstdint>
 
-namespace mips32 {
+namespace mips32
+{
 /**
  * This interface is used to implement some syscalls
  * that communicate to "the external world", such as
  * terminal I/O (stdin, stdout, stderr, etc.) and so on.
- * 
+ *
  * They work like callbacks, when that particular syscall
  * is executed, the CPU calls one of the following functions.
- * 
+ *
  * #!#!#!
  * The MIPS32 simulator relies on the correct implementation
  * of this interface. Every details is explained in the documentation.
- * 
+ *
  * [READ THE DOCUMENTATION CAREFULLY]
  * !#!#!#
  **/
 class IODevice
 {
-  public:
-  // Writes an integer to the device
+public:
+// Writes an integer to the device
   virtual void write_integer( std::uint32_t value ) noexcept = 0;
 
   // Writes a float to the device

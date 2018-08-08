@@ -2,10 +2,11 @@
 
 #include <cstdint>
 
-namespace mips32::literals {
+namespace mips32::literals
+{
 constexpr std::uint32_t operator""_B( unsigned long long n )
 {
-  return (std::uint32_t)n;
+  return ( std::uint32_t )n;
 }
 
 constexpr std::uint32_t operator""_KB( unsigned long long n )

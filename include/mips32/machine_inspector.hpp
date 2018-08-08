@@ -10,9 +10,9 @@
 namespace mips32 {
 
 class RAM;
-class Cache;
+//class Cache;
 class CP1;
-//class CPU;
+class CPU;
 
 /**
  * This class allows the inspection and manipulation of the entire Machine.
@@ -22,10 +22,10 @@ class CP1;
 class MachineInspector
 {
   public:
-  void inspect( RAM &ram ) noexcept;
-  // void inspect( Cache &cache ) noexcept;
-  void inspect( CP1 &cp1 ) noexcept;
-  //void inspect( CPU &cpu ) noexcept;
+  MachineInspector &inspect( RAM &ram ) noexcept;
+  // MachineInspector& inspect( Cache &cache ) noexcept;
+  MachineInspector &inspect( CP1 &cp1 ) noexcept;
+  MachineInspector &inspect( CPU &cpu ) noexcept;
 
   /* * * * *
    *       *
@@ -119,7 +119,7 @@ class MachineInspector
    * CPU *
    *     *
    * * * */
-  /*
+
   using CPU_GPR_iterator = typename std::array<std::uint32_t, 32>::iterator;
 
   CPU_GPR_iterator CPU_gpr_begin() noexcept;
@@ -129,13 +129,12 @@ class MachineInspector
 
   std::uint32_t CPU_read_exit_code() const noexcept;
   void          CPU_write_exit_code( std::uint32_t value ) noexcept;
-  */
 
   private:
   RAM *ram;
   //Cache *cache;
   CP1 *cp1;
-  //CPU *cpu;
+  CPU *cpu;
 };
 
 //#include <mips32/inspector_iterators/cache_iterator.hpp>

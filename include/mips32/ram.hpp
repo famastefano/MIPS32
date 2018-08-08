@@ -7,7 +7,8 @@
 #include <memory>
 #include <vector>
 
-namespace mips32 {
+namespace mips32
+{
 
 using namespace literals;
 
@@ -34,9 +35,9 @@ class RAM
   friend class MachineInspector;
   friend class RAMString;
 
-  public:
-  // A block holds 16K words (64KB).
-  static inline constexpr std::uint32_t block_size{64_KB / sizeof( std::uint32_t )};
+public:
+// A block holds 16K words (64KB).
+  static inline constexpr std::uint32_t block_size{ 64_KB / sizeof( std::uint32_t ) };
 
   // Construct a RAM object and specifies
   // how much memory, in bytes, it can use to hold the blocks.
@@ -55,13 +56,13 @@ class RAM
   // Returns the word at the given address
   std::uint32_t &operator[]( std::uint32_t address ) noexcept;
 
-  private:
-  // Represent a portion of data of our RAM.
-  // It's a very simple class that owns `RAM::block_size` words.
+private:
+// Represent a portion of data of our RAM.
+// It's a very simple class that owns `RAM::block_size` words.
   struct Block
   {
     std::uint32_t                    base_address;    // base address of our block
-    std::uint32_t                    access_count{0}; // number of accesses through operator[]
+    std::uint32_t                    access_count{ 0 }; // number of accesses through operator[]
     std::unique_ptr<std::uint32_t[]> data;            // Words array
 
     // Allocate a `RAM::block_size` array of words.

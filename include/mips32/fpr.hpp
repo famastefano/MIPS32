@@ -2,7 +2,8 @@
 
 #include <cstdint>
 
-namespace mips32 {
+namespace mips32
+{
 union FPR
 {
   float         f;

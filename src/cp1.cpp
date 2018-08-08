@@ -21,26 +21,27 @@
 #pragma warning( disable : 4309 )
 #endif
 
-inline constexpr std::uint32_t ROUND_NEAREST{0x0};
-inline constexpr std::uint32_t ROUND_ZERO{0x1};
-inline constexpr std::uint32_t ROUND_UP{0x2};
-inline constexpr std::uint32_t ROUND_DOWN{0x3};
+inline constexpr std::uint32_t ROUND_NEAREST{ 0x0 };
+inline constexpr std::uint32_t ROUND_ZERO{ 0x1 };
+inline constexpr std::uint32_t ROUND_UP{ 0x2 };
+inline constexpr std::uint32_t ROUND_DOWN{ 0x3 };
 
-inline constexpr std::uint32_t FUNCTION{0x3F};
+inline constexpr std::uint32_t FUNCTION{ 0x3F };
 
-inline constexpr std::uint32_t FMT_S{0x10};
-inline constexpr std::uint32_t FMT_D{0x11};
-inline constexpr std::uint32_t FMT_W{0x14};
-inline constexpr std::uint32_t FMT_L{0x15};
+inline constexpr std::uint32_t FMT_S{ 0x10 };
+inline constexpr std::uint32_t FMT_D{ 0x11 };
+inline constexpr std::uint32_t FMT_W{ 0x14 };
+inline constexpr std::uint32_t FMT_L{ 0x15 };
 
-inline constexpr std::uint32_t CMP_FMT_S{0b10100};
-inline constexpr std::uint32_t CMP_FMT_D{0b10101};
-inline constexpr std::uint64_t CMP_TRUE{0xFFFF'FFFF'FFFF'FFFF};
-inline constexpr std::uint64_t CMP_FALSE{0};
+inline constexpr std::uint32_t CMP_FMT_S{ 0b10100 };
+inline constexpr std::uint32_t CMP_FMT_D{ 0b10101 };
+inline constexpr std::uint64_t CMP_TRUE{ 0xFFFF'FFFF'FFFF'FFFF };
+inline constexpr std::uint64_t CMP_FALSE{ 0 };
 
 #define MIPS32_STATIC_CAST( T, v ) static_cast<typename std::remove_reference<decltype( this->fpr[_fs].*T )>::type>( v )
 
-namespace mips32 {
+namespace mips32
+{
 
 CP1::CP1() noexcept
 {
@@ -92,9 +93,10 @@ bool CP1::handle_fpu_ex() noexcept
       INEXACT,
   };
 
-  std::uint32_t ex{0};
+  std::uint32_t ex{ 0 };
 
-  switch ( std::fetestexcept( FE_ALL_EXCEPT ) ) {
+  switch ( std::fetestexcept( FE_ALL_EXCEPT ) )
+  {
   case FE_INVALID: ex = 0; break;
   case FE_DIVBYZERO: ex = 1; break;
   case FE_OVERFLOW: ex = 2; break;
@@ -105,9 +107,12 @@ bool CP1::handle_fpu_ex() noexcept
 
   set_cause( _flags[ex] );
 
-  if ( enable() & _flags[ex] ) {
+  if ( enable() & _flags[ex] )
+  {
     return true; // Trap
-  } else {
+  }
+  else
+  {
     set_cause( _flags[ex] );
     return false;
   }
@@ -135,7 +140,8 @@ constexpr std::uint32_t ft( std::uint32_t word ) noexcept
 
 bool valid_fmt( std::uint32_t word ) noexcept
 {
-  switch ( fmt( word ) ) {
+  switch ( fmt( word ) )
+  {
   case FMT_S:
   case FMT_D:
   case FMT_W:
@@ -148,7 +154,8 @@ bool valid_fmt( std::uint32_t word ) noexcept
 
 void CP1::set_round_mode() noexcept
 {
-  switch ( round() ) {
+  switch ( round() )
+  {
   case ROUND_NEAREST: std::fesetround( FE_TONEAREST ); break;
   case ROUND_ZERO: std::fesetround( FE_TOWARDZERO ); break;
   case ROUND_UP: std::fesetround( FE_UPWARD ); break;
@@ -158,10 +165,13 @@ void CP1::set_round_mode() noexcept
 
 void CP1::set_denormal_flush() noexcept
 {
-  if ( fcsr & ( 1 << 24 ) ) {
+  if ( fcsr & ( 1 << 24 ) )
+  {
     _MM_SET_FLUSH_ZERO_MODE( _MM_FLUSH_ZERO_ON );
     _MM_SET_DENORMALS_ZERO_MODE( _MM_DENORMALS_ZERO_ON );
-  } else {
+  }
+  else
+  {
     _MM_SET_FLUSH_ZERO_MODE( _MM_FLUSH_ZERO_OFF );
     _MM_SET_DENORMALS_ZERO_MODE( _MM_DENORMALS_ZERO_OFF );
   }
@@ -236,145 +246,146 @@ CP1::Exception CP1::execute( std::uint32_t word ) noexcept
   assert( valid_fmt( word ) && "Invalid format!" );
 
   static constexpr std::array<int ( CP1::* )( std::uint32_t ) noexcept, 64>
-      fmt_S_D_fn_table{
-          &CP1::add,
-          &CP1::sub,
-          &CP1::mul,
-          &CP1::div,
-          &CP1::sqrt,
-          &CP1::abs,
-          &CP1::mov,
-          &CP1::neg,
-          &CP1::round_l,
-          &CP1::trunc_l,
-          &CP1::ceil_l,
-          &CP1::floor_l,
-          &CP1::round_w,
-          &CP1::trunc_w,
-          &CP1::ceil_w,
-          &CP1::floor_w,
-          &CP1::sel,
-          &CP1::reserved, // MOVCF
-          &CP1::reserved, // MOVZ
-          &CP1::reserved, // MOVN
-          &CP1::seleqz,
-          &CP1::recip,
-          &CP1::rsqrt,
-          &CP1::selnez,
-          &CP1::maddf,
-          &CP1::msubf,
-          &CP1::rint,
-          &CP1::class_,
-          &CP1::min,
-          &CP1::max,
-          &CP1::mina,
-          &CP1::maxa,
-          &CP1::cvt_s,
-          &CP1::cvt_d,
-          &CP1::reserved, // *
-          &CP1::reserved, // *
-          &CP1::cvt_w,
-          &CP1::cvt_l,
-          &CP1::reserved, // *
-          &CP1::reserved, // *
-          &CP1::reserved,
-          &CP1::reserved,
-          &CP1::reserved,
-          &CP1::reserved,
-          &CP1::reserved,
-          &CP1::reserved,
-          &CP1::reserved,
-          &CP1::reserved,
-          // Pre-Release 6 c.condn.fmt
-          &CP1::reserved,
-          &CP1::reserved,
-          &CP1::reserved,
-          &CP1::reserved,
-          &CP1::reserved,
-          &CP1::reserved,
-          &CP1::reserved,
-          &CP1::reserved,
-          &CP1::reserved,
-          &CP1::reserved,
-          &CP1::reserved,
-          &CP1::reserved,
-          &CP1::reserved,
-          &CP1::reserved,
-          &CP1::reserved,
-          &CP1::reserved,
-      };
+    fmt_S_D_fn_table{
+        &CP1::add,
+        &CP1::sub,
+        &CP1::mul,
+        &CP1::div,
+        &CP1::sqrt,
+        &CP1::abs,
+        &CP1::mov,
+        &CP1::neg,
+        &CP1::round_l,
+        &CP1::trunc_l,
+        &CP1::ceil_l,
+        &CP1::floor_l,
+        &CP1::round_w,
+        &CP1::trunc_w,
+        &CP1::ceil_w,
+        &CP1::floor_w,
+        &CP1::sel,
+        &CP1::reserved, // MOVCF
+        &CP1::reserved, // MOVZ
+        &CP1::reserved, // MOVN
+        &CP1::seleqz,
+        &CP1::recip,
+        &CP1::rsqrt,
+        &CP1::selnez,
+        &CP1::maddf,
+        &CP1::msubf,
+        &CP1::rint,
+        &CP1::class_,
+        &CP1::min,
+        &CP1::max,
+        &CP1::mina,
+        &CP1::maxa,
+        &CP1::cvt_s,
+        &CP1::cvt_d,
+        &CP1::reserved, // *
+        &CP1::reserved, // *
+        &CP1::cvt_w,
+        &CP1::cvt_l,
+        &CP1::reserved, // *
+        &CP1::reserved, // *
+        &CP1::reserved,
+        &CP1::reserved,
+        &CP1::reserved,
+        &CP1::reserved,
+        &CP1::reserved,
+        &CP1::reserved,
+        &CP1::reserved,
+        &CP1::reserved,
+        // Pre-Release 6 c.condn.fmt
+        &CP1::reserved,
+        &CP1::reserved,
+        &CP1::reserved,
+        &CP1::reserved,
+        &CP1::reserved,
+        &CP1::reserved,
+        &CP1::reserved,
+        &CP1::reserved,
+        &CP1::reserved,
+        &CP1::reserved,
+        &CP1::reserved,
+        &CP1::reserved,
+        &CP1::reserved,
+        &CP1::reserved,
+        &CP1::reserved,
+        &CP1::reserved,
+  };
 
   static constexpr std::array<int ( CP1::* )( std::uint32_t ) noexcept, 64>
-      fmt_W_L_fn_table{
-          &CP1::cmp_af,
-          &CP1::cmp_un,
-          &CP1::cmp_eq,
-          &CP1::cmp_ueq,
-          &CP1::cmp_lt,
-          &CP1::cmp_ult,
-          &CP1::cmp_le,
-          &CP1::cmp_ule,
-          &CP1::unimplemented, // CMP.SAF.fmt
-          &CP1::unimplemented, // CMP.SUN.fmt
-          &CP1::unimplemented, // CMP.SEQ.fmt
-          &CP1::unimplemented, // CMP.SUEQ.fmt
-          &CP1::unimplemented, // CMP.SLT.fmt
-          &CP1::unimplemented, // CMP.SULT.fmt
-          &CP1::unimplemented, // CMP.SLE.fmt
-          &CP1::unimplemented, // CMP.SULE.fmt
-          &CP1::reserved,
-          &CP1::cmp_or,
-          &CP1::cmp_une,
-          &CP1::cmp_ne,
-          &CP1::reserved,
-          &CP1::reserved,
-          &CP1::reserved,
-          &CP1::reserved,
-          &CP1::reserved,
-          &CP1::unimplemented, // CMP.SOR.FMT
-          &CP1::unimplemented, // CMP.SUNE.FMT
-          &CP1::unimplemented, // CMP.SNE.FMT
-          &CP1::reserved,
-          &CP1::reserved,
-          &CP1::reserved,
-          &CP1::reserved,
-          &CP1::cvt_s,
-          &CP1::cvt_d,
-          &CP1::reserved,
-          &CP1::reserved,
-          &CP1::reserved,
-          &CP1::reserved,
-          &CP1::reserved, // CVT.PS.PW
-          &CP1::reserved,
-          &CP1::reserved,
-          &CP1::reserved,
-          &CP1::reserved,
-          &CP1::reserved,
-          &CP1::reserved,
-          &CP1::reserved,
-          &CP1::reserved,
-          &CP1::reserved,
-          &CP1::reserved,
-          &CP1::reserved,
-          &CP1::reserved,
-          &CP1::reserved,
-          &CP1::reserved,
-          &CP1::reserved,
-          &CP1::reserved,
-          &CP1::reserved,
-          &CP1::reserved,
-          &CP1::reserved,
-          &CP1::reserved,
-          &CP1::reserved,
-          &CP1::reserved,
-          &CP1::reserved,
-          &CP1::reserved,
-          &CP1::reserved,
-      };
+    fmt_W_L_fn_table{
+        &CP1::cmp_af,
+        &CP1::cmp_un,
+        &CP1::cmp_eq,
+        &CP1::cmp_ueq,
+        &CP1::cmp_lt,
+        &CP1::cmp_ult,
+        &CP1::cmp_le,
+        &CP1::cmp_ule,
+        &CP1::unimplemented, // CMP.SAF.fmt
+        &CP1::unimplemented, // CMP.SUN.fmt
+        &CP1::unimplemented, // CMP.SEQ.fmt
+        &CP1::unimplemented, // CMP.SUEQ.fmt
+        &CP1::unimplemented, // CMP.SLT.fmt
+        &CP1::unimplemented, // CMP.SULT.fmt
+        &CP1::unimplemented, // CMP.SLE.fmt
+        &CP1::unimplemented, // CMP.SULE.fmt
+        &CP1::reserved,
+        &CP1::cmp_or,
+        &CP1::cmp_une,
+        &CP1::cmp_ne,
+        &CP1::reserved,
+        &CP1::reserved,
+        &CP1::reserved,
+        &CP1::reserved,
+        &CP1::reserved,
+        &CP1::unimplemented, // CMP.SOR.FMT
+        &CP1::unimplemented, // CMP.SUNE.FMT
+        &CP1::unimplemented, // CMP.SNE.FMT
+        &CP1::reserved,
+        &CP1::reserved,
+        &CP1::reserved,
+        &CP1::reserved,
+        &CP1::cvt_s,
+        &CP1::cvt_d,
+        &CP1::reserved,
+        &CP1::reserved,
+        &CP1::reserved,
+        &CP1::reserved,
+        &CP1::reserved, // CVT.PS.PW
+        &CP1::reserved,
+        &CP1::reserved,
+        &CP1::reserved,
+        &CP1::reserved,
+        &CP1::reserved,
+        &CP1::reserved,
+        &CP1::reserved,
+        &CP1::reserved,
+        &CP1::reserved,
+        &CP1::reserved,
+        &CP1::reserved,
+        &CP1::reserved,
+        &CP1::reserved,
+        &CP1::reserved,
+        &CP1::reserved,
+        &CP1::reserved,
+        &CP1::reserved,
+        &CP1::reserved,
+        &CP1::reserved,
+        &CP1::reserved,
+        &CP1::reserved,
+        &CP1::reserved,
+        &CP1::reserved,
+        &CP1::reserved,
+        &CP1::reserved,
+  };
 
   int v;
 
-  switch ( fmt( word ) ) {
+  switch ( fmt( word ) )
+  {
   default:
     return RESERVED;
   case FMT_S:
@@ -387,11 +398,16 @@ CP1::Exception CP1::execute( std::uint32_t word ) noexcept
     break;
   }
 
-  if ( v == 1 ) {
-    return (CP1::Exception)cause();
-  } else if ( v == -1 ) {
+  if ( v == 1 )
+  {
+    return ( CP1::Exception )cause();
+  }
+  else if ( v == -1 )
+  {
     return RESERVED;
-  } else {
+  }
+  else
+  {
     return NONE;
   }
 }
@@ -431,7 +447,8 @@ int CP1::unimplemented( std::uint32_t ) noexcept
 
 int CP1::add( std::uint32_t word ) noexcept
 {
-  auto _add = [this, word]( auto t ) {
+  auto _add = [ this, word ] ( auto t )
+  {
     auto const _fd = fd( word );
     auto const _fs = fs( word );
     auto const _ft = ft( word );
@@ -451,7 +468,8 @@ int CP1::add( std::uint32_t word ) noexcept
 }
 int CP1::sub( std::uint32_t word ) noexcept
 {
-  auto _sub = [this, word]( auto t ) {
+  auto _sub = [ this, word ] ( auto t )
+  {
     auto const _fd = fd( word );
     auto const _fs = fs( word );
     auto const _ft = ft( word );
@@ -472,7 +490,8 @@ int CP1::sub( std::uint32_t word ) noexcept
 }
 int CP1::mul( std::uint32_t word ) noexcept
 {
-  auto _mul = [this, word]( auto t ) {
+  auto _mul = [ this, word ] ( auto t )
+  {
     auto const _fd = fd( word );
     auto const _fs = fs( word );
     auto const _ft = ft( word );
@@ -493,7 +512,8 @@ int CP1::mul( std::uint32_t word ) noexcept
 }
 int CP1::div( std::uint32_t word ) noexcept
 {
-  auto _div = [this, word]( auto t ) {
+  auto _div = [ this, word ] ( auto t )
+  {
     auto const _fd = fd( word );
     auto const _fs = fs( word );
     auto const _ft = ft( word );
@@ -516,7 +536,8 @@ int CP1::sqrt( std::uint32_t word ) noexcept
 {
   auto const _fmt = fmt( word );
 
-  auto _sqrt = [this, word]( auto t ) {
+  auto _sqrt = [ this, word ] ( auto t )
+  {
     auto const _fd = fd( word );
     auto const _fs = fs( word );
 
@@ -534,7 +555,8 @@ int CP1::sqrt( std::uint32_t word ) noexcept
 }
 int CP1::abs( std::uint32_t word ) noexcept
 {
-  auto _abs = [this, word]( auto t ) {
+  auto _abs = [ this, word ] ( auto t )
+  {
     auto const _fd = fd( word );
     auto const _fs = fs( word );
 
@@ -554,7 +576,8 @@ int CP1::abs( std::uint32_t word ) noexcept
 }
 int CP1::mov( std::uint32_t word ) noexcept
 {
-  auto _mov = [this, word]( auto t ) {
+  auto _mov = [ this, word ] ( auto t )
+  {
     auto const _fd = fd( word );
     auto const _fs = fs( word );
 
@@ -574,7 +597,8 @@ int CP1::mov( std::uint32_t word ) noexcept
 }
 int CP1::neg( std::uint32_t word ) noexcept
 {
-  auto _neg = [this, word]( auto t ) {
+  auto _neg = [ this, word ] ( auto t )
+  {
     auto const _fd = fd( word );
     auto const _fs = fs( word );
 
@@ -594,7 +618,8 @@ int CP1::neg( std::uint32_t word ) noexcept
 }
 int CP1::round_l( std::uint32_t word ) noexcept
 {
-  auto _round_l = [this, word]( auto t ) {
+  auto _round_l = [ this, word ] ( auto t )
+  {
     auto const _fd = fd( word );
     auto const _fs = fs( word );
 
@@ -614,11 +639,12 @@ int CP1::round_l( std::uint32_t word ) noexcept
 }
 int CP1::trunc_l( std::uint32_t word ) noexcept
 {
-  auto _trunc_l = [this, word]( auto t ) {
+  auto _trunc_l = [ this, word ] ( auto t )
+  {
     auto const _fd = fd( word );
     auto const _fs = fs( word );
 
-    auto const res = (std::uint64_t)std::trunc( this->fpr[_fs].*t );
+    auto const res = ( std::uint64_t )std::trunc( this->fpr[_fs].*t );
     if ( handle_fpu_ex() ) return 1;
     this->fpr[_fd].i64 = res;
 
@@ -634,11 +660,12 @@ int CP1::trunc_l( std::uint32_t word ) noexcept
 }
 int CP1::ceil_l( std::uint32_t word ) noexcept
 {
-  auto _ceil_l = [this, word]( auto t ) {
+  auto _ceil_l = [ this, word ] ( auto t )
+  {
     auto const _fd = fd( word );
     auto const _fs = fs( word );
 
-    auto const res = (std::uint64_t)std::ceil( this->fpr[_fs].*t );
+    auto const res = ( std::uint64_t )std::ceil( this->fpr[_fs].*t );
     if ( handle_fpu_ex() ) return 1;
     this->fpr[_fd].i64 = res;
 
@@ -654,11 +681,12 @@ int CP1::ceil_l( std::uint32_t word ) noexcept
 }
 int CP1::floor_l( std::uint32_t word ) noexcept
 {
-  auto _floor_l = [this, word]( auto t ) {
+  auto _floor_l = [ this, word ] ( auto t )
+  {
     auto const _fd = fd( word );
     auto const _fs = fs( word );
 
-    auto const res = (std::uint64_t)std::floor( this->fpr[_fs].*t );
+    auto const res = ( std::uint64_t )std::floor( this->fpr[_fs].*t );
     if ( handle_fpu_ex() ) return 1;
     this->fpr[_fd].i64 = res;
 
@@ -674,7 +702,8 @@ int CP1::floor_l( std::uint32_t word ) noexcept
 }
 int CP1::round_w( std::uint32_t word ) noexcept
 {
-  auto _round_w = [this, word]( auto t ) {
+  auto _round_w = [ this, word ] ( auto t )
+  {
     auto const _fd = fd( word );
     auto const _fs = fs( word );
 
@@ -694,11 +723,12 @@ int CP1::round_w( std::uint32_t word ) noexcept
 }
 int CP1::trunc_w( std::uint32_t word ) noexcept
 {
-  auto _trunc_w = [this, word]( auto t ) {
+  auto _trunc_w = [ this, word ] ( auto t )
+  {
     auto const _fd = fd( word );
     auto const _fs = fs( word );
 
-    auto const res = (std::uint32_t)std::trunc( this->fpr[_fs].*t );
+    auto const res = ( std::uint32_t )std::trunc( this->fpr[_fs].*t );
     if ( handle_fpu_ex() ) return 1;
     this->fpr[_fd].i32 = res;
 
@@ -714,11 +744,12 @@ int CP1::trunc_w( std::uint32_t word ) noexcept
 }
 int CP1::ceil_w( std::uint32_t word ) noexcept
 {
-  auto _ceil_w = [this, word]( auto t ) {
+  auto _ceil_w = [ this, word ] ( auto t )
+  {
     auto const _fd = fd( word );
     auto const _fs = fs( word );
 
-    auto const res = (std::uint32_t)std::ceil( this->fpr[_fs].*t );
+    auto const res = ( std::uint32_t )std::ceil( this->fpr[_fs].*t );
     if ( handle_fpu_ex() ) return 1;
     this->fpr[_fd].i32 = res;
 
@@ -734,11 +765,12 @@ int CP1::ceil_w( std::uint32_t word ) noexcept
 }
 int CP1::floor_w( std::uint32_t word ) noexcept
 {
-  auto _floor_w = [this, word]( auto t ) {
+  auto _floor_w = [ this, word ] ( auto t )
+  {
     auto const _fd = fd( word );
     auto const _fs = fs( word );
 
-    auto const res = (std::uint32_t)std::floor( this->fpr[_fs].*t );
+    auto const res = ( std::uint32_t )std::floor( this->fpr[_fs].*t );
     if ( handle_fpu_ex() ) return 1;
     this->fpr[_fd].i32 = res;
 
@@ -754,7 +786,8 @@ int CP1::floor_w( std::uint32_t word ) noexcept
 }
 int CP1::sel( std::uint32_t word ) noexcept
 {
-  auto _sel = [this, word]( auto t, auto i ) {
+  auto _sel = [ this, word ] ( auto t, auto i )
+  {
     auto const _fd = fd( word );
     auto const _fs = fs( word );
     auto const _ft = ft( word );
@@ -775,7 +808,8 @@ int CP1::sel( std::uint32_t word ) noexcept
 }
 int CP1::seleqz( std::uint32_t word ) noexcept
 {
-  auto _seleqz = [this, word]( auto t, auto i ) {
+  auto _seleqz = [ this, word ] ( auto t, auto i )
+  {
     auto const _fd = fd( word );
     auto const _fs = fs( word );
     auto const _ft = ft( word );
@@ -796,7 +830,8 @@ int CP1::seleqz( std::uint32_t word ) noexcept
 }
 int CP1::recip( std::uint32_t word ) noexcept
 {
-  auto _recip = [this, word]( auto t ) {
+  auto _recip = [ this, word ] ( auto t )
+  {
     auto const _fd = fd( word );
     auto const _fs = fs( word );
 
@@ -816,7 +851,8 @@ int CP1::recip( std::uint32_t word ) noexcept
 }
 int CP1::rsqrt( std::uint32_t word ) noexcept
 {
-  auto _rsqrt = [this, word]( auto t ) {
+  auto _rsqrt = [ this, word ] ( auto t )
+  {
     auto const _fd = fd( word );
     auto const _fs = fs( word );
 
@@ -836,7 +872,8 @@ int CP1::rsqrt( std::uint32_t word ) noexcept
 }
 int CP1::selnez( std::uint32_t word ) noexcept
 {
-  auto _selnez = [this, word]( auto t, auto i ) {
+  auto _selnez = [ this, word ] ( auto t, auto i )
+  {
     auto const _fd = fd( word );
     auto const _fs = fs( word );
     auto const _ft = ft( word );
@@ -857,7 +894,8 @@ int CP1::selnez( std::uint32_t word ) noexcept
 }
 int CP1::maddf( std::uint32_t word ) noexcept
 {
-  auto _maddf = [this, word]( auto t ) {
+  auto _maddf = [ this, word ] ( auto t )
+  {
     auto const _fd = fd( word );
     auto const _fs = fs( word );
     auto const _ft = ft( word );
@@ -878,7 +916,8 @@ int CP1::maddf( std::uint32_t word ) noexcept
 }
 int CP1::msubf( std::uint32_t word ) noexcept
 {
-  auto _msubf = [this, word]( auto t ) {
+  auto _msubf = [ this, word ] ( auto t )
+  {
     auto const _fd = fd( word );
     auto const _fs = fs( word );
     auto const _ft = ft( word );
@@ -899,7 +938,8 @@ int CP1::msubf( std::uint32_t word ) noexcept
 }
 int CP1::rint( std::uint32_t word ) noexcept
 {
-  auto _rint = [this, word]( auto t, auto i ) {
+  auto _rint = [ this, word ] ( auto t, auto i )
+  {
     auto const _fd = fd( word );
     auto const _fs = fs( word );
 
@@ -938,13 +978,14 @@ int CP1::class_( std::uint32_t word ) noexcept
   - and zero (bit 9).
   */
 
-  auto _classify = [this, word]( auto t, auto i ) {
-    //constexpr std::uint32_t SNAN{0x01};
-    constexpr std::uint32_t QNAN{0x02};
-    constexpr std::uint32_t INFINITY_{0x04};
-    constexpr std::uint32_t NORMAL{0x08};
-    constexpr std::uint32_t SUBNORMAL{0x10};
-    constexpr std::uint32_t ZERO{0x20};
+  auto _classify = [ this, word ] ( auto t, auto i )
+  {
+//constexpr std::uint32_t SNAN{0x01};
+    constexpr std::uint32_t QNAN{ 0x02 };
+    constexpr std::uint32_t INFINITY_{ 0x04 };
+    constexpr std::uint32_t NORMAL{ 0x08 };
+    constexpr std::uint32_t SUBNORMAL{ 0x10 };
+    constexpr std::uint32_t ZERO{ 0x20 };
 
     auto const _fd = fd( word );
     auto const _fs = fs( word );
@@ -953,7 +994,8 @@ int CP1::class_( std::uint32_t word ) noexcept
 
     auto class_type = std::fpclassify( value );
 
-    switch ( class_type ) {
+    switch ( class_type )
+    {
     case FP_INFINITE: this->fpr[_fd].*i = INFINITY_; break;
     case FP_NAN: this->fpr[_fd].*i = QNAN; break;
     case FP_NORMAL: this->fpr[_fd].*i = NORMAL; break;
@@ -961,7 +1003,8 @@ int CP1::class_( std::uint32_t word ) noexcept
     case FP_ZERO: this->fpr[_fd].*i = ZERO; break;
     }
 
-    if ( class_type != FP_NAN && !std::signbit( value ) ) {
+    if ( class_type != FP_NAN && !std::signbit( value ) )
+    {
       this->fpr[_fd].*i <<= 4;
     }
 
@@ -977,7 +1020,8 @@ int CP1::class_( std::uint32_t word ) noexcept
 }
 int CP1::min( std::uint32_t word ) noexcept
 {
-  auto _min = [this, word]( auto t ) {
+  auto _min = [ this, word ] ( auto t )
+  {
     auto const _fd = fd( word );
     auto const _fs = fs( word );
     auto const _ft = ft( word );
@@ -998,7 +1042,8 @@ int CP1::min( std::uint32_t word ) noexcept
 }
 int CP1::max( std::uint32_t word ) noexcept
 {
-  auto _max = [this, word]( auto t ) {
+  auto _max = [ this, word ] ( auto t )
+  {
     auto const _fd = fd( word );
     auto const _fs = fs( word );
     auto const _ft = ft( word );
@@ -1019,7 +1064,8 @@ int CP1::max( std::uint32_t word ) noexcept
 }
 int CP1::mina( std::uint32_t word ) noexcept
 {
-  auto _mina = [this, word]( auto t ) {
+  auto _mina = [ this, word ] ( auto t )
+  {
     auto const _fd = fd( word );
     auto const _fs = fs( word );
     auto const _ft = ft( word );
@@ -1040,7 +1086,8 @@ int CP1::mina( std::uint32_t word ) noexcept
 }
 int CP1::maxa( std::uint32_t word ) noexcept
 {
-  auto _maxa = [this, word]( auto t ) {
+  auto _maxa = [ this, word ] ( auto t )
+  {
     auto const _fd = fd( word );
     auto const _fs = fs( word );
     auto const _ft = ft( word );
@@ -1061,18 +1108,19 @@ int CP1::maxa( std::uint32_t word ) noexcept
 }
 int CP1::cvt_s( std::uint32_t word ) noexcept
 {
-  auto _cvt_s = [this, word]( auto t, int raw_data_type ) {
+  auto _cvt_s = [ this, word ] ( auto t, int raw_data_type )
+  {
     auto const _fd = fd( word );
     auto const _fs = fs( word );
 
     float res;
 
     if ( raw_data_type == 0 )
-      res = (float)( this->fpr[_fs].*t );
+      res = ( float )( this->fpr[_fs].*t );
     else if ( raw_data_type == 1 )
-      res = (float)( std::int32_t )( this->fpr[_fs].*t );
+      res = ( float )( std::int32_t )( this->fpr[_fs].*t );
     else
-      res = (float)( std::int64_t )( this->fpr[_fs].*t );
+      res = ( float )( std::int64_t )( this->fpr[_fs].*t );
 
     if ( handle_fpu_ex() ) return 1;
     this->fpr[_fd].f = res;
@@ -1091,17 +1139,18 @@ int CP1::cvt_s( std::uint32_t word ) noexcept
 }
 int CP1::cvt_d( std::uint32_t word ) noexcept
 {
-  auto _cvt_d = [this, word]( auto t, int raw_data_type ) {
+  auto _cvt_d = [ this, word ] ( auto t, int raw_data_type )
+  {
     auto const _fd = fd( word );
     auto const _fs = fs( word );
 
     double res;
     if ( raw_data_type == 0 )
-      res = (double)( this->fpr[_fs].*t );
+      res = ( double )( this->fpr[_fs].*t );
     else if ( raw_data_type == 1 )
-      res = (double)( std::int32_t )( this->fpr[_fs].*t );
+      res = ( double )( std::int32_t )( this->fpr[_fs].*t );
     else
-      res = (double)( std::int64_t )( this->fpr[_fs].*t );
+      res = ( double )( std::int64_t )( this->fpr[_fs].*t );
 
     if ( handle_fpu_ex() ) return 1;
     this->fpr[_fd].d = res;
@@ -1120,7 +1169,8 @@ int CP1::cvt_d( std::uint32_t word ) noexcept
 }
 int CP1::cvt_l( std::uint32_t word ) noexcept
 {
-  auto _cvt_l = [this, word]( auto t ) {
+  auto _cvt_l = [ this, word ] ( auto t )
+  {
     auto const _fd = fd( word );
     auto const _fs = fs( word );
 
@@ -1140,7 +1190,8 @@ int CP1::cvt_l( std::uint32_t word ) noexcept
 }
 int CP1::cvt_w( std::uint32_t word ) noexcept
 {
-  auto _cvt_w = [this, word]( auto t ) {
+  auto _cvt_w = [ this, word ] ( auto t )
+  {
     auto const _fd = fd( word );
     auto const _fs = fs( word );
 
@@ -1160,7 +1211,8 @@ int CP1::cvt_w( std::uint32_t word ) noexcept
 }
 int CP1::cmp_af( std::uint32_t word ) noexcept
 {
-  auto _cmp_af = [this, word]( auto i ) {
+  auto _cmp_af = [ this, word ] ( auto i )
+  {
     auto const _fd = fd( word );
 
     this->fpr[_fd].*i = CMP_FALSE;
@@ -1177,7 +1229,8 @@ int CP1::cmp_af( std::uint32_t word ) noexcept
 }
 int CP1::cmp_un( std::uint32_t word ) noexcept
 {
-  auto _cmp_un = [this, word]( auto t, auto i ) {
+  auto _cmp_un = [ this, word ] ( auto t, auto i )
+  {
     auto const _fd = fd( word );
     auto const _fs = fs( word );
     auto const _ft = ft( word );
@@ -1199,7 +1252,8 @@ int CP1::cmp_un( std::uint32_t word ) noexcept
 }
 int CP1::cmp_eq( std::uint32_t word ) noexcept
 {
-  auto _cmp_eq = [this, word]( auto t, auto i ) {
+  auto _cmp_eq = [ this, word ] ( auto t, auto i )
+  {
     auto const _fd = fd( word );
     auto const _fs = fs( word );
     auto const _ft = ft( word );
@@ -1218,7 +1272,8 @@ int CP1::cmp_eq( std::uint32_t word ) noexcept
 }
 int CP1::cmp_ueq( std::uint32_t word ) noexcept
 {
-  auto _cmp_ueq = [this, word]( auto t, auto i ) {
+  auto _cmp_ueq = [ this, word ] ( auto t, auto i )
+  {
     auto const _fd = fd( word );
     auto const _fs = fs( word );
     auto const _ft = ft( word );
@@ -1238,7 +1293,8 @@ int CP1::cmp_ueq( std::uint32_t word ) noexcept
 }
 int CP1::cmp_lt( std::uint32_t word ) noexcept
 {
-  auto _cmp_lt = [this, word]( auto t, auto i ) {
+  auto _cmp_lt = [ this, word ] ( auto t, auto i )
+  {
     auto const _fd = fd( word );
     auto const _fs = fs( word );
     auto const _ft = ft( word );
@@ -1257,7 +1313,8 @@ int CP1::cmp_lt( std::uint32_t word ) noexcept
 }
 int CP1::cmp_ult( std::uint32_t word ) noexcept
 {
-  auto _cmp_ult = [this, word]( auto t, auto i ) {
+  auto _cmp_ult = [ this, word ] ( auto t, auto i )
+  {
     auto const _fd = fd( word );
     auto const _fs = fs( word );
     auto const _ft = ft( word );
@@ -1279,7 +1336,8 @@ int CP1::cmp_le( std::uint32_t word ) noexcept
 {
   auto const _fmt = fmt( word );
 
-  auto _cmp_le = [this, word]( auto t, auto i ) {
+  auto _cmp_le = [ this, word ] ( auto t, auto i )
+  {
     auto const _fd = fd( word );
     auto const _fs = fs( word );
     auto const _ft = ft( word );
@@ -1296,7 +1354,8 @@ int CP1::cmp_le( std::uint32_t word ) noexcept
 }
 int CP1::cmp_ule( std::uint32_t word ) noexcept
 {
-  auto _cmp_ule = [this, word]( auto t, auto i ) {
+  auto _cmp_ule = [ this, word ] ( auto t, auto i )
+  {
     auto const _fd = fd( word );
     auto const _fs = fs( word );
     auto const _ft = ft( word );
@@ -1317,7 +1376,8 @@ int CP1::cmp_ule( std::uint32_t word ) noexcept
 
 int CP1::cmp_or( std::uint32_t word ) noexcept
 {
-  auto _cmp_or = [this, word]( auto t, auto i ) {
+  auto _cmp_or = [ this, word ] ( auto t, auto i )
+  {
     auto const _fd = fd( word );
     auto const _fs = fs( word );
     auto const _ft = ft( word );
@@ -1340,7 +1400,8 @@ int CP1::cmp_or( std::uint32_t word ) noexcept
 
 int CP1::cmp_une( std::uint32_t word ) noexcept
 {
-  auto _cmp_une = [this, word]( auto t, auto i ) {
+  auto _cmp_une = [ this, word ] ( auto t, auto i )
+  {
     auto const _fd = fd( word );
     auto const _fs = fs( word );
     auto const _ft = ft( word );
@@ -1363,7 +1424,8 @@ int CP1::cmp_une( std::uint32_t word ) noexcept
 
 int CP1::cmp_ne( std::uint32_t word ) noexcept
 {
-  auto _cmp_ne = [this, word]( auto t, auto i ) {
+  auto _cmp_ne = [ this, word ] ( auto t, auto i )
+  {
     auto const _fd = fd( word );
     auto const _fs = fs( word );
     auto const _ft = ft( word );

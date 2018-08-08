@@ -3,7 +3,8 @@
 #include <cassert>
 #include <cmath>
 
-namespace mips32 {
+namespace mips32
+{
 
 // Credits:
 // https://graphics.stanford.edu/~seander/bithacks.html#DetermineIfPowerOf2
@@ -22,7 +23,7 @@ constexpr bool is_pow_of_2( std::uint32_t n ) noexcept
  *   `auto bit_to_mask = ... calculation ...`
  *   `n >> 3 & maskify_32(bit_to_mask)`
  *   `assert(0xF == maskify_32(4))`
- * 
+ *
  * The calculation is pretty simple, it relies on logical bit shifting.
  * 1. We start with all bits set `0xFFFF'FFFF`.
  * 2. Then we **left shift** by removing the unwanted bits.
@@ -49,23 +50,23 @@ Cache::Cache( std::uint32_t capacity, std::uint32_t associativity, std::uint32_t
   assert( capacity >= words_per_block && "The capacity must be greater or equal than the number of words in a block." );
   assert( ( associativity <= capacity / sizeof( std::uint32_t ) / words_per_block ) && "The associativity must be less or equal than the number of blocks." );
 
-  this->associativity   = associativity;
+  this->associativity = associativity;
   this->words_per_block = words_per_block;
 
   // 2
-  auto word_no  = capacity / sizeof( std::uint32_t );
+  auto word_no = capacity / sizeof( std::uint32_t );
   auto block_no = word_no / words_per_block;
-  auto line_no  = block_no / associativity;
+  auto line_no = block_no / associativity;
 
   // 3
   word[shamt] = 2;
-  word[mask]  = maskify_32( (std::uint32_t)std::log2( words_per_block ) );
+  word[mask] = maskify_32( ( std::uint32_t )std::log2( words_per_block ) );
 
-  line[shamt] = word[shamt] + (std::uint32_t)std::log2( words_per_block );
-  line[mask]  = maskify_32( (std::uint32_t)std::log2( line_no ) );
+  line[shamt] = word[shamt] + ( std::uint32_t )std::log2( words_per_block );
+  line[mask] = maskify_32( ( std::uint32_t )std::log2( line_no ) );
 
   tag[shamt] = 32 - line[shamt] - word[shamt];
-  tag[mask]  = maskify_32( 32 - (std::uint32_t)std::log2( line_no ) - (std::uint32_t)std::log2( words_per_block ) );
+  tag[mask] = maskify_32( 32 - ( std::uint32_t )std::log2( line_no ) - ( std::uint32_t )std::log2( words_per_block ) );
 
   // 4
   headers.resize( block_no );
@@ -73,7 +74,7 @@ Cache::Cache( std::uint32_t capacity, std::uint32_t associativity, std::uint32_t
 }
 
 Cache::Cache( std::uint32_t capacity, Cache::FullyAssociative, std::uint32_t words_per_block )
-    : Cache( capacity, capacity / sizeof( std::uint32_t ) / words_per_block, words_per_block )
+  : Cache( capacity, capacity / sizeof( std::uint32_t ) / words_per_block, words_per_block )
 {}
 
 /**
@@ -87,13 +88,15 @@ Cache::Word Cache::operator[]( std::uint32_t address ) noexcept
   // 1
   auto _word = extract_word( address );
   auto _line = extract_line( address );
-  auto _tag  = extract_tag( address );
+  auto _tag = extract_tag( address );
 
   // 2
-  for ( std::uint32_t i = _line; i < _line + associativity; ++i ) {
-    if ( headers[i].valid && headers[i].tag == _tag ) {
-      // [HIT]
-      return Cache::Word{headers[i], lines[i * words_per_block + _word]};
+  for ( std::uint32_t i = _line; i < _line + associativity; ++i )
+  {
+    if ( headers[i].valid && headers[i].tag == _tag )
+    {
+// [HIT]
+      return Cache::Word{ headers[i], lines[i * words_per_block + _word] };
     }
   }
 
@@ -105,10 +108,10 @@ Cache::Line Cache::get_line( std::uint32_t address ) noexcept
 {
   auto _line = address >> line[shamt] >> line[mask];
 
-  return {headers.data() + _line,
+  return { headers.data() + _line,
           lines.data() + _line * words_per_block,
           words_per_block,
-          associativity};
+          associativity };
 }
 
 std::uint32_t Cache::extract_word( std::uint32_t address ) const noexcept
@@ -130,7 +133,7 @@ Cache::Word &Cache::Word::operator=( std::uint32_t data ) noexcept
 {
   assert( header && word && "Trying to write to an invalid word." );
 
-  *word         = data;
+  *word = data;
   header->dirty = true;
 
   return *this;
@@ -154,7 +157,7 @@ bool Cache::Word::valid() const noexcept
 Cache::Word::operator bool() const noexcept { return valid(); }
 
 Cache::Line::Line( Header *heads, std::uint32_t *blocks, std::uint32_t words_per_block, std::uint32_t associativity ) noexcept
-    : headers( heads ), blocks( blocks ), words_per_block( words_per_block ), associativity( associativity )
+  : headers( heads ), blocks( blocks ), words_per_block( words_per_block ), associativity( associativity )
 {}
 
 std::uint32_t Cache::Line::block_no() const noexcept

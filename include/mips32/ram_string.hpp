@@ -15,7 +15,7 @@ public:
   void write( std::uint32_t address, char const *src, std::uint32_t count ) noexcept;
 
 private:
-  std::pair<std::uint32_t, bool> RAMString::get_block( std::uint32_t address ) const noexcept;
+  std::pair<std::uint32_t, bool> get_block( std::uint32_t address ) const noexcept;
 
   RAM &ram;
 };

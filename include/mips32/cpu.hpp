@@ -21,8 +21,8 @@ class CPU
 public:
   explicit CPU( RAM &ram ) noexcept;
 
-  IODevice *   attach_iodevice( IODevice *device ) noexcept;
-  FileHandler *attach_file_handler( FileHandler *handler ) noexcept;
+  IODevice* attach_iodevice( IODevice *device ) noexcept;
+  FileHandler* attach_file_handler( FileHandler *handler ) noexcept;
 
   std::uint32_t start() noexcept;
   void          stop() noexcept;
@@ -45,8 +45,8 @@ private:
 
   std::atomic<std::uint32_t> exit_code;
 
-  IODevice *   io_device;
-  FileHandler *file_handler;
+  IODevice* io_device;
+  FileHandler* file_handler;
 
   void reserved( std::uint32_t word ) noexcept;
 
@@ -175,6 +175,8 @@ private:
    * * * * * * */
   void ext( std::uint32_t word ) noexcept;
   void ins( std::uint32_t word ) noexcept;
+
+  void execute_delay_slot() noexcept;
 
   std::uint32_t running_mode() noexcept;
 

@@ -3,21 +3,13 @@
 #include <mips32/cp1.hpp>
 #include <mips32/machine_inspector.hpp>
 
-#include <array>
+#include "helpers/test_cp1_instructions.hpp"
+
 #include <cfenv>
 #include <cmath>
 #include <limits>
-#include <string_view>
 
 using namespace mips32;
-
-// [OPCODE][FMT][R1][R2][R3][FUNCTION]
-// [COP1][S|D|W|L][0-31][0-31][0-31][0-63]
-
-constexpr std::uint32_t operator""_inst( char const *c, std::size_t ) noexcept;
-constexpr std::uint32_t operator""_r1( unsigned long long n ) noexcept;
-constexpr std::uint32_t operator""_r2( unsigned long long n ) noexcept;
-constexpr std::uint32_t operator""_r3( unsigned long long n ) noexcept;
 
 constexpr std::uint32_t FMT_S{0x10 << 21};
 constexpr std::uint32_t FMT_D{0x11 << 21};
@@ -92,7 +84,7 @@ struct INF<double>
 
 // TODO: provoke FPU exception
 
-SCENARIO( "A Coprocessor 1 object exists and it's resetted and inspected" )
+SCENARIO( "A Coprocessor 1 object exists" )
 {
   CP1 cp1;
   cp1.reset();
@@ -276,8 +268,8 @@ SCENARIO( "A Coprocessor 1 object exists and it's resetted and inspected" )
 
   WHEN( "ABS.S $f0, $f2 and ABS.D $f14, $f8 is executed" )
   {
-    auto abs_s = "ABS"_inst | FMT_S | 0_r1 | 2_r2;
-    auto abs_d = "ABS"_inst | FMT_D | 14_r1 | 8_r2;
+    auto abs_s = "ABS"_cp1 | FMT_S | 0_r1 | 2_r2;
+    auto abs_d = "ABS"_cp1 | FMT_D | 14_r1 | 8_r2;
 
     auto f0 = inspector.CP1_fpr_begin() + 0;
     auto f2 = inspector.CP1_fpr_begin() + 2;
@@ -303,8 +295,8 @@ SCENARIO( "A Coprocessor 1 object exists and it's resetted and inspected" )
 
   WHEN( "ADD.S $f31, $f7, $f21 and ADD.D $f18, $f17, $f16 is executed" )
   {
-    auto add_s = "ADD"_inst | FMT_S | 31_r1 | 7_r2 | 21_r3;
-    auto add_d = "ADD"_inst | FMT_D | 18_r1 | 17_r2 | 16_r3;
+    auto add_s = "ADD"_cp1 | FMT_S | 31_r1 | 7_r2 | 21_r3;
+    auto add_d = "ADD"_cp1 | FMT_D | 18_r1 | 17_r2 | 16_r3;
 
     auto f31 = inspector.CP1_fpr_begin() + 31;
     auto f7  = inspector.CP1_fpr_begin() + 7;
@@ -338,8 +330,8 @@ SCENARIO( "A Coprocessor 1 object exists and it's resetted and inspected" )
 
   WHEN( "CMP.AF.S $f0, $f0, $f0 and CMP.AF.D $f4, $f5, $f4 are executed" )
   {
-    auto cmp_af_s = "CMP_AF"_inst | CMP_FMT_S | 0_r1 | 0_r2 | 0_r3;
-    auto cmp_af_d = "CMP_AF"_inst | CMP_FMT_D | 4_r1 | 5_r2 | 4_r3;
+    auto cmp_af_s = "CMP_AF"_cp1 | CMP_FMT_S | 0_r1 | 0_r2 | 0_r3;
+    auto cmp_af_d = "CMP_AF"_cp1 | CMP_FMT_D | 4_r1 | 5_r2 | 4_r3;
 
     auto f0 = inspector.CP1_fpr_begin() + 0;
 
@@ -367,8 +359,8 @@ SCENARIO( "A Coprocessor 1 object exists and it's resetted and inspected" )
 
   WHEN( "CMP.UN.S $f3, $f4, $f3 and CMP.AF.D $f18, $f11, $f0 are executed" )
   {
-    auto cmp_un_s = "CMP_UN"_inst | CMP_FMT_S | 3_r1 | 4_r2 | 3_r3;
-    auto cmp_un_d = "CMP_UN"_inst | CMP_FMT_D | 18_r1 | 11_r2 | 0_r3;
+    auto cmp_un_s = "CMP_UN"_cp1 | CMP_FMT_S | 3_r1 | 4_r2 | 3_r3;
+    auto cmp_un_d = "CMP_UN"_cp1 | CMP_FMT_D | 18_r1 | 11_r2 | 0_r3;
 
     auto f3 = inspector.CP1_fpr_begin() + 3;
     auto f4 = inspector.CP1_fpr_begin() + 4;
@@ -421,8 +413,8 @@ SCENARIO( "A Coprocessor 1 object exists and it's resetted and inspected" )
 
   WHEN( "CMP.EQ.S $f30, $f29, $f30 and CMP.EQ.D $f1, $f2, $f3 are executed" )
   {
-    auto cmp_eq_s = "CMP_EQ"_inst | CMP_FMT_S | 30_r1 | 29_r2 | 30_r3;
-    auto cmp_eq_d = "CMP_EQ"_inst | CMP_FMT_D | 1_r1 | 2_r2 | 3_r3;
+    auto cmp_eq_s = "CMP_EQ"_cp1 | CMP_FMT_S | 30_r1 | 29_r2 | 30_r3;
+    auto cmp_eq_d = "CMP_EQ"_cp1 | CMP_FMT_D | 1_r1 | 2_r2 | 3_r3;
 
     auto f30 = inspector.CP1_fpr_begin() + 30;
     auto f29 = inspector.CP1_fpr_begin() + 29;
@@ -475,8 +467,8 @@ SCENARIO( "A Coprocessor 1 object exists and it's resetted and inspected" )
 
   WHEN( "CMP.UEQ.S $f10, $f9, $f27 and CMP.UEQ.D $f4, $f6, $f26 are executed" )
   {
-    auto cmp_ueq_s = "CMP_UEQ"_inst | CMP_FMT_S | 10_r1 | 9_r2 | 27_r3;
-    auto cmp_ueq_d = "CMP_UEQ"_inst | CMP_FMT_D | 4_r1 | 6_r2 | 26_r3;
+    auto cmp_ueq_s = "CMP_UEQ"_cp1 | CMP_FMT_S | 10_r1 | 9_r2 | 27_r3;
+    auto cmp_ueq_d = "CMP_UEQ"_cp1 | CMP_FMT_D | 4_r1 | 6_r2 | 26_r3;
 
     auto f10 = inspector.CP1_fpr_begin() + 10;
     auto f9  = inspector.CP1_fpr_begin() + 9;
@@ -530,8 +522,8 @@ SCENARIO( "A Coprocessor 1 object exists and it's resetted and inspected" )
 
   WHEN( "CMP.LT.S $f5, $f10, $f15 and CMP.LT.D $f6, $f12, $18 are executed" )
   {
-    auto cmp_lt_s = "CMP_LT"_inst | CMP_FMT_S | 5_r1 | 10_r2 | 15_r3;
-    auto cmp_lt_d = "CMP_LT"_inst | CMP_FMT_D | 6_r1 | 12_r2 | 18_r3;
+    auto cmp_lt_s = "CMP_LT"_cp1 | CMP_FMT_S | 5_r1 | 10_r2 | 15_r3;
+    auto cmp_lt_d = "CMP_LT"_cp1 | CMP_FMT_D | 6_r1 | 12_r2 | 18_r3;
 
     auto f5  = inspector.CP1_fpr_begin() + 5;
     auto f10 = inspector.CP1_fpr_begin() + 10;
@@ -585,8 +577,8 @@ SCENARIO( "A Coprocessor 1 object exists and it's resetted and inspected" )
 
   WHEN( "CMP.ULT.S $f5, $f10, $f15 and CMP.ULT.D $f6, $f12, $18 are executed" )
   {
-    auto cmp_ult_s = "CMP_ULT"_inst | CMP_FMT_S | 5_r1 | 10_r2 | 15_r3;
-    auto cmp_ult_d = "CMP_ULT"_inst | CMP_FMT_D | 6_r1 | 12_r2 | 18_r3;
+    auto cmp_ult_s = "CMP_ULT"_cp1 | CMP_FMT_S | 5_r1 | 10_r2 | 15_r3;
+    auto cmp_ult_d = "CMP_ULT"_cp1 | CMP_FMT_D | 6_r1 | 12_r2 | 18_r3;
 
     auto f5  = inspector.CP1_fpr_begin() + 5;
     auto f10 = inspector.CP1_fpr_begin() + 10;
@@ -640,8 +632,8 @@ SCENARIO( "A Coprocessor 1 object exists and it's resetted and inspected" )
 
   WHEN( "CMP.LE.S $f5, $f10, $f15 and CMP.LE.D $f6, $f12, $18 are executed" )
   {
-    auto cmp_le_s = "CMP_LE"_inst | CMP_FMT_S | 5_r1 | 10_r2 | 15_r3;
-    auto cmp_le_d = "CMP_LE"_inst | CMP_FMT_D | 6_r1 | 12_r2 | 18_r3;
+    auto cmp_le_s = "CMP_LE"_cp1 | CMP_FMT_S | 5_r1 | 10_r2 | 15_r3;
+    auto cmp_le_d = "CMP_LE"_cp1 | CMP_FMT_D | 6_r1 | 12_r2 | 18_r3;
 
     auto f5  = inspector.CP1_fpr_begin() + 5;
     auto f10 = inspector.CP1_fpr_begin() + 10;
@@ -695,8 +687,8 @@ SCENARIO( "A Coprocessor 1 object exists and it's resetted and inspected" )
 
   WHEN( "CMP.ULE.S $f5, $f10, $f15 and CMP.ULE.D $f6, $f12, $18 are executed" )
   {
-    auto cmp_ule_s = "CMP_ULE"_inst | CMP_FMT_S | 5_r1 | 10_r2 | 15_r3;
-    auto cmp_ule_d = "CMP_ULE"_inst | CMP_FMT_D | 6_r1 | 12_r2 | 18_r3;
+    auto cmp_ule_s = "CMP_ULE"_cp1 | CMP_FMT_S | 5_r1 | 10_r2 | 15_r3;
+    auto cmp_ule_d = "CMP_ULE"_cp1 | CMP_FMT_D | 6_r1 | 12_r2 | 18_r3;
 
     auto f5  = inspector.CP1_fpr_begin() + 5;
     auto f10 = inspector.CP1_fpr_begin() + 10;
@@ -750,8 +742,8 @@ SCENARIO( "A Coprocessor 1 object exists and it's resetted and inspected" )
 
   WHEN( "CMP.OR.S $f0, $f3, $f6 and CMP.OR.D $f13, $f14, $f13 are executed" )
   {
-    auto cmp_or_s = "CMP_OR"_inst | CMP_FMT_S | 0_r1 | 3_r2 | 6_r3;
-    auto cmp_or_d = "CMP_OR"_inst | CMP_FMT_D | 13_r1 | 14_r2 | 13_r3;
+    auto cmp_or_s = "CMP_OR"_cp1 | CMP_FMT_S | 0_r1 | 3_r2 | 6_r3;
+    auto cmp_or_d = "CMP_OR"_cp1 | CMP_FMT_D | 13_r1 | 14_r2 | 13_r3;
 
     auto f0 = inspector.CP1_fpr_begin() + 0;
     auto f3 = inspector.CP1_fpr_begin() + 3;
@@ -804,8 +796,8 @@ SCENARIO( "A Coprocessor 1 object exists and it's resetted and inspected" )
 
   WHEN( "CMP.UNE.S $f31, $f30, $f29 and CMP.UNE.D $f18, $f21, $f2 are executed" )
   {
-    auto cmp_une_s = "CMP_UNE"_inst | CMP_FMT_S | 0_r1 | 3_r2 | 6_r3;
-    auto cmp_une_d = "CMP_UNE"_inst | CMP_FMT_D | 13_r1 | 14_r2 | 13_r3;
+    auto cmp_une_s = "CMP_UNE"_cp1 | CMP_FMT_S | 0_r1 | 3_r2 | 6_r3;
+    auto cmp_une_d = "CMP_UNE"_cp1 | CMP_FMT_D | 13_r1 | 14_r2 | 13_r3;
 
     auto f0 = inspector.CP1_fpr_begin() + 0;
     auto f3 = inspector.CP1_fpr_begin() + 3;
@@ -858,8 +850,8 @@ SCENARIO( "A Coprocessor 1 object exists and it's resetted and inspected" )
 
   WHEN( "CMP.NE.S $f6, $f12, $f0 and CMP.NE.D $f3, $f5, $f19 are executed" )
   {
-    auto cmp_ne_s = "CMP_NE"_inst | CMP_FMT_S | 0_r1 | 3_r2 | 6_r3;
-    auto cmp_ne_d = "CMP_NE"_inst | CMP_FMT_D | 13_r1 | 14_r2 | 13_r3;
+    auto cmp_ne_s = "CMP_NE"_cp1 | CMP_FMT_S | 0_r1 | 3_r2 | 6_r3;
+    auto cmp_ne_d = "CMP_NE"_cp1 | CMP_FMT_D | 13_r1 | 14_r2 | 13_r3;
 
     auto f0 = inspector.CP1_fpr_begin() + 0;
     auto f3 = inspector.CP1_fpr_begin() + 3;
@@ -912,8 +904,8 @@ SCENARIO( "A Coprocessor 1 object exists and it's resetted and inspected" )
 
   WHEN( "CEIL.L.S $f0, $f0 and CEIL.L.D $f13, $f17 are executed" )
   {
-    auto ceil_l_s = "CEIL_L"_inst | FMT_S | 0_r1 | 0_r2;
-    auto ceil_l_d = "CEIL_L"_inst | FMT_D | 13_r1 | 17_r2;
+    auto ceil_l_s = "CEIL_L"_cp1 | FMT_S | 0_r1 | 0_r2;
+    auto ceil_l_d = "CEIL_L"_cp1 | FMT_D | 13_r1 | 17_r2;
 
     auto f0 = inspector.CP1_fpr_begin() + 0;
 
@@ -941,8 +933,8 @@ SCENARIO( "A Coprocessor 1 object exists and it's resetted and inspected" )
 
   WHEN( "CEIL.W.S $f3, $f21 and CEIL.W.D $f8, $f19 are executed" )
   {
-    auto ceil_w_s = "CEIL_W"_inst | FMT_S | 3_r1 | 21_r2;
-    auto ceil_w_d = "CEIL_W"_inst | FMT_D | 8_r1 | 19_r2;
+    auto ceil_w_s = "CEIL_W"_cp1 | FMT_S | 3_r1 | 21_r2;
+    auto ceil_w_d = "CEIL_W"_cp1 | FMT_D | 8_r1 | 19_r2;
 
     auto f3  = inspector.CP1_fpr_begin() + 3;
     auto f21 = inspector.CP1_fpr_begin() + 21;
@@ -989,8 +981,8 @@ SCENARIO( "A Coprocessor 1 object exists and it's resetted and inspected" )
   */
   WHEN( "CLASS.S $f0, $f2 and CLASS.D $f31, $f31 are executed" )
   {
-    auto class_s = "CLASS"_inst | FMT_S | 0_r1 | 2_r2;
-    auto class_d = "CLASS"_inst | FMT_D | 31_r1 | 31_r2;
+    auto class_s = "CLASS"_cp1 | FMT_S | 0_r1 | 2_r2;
+    auto class_d = "CLASS"_cp1 | FMT_D | 31_r1 | 31_r2;
 
     auto f0 = inspector.CP1_fpr_begin() + 0;
     auto f2 = inspector.CP1_fpr_begin() + 2;
@@ -1115,9 +1107,9 @@ SCENARIO( "A Coprocessor 1 object exists and it's resetted and inspected" )
 
   WHEN( "CVT.D.S $f19, $f15 and CVT.D.W $f0, $f1 and CVT.D.L $f31, $f31 are executed" )
   {
-    auto cvt_d_s = "CVT_D"_inst | FMT_S | 19_r1 | 15_r2;
-    auto cvt_d_w = "CVT_D"_inst | FMT_W | 0_r1 | 1_r2;
-    auto cvt_d_l = "CVT_D"_inst | FMT_L | 31_r1 | 31_r2;
+    auto cvt_d_s = "CVT_D"_cp1 | FMT_S | 19_r1 | 15_r2;
+    auto cvt_d_w = "CVT_D"_cp1 | FMT_W | 0_r1 | 1_r2;
+    auto cvt_d_l = "CVT_D"_cp1 | FMT_L | 31_r1 | 31_r2;
 
     auto f19 = inspector.CP1_fpr_begin() + 19;
     auto f15 = inspector.CP1_fpr_begin() + 15;
@@ -1128,7 +1120,7 @@ SCENARIO( "A Coprocessor 1 object exists and it's resetted and inspected" )
     auto f31 = inspector.CP1_fpr_begin() + 31;
 
     f15->f   = 1509.f;
-    f1->i32  = -2874;
+    f1->i32  = (std::uint32_t)-2874;
     f31->i64 = 34'903;
 
     auto res_s = 1509.0;
@@ -1153,8 +1145,8 @@ SCENARIO( "A Coprocessor 1 object exists and it's resetted and inspected" )
 
   WHEN( "CVT.L.S $f8, $f27 and CVT.L.D $f30, $f24 are executed" )
   {
-    auto cvt_l_s = "CVT_L"_inst | FMT_S | 8_r1 | 27_r2;
-    auto cvt_l_d = "CVT_L"_inst | FMT_D | 30_r1 | 24_r2;
+    auto cvt_l_s = "CVT_L"_cp1 | FMT_S | 8_r1 | 27_r2;
+    auto cvt_l_d = "CVT_L"_cp1 | FMT_D | 30_r1 | 24_r2;
 
     auto f8  = inspector.CP1_fpr_begin() + 8;
     auto f27 = inspector.CP1_fpr_begin() + 27;
@@ -1183,9 +1175,9 @@ SCENARIO( "A Coprocessor 1 object exists and it's resetted and inspected" )
 
   WHEN( "CVT.S.D $f3, $f9 and CVT.S.W $f11, $f0 and CVT.S.L $f4, $f22 are executed" )
   {
-    auto cvt_s_d = "CVT_S"_inst | FMT_D | 3_r1 | 9_r2;
-    auto cvt_s_w = "CVT_S"_inst | FMT_W | 11_r1 | 0_r2;
-    auto cvt_s_l = "CVT_S"_inst | FMT_L | 4_r1 | 22_r2;
+    auto cvt_s_d = "CVT_S"_cp1 | FMT_D | 3_r1 | 9_r2;
+    auto cvt_s_w = "CVT_S"_cp1 | FMT_W | 11_r1 | 0_r2;
+    auto cvt_s_l = "CVT_S"_cp1 | FMT_L | 4_r1 | 22_r2;
 
     auto f3 = inspector.CP1_fpr_begin() + 3;
     auto f9 = inspector.CP1_fpr_begin() + 9;
@@ -1198,7 +1190,7 @@ SCENARIO( "A Coprocessor 1 object exists and it's resetted and inspected" )
 
     f9->d    = 8374.0;
     f0->i32  = 2166;
-    f22->i64 = -348'763'328;
+    f22->i64 = (std::uint64_t)-348'763'328;
 
     auto res_d = 8374.0f;
     auto res_w = 2166;
@@ -1222,8 +1214,8 @@ SCENARIO( "A Coprocessor 1 object exists and it's resetted and inspected" )
 
   WHEN( "CVT.W.S $f13, $f31 and CVT.W.D $f21, $f12 are executed" )
   {
-    auto cvt_w_s = "CVT_W"_inst | FMT_S | 13_r1 | 31_r2;
-    auto cvt_w_d = "CVT_W"_inst | FMT_D | 21_r1 | 12_r2;
+    auto cvt_w_s = "CVT_W"_cp1 | FMT_S | 13_r1 | 31_r2;
+    auto cvt_w_d = "CVT_W"_cp1 | FMT_D | 21_r1 | 12_r2;
 
     auto f13 = inspector.CP1_fpr_begin() + 13;
     auto f31 = inspector.CP1_fpr_begin() + 31;
@@ -1252,8 +1244,8 @@ SCENARIO( "A Coprocessor 1 object exists and it's resetted and inspected" )
 
   WHEN( "DIV.S $f1, $f2, $f3 and DIV.D $f4, $f5, $f6 are executed" )
   {
-    auto div_s = "DIV"_inst | FMT_S | 1_r1 | 2_r2 | 3_r3;
-    auto div_d = "DIV"_inst | FMT_D | 4_r1 | 5_r2 | 6_r3;
+    auto div_s = "DIV"_cp1 | FMT_S | 1_r1 | 2_r2 | 3_r3;
+    auto div_d = "DIV"_cp1 | FMT_D | 4_r1 | 5_r2 | 6_r3;
 
     auto f1 = inspector.CP1_fpr_begin() + 1;
     auto f2 = inspector.CP1_fpr_begin() + 2;
@@ -1287,8 +1279,8 @@ SCENARIO( "A Coprocessor 1 object exists and it's resetted and inspected" )
 
   WHEN( "FLOOR.L.S $f3, $f3 and FLOOR.L.D $f2, $f7 are executed" )
   {
-    auto floor_l_s = "FLOOR_L"_inst | FMT_S | 3_r1 | 3_r2;
-    auto floor_l_d = "FLOOR_L"_inst | FMT_D | 2_r1 | 7_r2;
+    auto floor_l_s = "FLOOR_L"_cp1 | FMT_S | 3_r1 | 3_r2;
+    auto floor_l_d = "FLOOR_L"_cp1 | FMT_D | 2_r1 | 7_r2;
 
     auto f3 = inspector.CP1_fpr_begin() + 3;
 
@@ -1316,8 +1308,8 @@ SCENARIO( "A Coprocessor 1 object exists and it's resetted and inspected" )
 
   WHEN( "FLOOR.W.S $f0, $f9 and FLOOR.W.D $f21, $f17 are executed" )
   {
-    auto floor_w_s = "FLOOR_W"_inst | FMT_S | 0_r1 | 9_r2;
-    auto floor_w_d = "FLOOR_W"_inst | FMT_D | 21_r1 | 17_r2;
+    auto floor_w_s = "FLOOR_W"_cp1 | FMT_S | 0_r1 | 9_r2;
+    auto floor_w_d = "FLOOR_W"_cp1 | FMT_D | 21_r1 | 17_r2;
 
     auto f0 = inspector.CP1_fpr_begin() + 0;
     auto f9 = inspector.CP1_fpr_begin() + 9;
@@ -1346,8 +1338,8 @@ SCENARIO( "A Coprocessor 1 object exists and it's resetted and inspected" )
 
   WHEN( "MADDF.S $f10, $f11, $f12 and MADDF.D $f20, $f20, $f20 are executed" )
   {
-    auto maddf_s = "MADDF"_inst | FMT_S | 10_r1 | 11_r2 | 12_r3;
-    auto maddf_d = "MADDF"_inst | FMT_D | 20_r1 | 20_r2 | 20_r3;
+    auto maddf_s = "MADDF"_cp1 | FMT_S | 10_r1 | 11_r2 | 12_r3;
+    auto maddf_d = "MADDF"_cp1 | FMT_D | 20_r1 | 20_r2 | 20_r3;
 
     auto f10 = inspector.CP1_fpr_begin() + 10;
     auto f11 = inspector.CP1_fpr_begin() + 11;
@@ -1379,8 +1371,8 @@ SCENARIO( "A Coprocessor 1 object exists and it's resetted and inspected" )
 
   WHEN( "MSUBF.S $f9, $f21, $f13 and MSUBF.D $f1, $f1, $f1 are executed" )
   {
-    auto msubf_s = "MSUBF"_inst | FMT_S | 9_r1 | 21_r2 | 13_r3;
-    auto msubf_d = "MSUBF"_inst | FMT_D | 1_r1 | 1_r2 | 1_r3;
+    auto msubf_s = "MSUBF"_cp1 | FMT_S | 9_r1 | 21_r2 | 13_r3;
+    auto msubf_d = "MSUBF"_cp1 | FMT_D | 1_r1 | 1_r2 | 1_r3;
 
     auto f9  = inspector.CP1_fpr_begin() + 9;
     auto f21 = inspector.CP1_fpr_begin() + 21;
@@ -1412,8 +1404,8 @@ SCENARIO( "A Coprocessor 1 object exists and it's resetted and inspected" )
 
   WHEN( "MAX.S $f5, $f8, $f0 and MAX.D $f0, $f11, $f11 are executed" )
   {
-    auto max_s = "MAX"_inst | FMT_S | 5_r1 | 8_r2 | 0_r3;
-    auto max_d = "MAX"_inst | FMT_D | 0_r1 | 11_r2 | 11_r3;
+    auto max_s = "MAX"_cp1 | FMT_S | 5_r1 | 8_r2 | 0_r3;
+    auto max_d = "MAX"_cp1 | FMT_D | 0_r1 | 11_r2 | 11_r3;
 
     auto f5 = inspector.CP1_fpr_begin() + 5;
     auto f8 = inspector.CP1_fpr_begin() + 8;
@@ -1444,8 +1436,8 @@ SCENARIO( "A Coprocessor 1 object exists and it's resetted and inspected" )
 
   WHEN( "MIN.S $f18, $f30, $f27 and MIN.D $f4, $f25, $f22 are executed" )
   {
-    auto max_s = "MIN"_inst | FMT_S | 18_r1 | 30_r2 | 27_r3;
-    auto max_d = "MIN"_inst | FMT_D | 4_r1 | 25_r2 | 22_r3;
+    auto max_s = "MIN"_cp1 | FMT_S | 18_r1 | 30_r2 | 27_r3;
+    auto max_d = "MIN"_cp1 | FMT_D | 4_r1 | 25_r2 | 22_r3;
 
     auto f18 = inspector.CP1_fpr_begin() + 18;
     auto f30 = inspector.CP1_fpr_begin() + 30;
@@ -1479,8 +1471,8 @@ SCENARIO( "A Coprocessor 1 object exists and it's resetted and inspected" )
 
   WHEN( "MAXA.S $f26, $f12, $f29 and MAXA.D $f0, $f1, $f6 are executed" )
   {
-    auto maxa_s = "MAXA"_inst | FMT_S | 26_r1 | 12_r2 | 29_r3;
-    auto maxa_d = "MAXA"_inst | FMT_D | 0_r1 | 1_r2 | 6_r3;
+    auto maxa_s = "MAXA"_cp1 | FMT_S | 26_r1 | 12_r2 | 29_r3;
+    auto maxa_d = "MAXA"_cp1 | FMT_D | 0_r1 | 1_r2 | 6_r3;
 
     auto f26 = inspector.CP1_fpr_begin() + 26;
     auto f12 = inspector.CP1_fpr_begin() + 12;
@@ -1514,8 +1506,8 @@ SCENARIO( "A Coprocessor 1 object exists and it's resetted and inspected" )
 
   WHEN( "MINA.S $f31, $f30, $f29 and MINA.D $f2, $f4, $f8 are executed" )
   {
-    auto mina_s = "MINA"_inst | FMT_S | 31_r1 | 30_r2 | 29_r3;
-    auto mina_d = "MINA"_inst | FMT_D | 2_r1 | 4_r2 | 8_r3;
+    auto mina_s = "MINA"_cp1 | FMT_S | 31_r1 | 30_r2 | 29_r3;
+    auto mina_d = "MINA"_cp1 | FMT_D | 2_r1 | 4_r2 | 8_r3;
 
     auto f31 = inspector.CP1_fpr_begin() + 31;
     auto f30 = inspector.CP1_fpr_begin() + 30;
@@ -1549,8 +1541,8 @@ SCENARIO( "A Coprocessor 1 object exists and it's resetted and inspected" )
 
   WHEN( "MOV.S $f10, $f18 and MOV.D $f21, $f3 are executed" )
   {
-    auto mov_s = "MOV"_inst | FMT_S | 10_r1 | 18_r2;
-    auto mov_d = "MOV"_inst | FMT_D | 21_r1 | 3_r2;
+    auto mov_s = "MOV"_cp1 | FMT_S | 10_r1 | 18_r2;
+    auto mov_d = "MOV"_cp1 | FMT_D | 21_r1 | 3_r2;
 
     auto f10 = inspector.CP1_fpr_begin() + 10;
     auto f18 = inspector.CP1_fpr_begin() + 18;
@@ -1580,8 +1572,8 @@ SCENARIO( "A Coprocessor 1 object exists and it's resetted and inspected" )
 
   WHEN( "MUL.S $f15, $f9, $f2 and MUL.D $f13, $f0, $f7 are executed" )
   {
-    auto mul_s = "MUL"_inst | FMT_S | 15_r1 | 9_r2 | 2_r3;
-    auto mul_d = "MUL"_inst | FMT_D | 13_r1 | 0_r2 | 7_r3;
+    auto mul_s = "MUL"_cp1 | FMT_S | 15_r1 | 9_r2 | 2_r3;
+    auto mul_d = "MUL"_cp1 | FMT_D | 13_r1 | 0_r2 | 7_r3;
 
     auto f15 = inspector.CP1_fpr_begin() + 15;
     auto f9  = inspector.CP1_fpr_begin() + 9;
@@ -1615,8 +1607,8 @@ SCENARIO( "A Coprocessor 1 object exists and it's resetted and inspected" )
 
   WHEN( "NEG.S $f5, $f6 and NEG.D $f7, $f8 are executed" )
   {
-    auto neg_s = "NEG"_inst | FMT_S | 5_r1 | 6_r2;
-    auto neg_d = "NEG"_inst | FMT_D | 7_r1 | 8_r2;
+    auto neg_s = "NEG"_cp1 | FMT_S | 5_r1 | 6_r2;
+    auto neg_d = "NEG"_cp1 | FMT_D | 7_r1 | 8_r2;
 
     auto f5 = inspector.CP1_fpr_begin() + 5;
     auto f6 = inspector.CP1_fpr_begin() + 6;
@@ -1646,8 +1638,8 @@ SCENARIO( "A Coprocessor 1 object exists and it's resetted and inspected" )
 
   WHEN( "RECIP.S $f9, $f8 and RECIP.D $f31, $f0 are executed" )
   {
-    auto recip_s = "RECIP"_inst | FMT_S | 9_r1 | 8_r2;
-    auto recip_d = "RECIP"_inst | FMT_D | 31_r1 | 0_r2;
+    auto recip_s = "RECIP"_cp1 | FMT_S | 9_r1 | 8_r2;
+    auto recip_d = "RECIP"_cp1 | FMT_D | 31_r1 | 0_r2;
 
     auto f9 = inspector.CP1_fpr_begin() + 9;
     auto f8 = inspector.CP1_fpr_begin() + 8;
@@ -1677,8 +1669,8 @@ SCENARIO( "A Coprocessor 1 object exists and it's resetted and inspected" )
 
   WHEN( "RINT.S $f1, $f18 and RINT.D $f4, $f26 are executed" )
   {
-    auto rint_s = "RINT"_inst | FMT_S | 1_r1 | 18_r2;
-    auto rint_d = "RINT"_inst | FMT_D | 4_r1 | 26_r2;
+    auto rint_s = "RINT"_cp1 | FMT_S | 1_r1 | 18_r2;
+    auto rint_d = "RINT"_cp1 | FMT_D | 4_r1 | 26_r2;
 
     auto f1  = inspector.CP1_fpr_begin() + 1;
     auto f18 = inspector.CP1_fpr_begin() + 18;
@@ -1708,8 +1700,8 @@ SCENARIO( "A Coprocessor 1 object exists and it's resetted and inspected" )
 
   WHEN( "ROUND.L.S $f1, $f2 and ROUND.L.D $f30, $f28 are executed" )
   {
-    auto round_l_s = "ROUND_L"_inst | FMT_S | 1_r1 | 2_r2;
-    auto round_l_d = "ROUND_L"_inst | FMT_D | 30_r1 | 28_r2;
+    auto round_l_s = "ROUND_L"_cp1 | FMT_S | 1_r1 | 2_r2;
+    auto round_l_d = "ROUND_L"_cp1 | FMT_D | 30_r1 | 28_r2;
 
     auto f1 = inspector.CP1_fpr_begin() + 1;
     auto f2 = inspector.CP1_fpr_begin() + 2;
@@ -1739,8 +1731,8 @@ SCENARIO( "A Coprocessor 1 object exists and it's resetted and inspected" )
 
   WHEN( "ROUND.W.S $f1, $f2 and ROUND.W.D $f30, $f28 are executed" )
   {
-    auto round_w_s = "ROUND_W"_inst | FMT_S | 1_r1 | 2_r2;
-    auto round_w_d = "ROUND_W"_inst | FMT_D | 30_r1 | 28_r2;
+    auto round_w_s = "ROUND_W"_cp1 | FMT_S | 1_r1 | 2_r2;
+    auto round_w_d = "ROUND_W"_cp1 | FMT_D | 30_r1 | 28_r2;
 
     auto f1 = inspector.CP1_fpr_begin() + 1;
     auto f2 = inspector.CP1_fpr_begin() + 2;
@@ -1770,8 +1762,8 @@ SCENARIO( "A Coprocessor 1 object exists and it's resetted and inspected" )
 
   WHEN( "RSQRT.S $f17, $f21 and RSQRT.D $f24, $f30 are executed" )
   {
-    auto rsqrt_s = "RSQRT"_inst | FMT_S | 17_r1 | 21_r2;
-    auto rsqrt_d = "RSQRT"_inst | FMT_D | 24_r1 | 30_r2;
+    auto rsqrt_s = "RSQRT"_cp1 | FMT_S | 17_r1 | 21_r2;
+    auto rsqrt_d = "RSQRT"_cp1 | FMT_D | 24_r1 | 30_r2;
 
     auto f17 = inspector.CP1_fpr_begin() + 17;
     auto f21 = inspector.CP1_fpr_begin() + 21;
@@ -1801,8 +1793,8 @@ SCENARIO( "A Coprocessor 1 object exists and it's resetted and inspected" )
 
   WHEN( "SEL.S $f8, $f11, $f12 and SEL.D $f0, $f1, $f3 are executed" )
   {
-    auto sel_s = "SEL"_inst | FMT_S | 8_r1 | 11_r2 | 12_r3;
-    auto sel_d = "SEL"_inst | FMT_D | 0_r1 | 1_r2 | 3_r3;
+    auto sel_s = "SEL"_cp1 | FMT_S | 8_r1 | 11_r2 | 12_r3;
+    auto sel_d = "SEL"_cp1 | FMT_D | 0_r1 | 1_r2 | 3_r3;
 
     auto f8  = inspector.CP1_fpr_begin() + 8;
     auto f11 = inspector.CP1_fpr_begin() + 11;
@@ -1838,8 +1830,8 @@ SCENARIO( "A Coprocessor 1 object exists and it's resetted and inspected" )
 
   WHEN( "SELEQZ.S $f9, $f8, $f7 and SELEQZ.D $f27, $f26, $f25 are executed" )
   {
-    auto seleqz_s = "SELEQZ"_inst | FMT_S | 9_r1 | 8_r2 | 7_r3;
-    auto seleqz_d = "SELEQZ"_inst | FMT_D | 27_r1 | 26_r2 | 25_r3;
+    auto seleqz_s = "SELEQZ"_cp1 | FMT_S | 9_r1 | 8_r2 | 7_r3;
+    auto seleqz_d = "SELEQZ"_cp1 | FMT_D | 27_r1 | 26_r2 | 25_r3;
 
     auto f9 = inspector.CP1_fpr_begin() + 9;
     auto f8 = inspector.CP1_fpr_begin() + 8;
@@ -1875,8 +1867,8 @@ SCENARIO( "A Coprocessor 1 object exists and it's resetted and inspected" )
 
   WHEN( "SELNEZ.S $f22, $f3, $f4 and SELNEZ.D $f18, $f22, $f14 are executed" )
   {
-    auto selnez_s = "SELNEZ"_inst | FMT_S | 22_r1 | 3_r2 | 4_r3;
-    auto selnez_d = "SELNEZ"_inst | FMT_D | 18_r1 | 22_r2 | 14_r3;
+    auto selnez_s = "SELNEZ"_cp1 | FMT_S | 22_r1 | 3_r2 | 4_r3;
+    auto selnez_d = "SELNEZ"_cp1 | FMT_D | 18_r1 | 22_r2 | 14_r3;
 
     auto f22 = inspector.CP1_fpr_begin() + 22;
     auto f3  = inspector.CP1_fpr_begin() + 3;
@@ -1909,8 +1901,8 @@ SCENARIO( "A Coprocessor 1 object exists and it's resetted and inspected" )
 
   WHEN( "SQRT.S $f13, $f7 and SQRT.D $f14, $f8 are executed" )
   {
-    auto sqrt_s = "SQRT"_inst | FMT_S | 13_r1 | 7_r2;
-    auto sqrt_d = "SQRT"_inst | FMT_D | 14_r1 | 8_r2;
+    auto sqrt_s = "SQRT"_cp1 | FMT_S | 13_r1 | 7_r2;
+    auto sqrt_d = "SQRT"_cp1 | FMT_D | 14_r1 | 8_r2;
 
     auto f13 = inspector.CP1_fpr_begin() + 13;
     auto f7  = inspector.CP1_fpr_begin() + 7;
@@ -1940,8 +1932,8 @@ SCENARIO( "A Coprocessor 1 object exists and it's resetted and inspected" )
 
   WHEN( "SUB.S $f10, $f9, $f10 and SUB.D $f1, $f1, $f1 are executed" )
   {
-    auto sub_s = "SUB"_inst | FMT_S | 10_r1 | 9_r2 | 10_r3;
-    auto sub_d = "SUB"_inst | FMT_D | 1_r1 | 1_r2 | 1_r3;
+    auto sub_s = "SUB"_cp1 | FMT_S | 10_r1 | 9_r2 | 10_r3;
+    auto sub_d = "SUB"_cp1 | FMT_D | 1_r1 | 1_r2 | 1_r3;
 
     auto f10 = inspector.CP1_fpr_begin() + 10;
     auto f9  = inspector.CP1_fpr_begin() + 9;
@@ -1971,8 +1963,8 @@ SCENARIO( "A Coprocessor 1 object exists and it's resetted and inspected" )
 
   WHEN( "TRUNC.L.S $f1, $f3 and TRUNC.L.D $f30, $f29 are executed" )
   {
-    auto trunc_l_s = "TRUNC_L"_inst | FMT_S | 1_r1 | 3_r2;
-    auto trunc_l_d = "TRUNC_L"_inst | FMT_D | 30_r1 | 29_r2;
+    auto trunc_l_s = "TRUNC_L"_cp1 | FMT_S | 1_r1 | 3_r2;
+    auto trunc_l_d = "TRUNC_L"_cp1 | FMT_D | 30_r1 | 29_r2;
 
     auto f1 = inspector.CP1_fpr_begin() + 1;
     auto f3 = inspector.CP1_fpr_begin() + 3;
@@ -2001,8 +1993,8 @@ SCENARIO( "A Coprocessor 1 object exists and it's resetted and inspected" )
 
   WHEN( "TRUNC.W.S $f6, $f10 and TRUNC.W.D $f4, $f13 are executed" )
   {
-    auto trunc_w_s = "TRUNC_W"_inst | FMT_S | 6_r1 | 10_r2;
-    auto trunc_w_d = "TRUNC_W"_inst | FMT_D | 4_r1 | 13_r2;
+    auto trunc_w_s = "TRUNC_W"_cp1 | FMT_S | 6_r1 | 10_r2;
+    auto trunc_w_d = "TRUNC_W"_cp1 | FMT_D | 4_r1 | 13_r2;
 
     auto f6  = inspector.CP1_fpr_begin() + 6;
     auto f10 = inspector.CP1_fpr_begin() + 10;
@@ -2144,104 +2136,3 @@ SCENARIO( "A Coprocessor 1 object exists and it's resetted and inspected" )
   }*/
 }
 
-constexpr std::uint32_t operator""_r1( unsigned long long n ) noexcept
-{
-  return std::uint32_t( n << 6 );
-}
-constexpr std::uint32_t operator""_r2( unsigned long long n ) noexcept
-{
-  return std::uint32_t( n << 11 );
-}
-constexpr std::uint32_t operator""_r3( unsigned long long n ) noexcept
-{
-  return std::uint32_t( n << 16 );
-}
-
-constexpr std::uint32_t operator""_inst( char const *c, std::size_t ) noexcept
-{
-  using namespace std::literals;
-
-  constexpr std::uint32_t opcode{0b010001 << 26};
-
-  std::string_view view( c );
-
-  constexpr std::array<std::string_view, 40> fmt_S_D_encode_table{
-      "ADD"sv,
-      "SUB"sv,
-      "MUL"sv,
-      "DIV"sv,
-      "SQRT"sv,
-      "ABS"sv,
-      "MOV"sv,
-      "NEG"sv,
-      "ROUND_L"sv,
-      "TRUNC_L"sv,
-      "CEIL_L"sv,
-      "FLOOR_L"sv,
-      "ROUND_W"sv,
-      "TRUNC_W"sv,
-      "CEIL_W"sv,
-      "FLOOR_W"sv,
-      "SEL"sv,
-      "MOVCF"sv,
-      "MOVZ"sv,
-      "MOVN"sv,
-      "SELEQZ"sv,
-      "RECIP"sv,
-      "RSQRT"sv,
-      "SELNEZ"sv,
-      "MADDF"sv,
-      "MSUBF"sv,
-      "RINT"sv,
-      "CLASS"sv,
-      "MIN"sv,
-      "MAX"sv,
-      "MINA"sv,
-      "MAXA"sv,
-      "CVT_S"sv,
-      "CVT_D"sv,
-      "_"sv, // reserved *
-      "_"sv, // reserved *
-      "CVT_W"sv,
-      "CVT_L"sv,
-      "CVT_PS"sv,
-      "_"sv, // reserved *
-  };
-
-  constexpr std::array<std::string_view, 20> fmt_W_L_encode_table{
-      "CMP_AF"sv,
-      "CMP_UN"sv,
-      "CMP_EQ"sv,
-      "CMP_UEQ"sv,
-      "CMP_LT"sv,
-      "CMP_ULT"sv,
-      "CMP_LE"sv,
-      "CMP_ULE"sv,
-      "CMP_SAF"sv,
-      "CMP_SUN"sv,
-      "CMP_SEQ"sv,
-      "CMP_SUEQ"sv,
-      "CMP_SLT"sv,
-      "CMP_SULT"sv,
-      "CMP_SLE"sv,
-      "CMP_SULE"sv,
-      "_"sv, // reserved *
-      "CMP_OR"sv,
-      "CMP_UNE"sv,
-      "CMP_NE"sv,
-  };
-
-  std::uint32_t code{0};
-  for ( auto const &in : fmt_S_D_encode_table ) {
-    if ( in == view ) return code | opcode;
-    ++code;
-  }
-
-  code = 0;
-  for ( auto const &in : fmt_W_L_encode_table ) {
-    if ( in == view ) return code | opcode;
-    ++code;
-  }
-
-  return std::uint32_t( 63 ); // function 63 is always reserved
-}

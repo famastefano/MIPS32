@@ -34,15 +34,21 @@ add_executable(Tests
 # Coprocessor 1
     test/test_cp1.cpp
     src/cp1.cpp
+# CPU
+    test/test_cpu.cpp
+    src/cpu.cpp
+    src/ram_string.cpp
+    src/cp0.cpp
+    src/mmu.cpp
 )
 
 target_compile_features(Tests PRIVATE cxx_std_17)
-target_include_directories(Tests PRIVATE include third-party)
+target_include_directories(Tests PRIVATE include third-party test/helpers)
 
 if (NOT (CMAKE_BUILD_TYPE STREQUAL "Coverage"))
     if(MSVC)
 
-        target_compile_options(Tests PRIVATE /W4 /fp:strict)
+        target_compile_options(Tests PRIVATE /W3 /fp:strict /wd4146)
         target_compile_definitions(Tests PRIVATE "-D_CRT_SECURE_NO_WARNINGS")
 
     else() # GCC - Clang

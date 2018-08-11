@@ -16,7 +16,7 @@ std::uint32_t *MMU::access( std::uint32_t address, std::uint32_t access_flags ) 
 // 1
     if ( segment.contains( address ) && segment.has_access( access_flags ) )
     {
-      return { std::addressof( ram[address] ) };
+      return { &ram[address] };
     }
   }
 

@@ -20,6 +20,8 @@ constexpr std::uint32_t shamt( std::uint32_t word ) noexcept;
 constexpr std::uint32_t function( std::uint32_t word ) noexcept;
 constexpr std::uint32_t immediate( std::uint32_t word ) noexcept;
 
+bool is_cti( std::uint32_t word ) noexcept;
+
 template <int type>
 constexpr std::uint32_t sign_extend( std::uint32_t imm ) noexcept;
 
@@ -58,6 +60,20 @@ enum ExCause : std::uint32_t
 };
 
 CPU::CPU( RAM &ram ) noexcept : string_handler( ram ), mmu( ram, fixed_mapping_segments ) {}
+
+IODevice * CPU::attach_iodevice( IODevice * device ) noexcept
+{
+  auto * old = io_device;
+  io_device = device;
+  return io_device;
+}
+
+FileHandler * CPU::attach_file_handler( FileHandler * handler ) noexcept
+{
+  auto * old = file_handler;
+  file_handler = handler;
+  return old;
+}
 
 std::uint32_t CPU::start() noexcept
 {
@@ -100,7 +116,7 @@ std::uint32_t CPU::single_step() noexcept
   }
   else
   {
-// execute
+  // execute
     pc += 4;
     ( this->*function_table[opcode( *word )] )( *word );
   }
@@ -301,13 +317,13 @@ void CPU::pcrel( std::uint32_t word ) noexcept
 {
   auto const fn_opcode = word >> 16 & 0x1F;
 
-  if ( fn_opcode == 0b00'111 || fn_opcode == 0b01'111 )
+  if ( fn_opcode == 0b111'00 || fn_opcode == 0b111'01 )
     return reserved( word );
 
-  if ( fn_opcode == 0b10'111 )
+  if ( fn_opcode == 0b111'10 )
     return auipc( word );
 
-  if ( fn_opcode == 0b11'111 )
+  if ( fn_opcode == 0b111'11 )
     return aluipc( word );
 
   switch ( fn_opcode >> 3 )
@@ -504,8 +520,8 @@ void CPU::addiu( std::uint32_t word ) noexcept
   auto const _rs = rs( word );
   auto const _rt = rt( word );
 
-  if ( _rs != 0 )
-    gpr[_rs] += sign_extend<_halfword>( immediate( word ) );
+  if ( _rt != 0 )
+    gpr[_rt] = gpr[_rs] + sign_extend<_halfword>( immediate( word ) );
 }
 
 void CPU::slti( std::uint32_t word ) noexcept
@@ -694,6 +710,29 @@ void CPU::ins( std::uint32_t word ) noexcept
   auto const mask = 0xFFFF'FFFF << ( 32 - _size ) >> ( 32 - _size );
 
   gpr[_rt] = ( gpr[_rt] & mask << _pos ) | ( gpr[_rs] & mask );
+}
+
+void CPU::execute_delay_slot() noexcept
+{
+  auto const *const word = mmu.access( pc, running_mode() );
+
+  // fetch
+  if ( pc & 0b11 || !word )
+  {
+    signal_exception( ExCause::AdEL, *word );
+  }
+  else
+  {
+    if ( is_cti( *word ) )
+    {
+      signal_exception( ExCause::RI, *word );
+    }
+    else
+    {
+      pc += 4;
+      ( this->*function_table[opcode( *word )] )( *word );
+    }
+  }
 }
 
 /**
@@ -1091,10 +1130,12 @@ void CPU::lwc1( std::uint32_t word ) noexcept
 
 void CPU::bc( std::uint32_t word ) noexcept
 {
-  auto target_offset = ( word & 0x03FF'FFFF ) << 2;
+  auto target_offset = word & 0x03FF'FFFF;
 
-  if ( target_offset & 0x0800'0000 ) // sign extend
-    target_offset |= 0xF000'0000;
+  if ( target_offset & 1 << 25 ) // sign extend
+    target_offset = 0xF000'0000 | target_offset << 2;
+  else
+    target_offset <<= 2;
 
   pc += target_offset;
 }
@@ -1159,13 +1200,15 @@ void CPU::swc1( std::uint32_t word ) noexcept
 
 void CPU::balc( std::uint32_t word ) noexcept
 {
-  auto target_offset = ( word & 0x03FF'FFFF ) << 2;
+  auto target_offset = word & 0x03FF'FFFF;
 
-  if ( target_offset & 0x0800'0000 ) // sign extend
-    target_offset |= 0xF000'0000;
+  if ( target_offset & 1 << 25 ) // sign extend
+    target_offset = 0xF000'0000 | target_offset << 2;
+  else
+    target_offset <<= 2;
 
   gpr[31] = pc;
-  pc = target_offset;
+  pc += target_offset;
 }
 
 void CPU::sdc1( std::uint32_t word ) noexcept
@@ -1828,14 +1871,16 @@ void CPU::selnez( std::uint32_t word ) noexcept
 void CPU::bltz( std::uint32_t word ) noexcept
 {
   auto const _rs = rs( word );
+
   if ( ( std::int32_t )gpr[_rs] < 0 )
-    pc += sign_extend<_halfword>( word ) << 2;
+    pc += sign_extend<_halfword>( immediate( word ) ) << 2;
 }
 void CPU::bgez( std::uint32_t word ) noexcept
 {
   auto const _rs = rs( word );
+
   if ( ( std::int32_t )gpr[_rs] >= 0 )
-    pc += sign_extend<_halfword>( word ) << 2;
+    pc += sign_extend<_halfword>( immediate( word ) ) << 2;
 }
 void CPU::nal( std::uint32_t word ) noexcept
 {
@@ -1844,7 +1889,7 @@ void CPU::nal( std::uint32_t word ) noexcept
 void CPU::bal( std::uint32_t word ) noexcept
 {
   gpr[31] = pc + 4;
-  pc += sign_extend<_halfword>( word ) << 2;
+  pc += sign_extend<_halfword>( immediate( word ) ) << 2;
 }
 void CPU::sigrie( std::uint32_t word ) noexcept
 {
@@ -1928,7 +1973,7 @@ void CPU::auipc( std::uint32_t word ) noexcept
   auto const _rs = rs( word );
 
   if ( _rs != 0 )
-    gpr[_rs] = pc + ( immediate( word ) << 16 );
+    gpr[_rs] = pc - 4 + ( immediate( word ) << 16 );
 }
 void CPU::aluipc( std::uint32_t word ) noexcept
 {
@@ -1942,7 +1987,7 @@ void CPU::addiupc( std::uint32_t word ) noexcept
   auto const _rs = rs( word );
 
   if ( _rs != 0 )
-    gpr[_rs] = pc + ( sign_extend<_halfword>( immediate( word ) ) << 2 );
+    gpr[_rs] = pc - 4 + ( sign_extend<_halfword>( immediate( word ) ) << 2 );
 }
 void CPU::lwpc( std::uint32_t word ) noexcept
 {
@@ -2024,6 +2069,54 @@ void CPU::signal_exception( std::uint32_t ex, std::uint32_t word ) noexcept
   set_ex_cause( ex );
   cp0.status |= 0b10; // Sets Status EXL
 
-  pc = cp0.e_base & 0xFFFF'F000 + 0x180;
+  pc = ( cp0.e_base & 0xFFFF'F000 ) + 0x180;
 }
+
+bool is_cti( std::uint32_t word ) noexcept
+{
+  // branches, jumps, NAL, ERET
+  auto const _op = opcode( word );
+  auto const _regimm_fn = rt( word );
+  auto const _fn = function( word );
+
+  if ( _op == 1 ) // REGIMM
+  {
+    switch ( _regimm_fn )
+    {
+    case 0b10001: // BAL
+    case 0b00001: // BGEZ
+    case 0b10000: // NAL
+      return true;
+    }
+  }
+  else if ( _op == 0b010000 ) // COP1
+  {
+    if ( _fn == 0b011000 ) // ERET
+      return true;
+  }
+  else if ( _op == 0b000100 ) // BEQ
+  {
+    return true;
+  }
+  else
+  {
+    switch ( _op )
+    {
+    case 0b111010: // BALC
+    case 0b110010: // BC
+    case 0b000110: // POP06
+    case 0b000111: // POP07
+    case 0b001000: // POP10
+    case 0b011000: // POP30
+    case 0b010110: // POP26
+    case 0b010111: // POP27
+    case 0b110110: // POP66
+    case 0b111110: // POP76
+      return true;
+    }
+  }
+
+  return false;
+}
+
 } // namespace mips32

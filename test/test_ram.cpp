@@ -3,19 +3,6 @@
 #include <mips32/machine_inspector.hpp>
 #include <mips32/ram.hpp>
 
-/*
-struct RAMInfo
-  {
-    word              capacity;
-    word              alloc_limit;
-    word              block_size;
-    word              allocated_blocks_no;
-    word              swapped_blocks_no;
-    std::vector<word> allocated_addresses;
-    std::vector<word> swapped_addresses;
-  };
-*/
-
 using namespace mips32;
 using namespace mips32::literals;
 
@@ -25,7 +12,7 @@ SCENARIO( "A RAM Object exists" )
   {
     MachineInspector inspector;
 
-    RAM ram{256_MB};
+    RAM ram{ 256_MB };
     inspector.inspect( ram );
 
     WHEN( "I ask for RAM's infos" )
@@ -58,16 +45,21 @@ SCENARIO( "A RAM Object exists" )
     {
       ram[0] = 0xABCD'0123;
 
-      THEN( "Its value shall be stored" ) { REQUIRE( ram[0] == 0xABCD'0123 ); }
+      THEN( "Its value shall be stored" )
+      {
+        REQUIRE( ram[0] == 0xABCD'0123 );
+      }
     }
 
     WHEN( "I write to a sequence of words in the same block" )
     {
-      for ( std::uint32_t i = 0; i < 256 * 4; i += 4 ) ram[i] = i;
+      for ( std::uint32_t i = 0; i < 256 * 4; i += 4 )
+        ram[i] = i;
 
       THEN( "I shall retrieve those values by reading them back" )
       {
-        for ( std::uint32_t i = 0; i < 256 * 4; i += 4 ) REQUIRE( ram[i] == i );
+        for ( std::uint32_t i = 0; i < 256 * 4; i += 4 )
+          REQUIRE( ram[i] == i );
       }
     }
   }
@@ -76,7 +68,7 @@ SCENARIO( "A RAM Object exists" )
   {
     MachineInspector inspector;
 
-    RAM ram{RAM::block_size};
+    RAM ram{ RAM::block_size };
 
     inspector.inspect( ram );
 
@@ -94,8 +86,7 @@ SCENARIO( "A RAM Object exists" )
 
     WHEN( "I access more blocks after the first allocation" )
     {
-      for ( std::uint32_t i = 0; i < RAM::block_size * 10;
-            i += RAM::block_size )
+      for ( std::uint32_t i = 0; i < RAM::block_size * 10; i += RAM::block_size )
         ram[i];
 
       THEN( "Only 1 block shall be allocated and the rest are swapped" )

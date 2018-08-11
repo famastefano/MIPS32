@@ -106,7 +106,7 @@ std::uint32_t &RAM::operator[]( std::uint32_t address ) noexcept
     new_block.base_address = 0;
 
     // Calculate the base address
-    while ( new_block.base_address + block_size < address )
+    while ( new_block.base_address + block_size <= address )
       new_block.base_address += block_size;
 
     blocks.push_back( std::move( new_block ) );
@@ -118,7 +118,7 @@ std::uint32_t &RAM::operator[]( std::uint32_t address ) noexcept
   // Case 3.2
   else
   {
-// Find a block to swap
+    // Find a block to swap
     auto &allocated_block = least_accessed();
 
     swapped.push_back( { allocated_block.base_address } );

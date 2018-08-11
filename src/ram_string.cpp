@@ -77,7 +77,7 @@ std::unique_ptr<char[]> RAMString::read( std::uint32_t address, std::uint32_t co
     {
       auto const word = block->data[i];
 
-      unsigned char const byte[] = {
+      std::uint32_t const byte[] = {
           word >> 24,
           word >> 16 & 0xFF,
           word >> 8 & 0xFF,

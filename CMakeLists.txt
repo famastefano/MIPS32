@@ -69,7 +69,17 @@ if (NOT (CMAKE_BUILD_TYPE STREQUAL "Coverage"))
         target_compile_options(Tests PRIVATE "$<$<STREQUAL:${ARCH},x64>:-m64>")
         target_link_libraries(Tests PRIVATE "$<$<STREQUAL:${ARCH},x64>:-m64>")
 
-        target_compile_options(Tests PRIVATE -Wall -Wextra -mfpmath=sse -msse2 -pedantic)
+        target_compile_options(Tests PRIVATE
+			-Wall -Wextra
+			-mfpmath=sse -msse2
+			-pedantic
+			-Wimplicit-fallthrough=0
+			-Wno-unknown-pragmas
+			-Wno-missing-braces
+			-Wno-dollar-in-identifier-extension
+			-Wno-unused-variable
+			-Wno-sign-compare
+		)
 
     endif() # GCC - Clang
 endif()

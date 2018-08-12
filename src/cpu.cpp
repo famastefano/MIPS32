@@ -406,6 +406,8 @@ void CPU::pop06( std::uint32_t word ) noexcept
 
   bool cond = false;
 
+  gpr[31] = pc;
+
   if ( _rs == 0 && _rt != 0 )
   { // BLEZALC
 
@@ -432,7 +434,6 @@ void CPU::pop06( std::uint32_t word ) noexcept
 
   if ( cond )
   {
-    gpr[31] = pc;
     pc += _immediate;
   }
 }
@@ -443,6 +444,8 @@ void CPU::pop07( std::uint32_t word ) noexcept
   auto const _immediate = sign_extend<_halfword>( immediate( word ) ) << 2;
 
   bool cond = false;
+
+  gpr[31] = pc;
 
   if ( _rs == 0 && _rt != 0 )
   { // BGTZALC
@@ -470,7 +473,6 @@ void CPU::pop07( std::uint32_t word ) noexcept
 
   if ( cond )
   {
-    gpr[31] = pc;
     pc += _immediate;
   }
 }
@@ -481,6 +483,8 @@ void CPU::pop10( std::uint32_t word ) noexcept
   auto const _immediate = sign_extend<_halfword>( immediate( word ) ) << 2;
 
   bool cond = false;
+
+  gpr[31] = pc;
 
   if ( _rs == 0 && _rt != 0 )
   { // BEQZALC
@@ -510,7 +514,6 @@ void CPU::pop10( std::uint32_t word ) noexcept
 
   if ( cond )
   {
-    gpr[31] = pc;
     pc += _immediate;
   }
 }

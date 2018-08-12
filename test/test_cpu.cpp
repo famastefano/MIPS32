@@ -527,6 +527,588 @@ SCENARIO( "A CPU object exists" )
       REQUIRE( *$31 == pc + 4 );
     }
   }
+
+  WHEN( "BLEZC $18, 8 and BLEZC $4, 6 are executed" )
+  {
+    auto const _blezc_jump = "BLEZC"_cpu | 18_rt | 8_imm16;
+    auto const _blezc_no_jump = "BLEZC"_cpu | 4_rt | 6_imm16;
+
+    auto $18 = R( 18 );
+
+    auto $4 = R( 4 );
+
+    *$18 = 0;
+
+    *$4 = 12;
+
+    auto const pc = PC();
+
+    auto const res_jump = pc + 4 + ( 8 << 2 );
+    auto const res_no_jump = pc + 4;
+
+    THEN( "It shall jump in the 1st case" )
+    {
+      PC() = pc;
+      $start = _blezc_jump;
+      cpu.single_step();
+      REQUIRE( PC() == res_jump );
+    }
+    AND_THEN( "It shall not jump in the 2nd case" )
+    {
+      PC() = pc;
+      $start = _blezc_no_jump;
+      cpu.single_step();
+      REQUIRE( PC() == res_no_jump );
+    }
+  }
+
+  WHEN( "BGEZC $15, 99 and BGEZC $1, 17 are executed" )
+  {
+    auto const _bgezc_jump = "BGEZC"_cpu | 15_rs | 15_rt | 99_imm16;
+    auto const _bgezc_no_jump = "BGEZC"_cpu | 1_rs | 1_rt | 17_imm16;
+
+    auto $15 = R( 15 );
+
+    auto $1 = R( 1 );
+
+    *$15 = 5234;
+    *$1 = -564;
+
+    auto const pc = PC();
+
+    auto const res_jump = pc + 4 + ( 99 << 2 );
+    auto const res_no_jump = pc + 4;
+
+    THEN( "It shall jump in the 1st case" )
+    {
+      PC() = pc;
+      $start = _bgezc_jump;
+      cpu.single_step();
+      REQUIRE( PC() == res_jump );
+    }
+    AND_THEN( "It shall not jump in the 2nd case" )
+    {
+      PC() = pc;
+      $start = _bgezc_no_jump;
+      cpu.single_step();
+      REQUIRE( PC() == res_no_jump );
+    }
+  }
+
+  WHEN( "BGEC $31, $3, 905 and BGEC $30, $20, 54 are executed" )
+  {
+    auto const _bgec_jump = "BGEC"_cpu | 31_rs | 3_rt | 905_imm16;
+    auto const _bgec_no_jump = "BGEC"_cpu | 30_rs | 20_rt | 54_imm16;
+
+    auto $31 = R( 31 );
+    auto $3 = R( 3 );
+
+    auto $30 = R( 30 );
+    auto $20 = R( 20 );
+
+    *$31 = 32;
+    *$3 = -923;
+
+    *$30 = -98'734;
+    *$20 = -98'000;
+
+    auto const pc = PC();
+
+    auto const res_jump = pc + 4 + ( 905 << 2 );
+    auto const res_no_jump = pc + 4;
+
+    THEN( "It shall jump in the 1st case" )
+    {
+      PC() = pc;
+      $start = _bgec_jump;
+      cpu.single_step();
+      REQUIRE( PC() == res_jump );
+    }
+    AND_THEN( "It shall not jump in the 2nd case" )
+    {
+      PC() = pc;
+      $start = _bgec_no_jump;
+      cpu.single_step();
+      REQUIRE( PC() == res_no_jump );
+    }
+  }
+
+  WHEN( "BLEC $31, $3, 905 and BLEC $30, $20, 54 are executed" )
+  {
+    auto const _blec_jump = "BLEC"_cpu | 31_rt | 3_rs | 905_imm16;
+    auto const _blec_no_jump = "BLEC"_cpu | 30_rt | 20_rs | 54_imm16;
+
+    auto $31 = R( 31 );
+    auto $3 = R( 3 );
+
+    auto $30 = R( 30 );
+    auto $20 = R( 20 );
+
+    *$31 = -923;
+    *$3 = 32;
+
+    *$30 = -98'000;
+    *$20 = -98'734;
+
+    auto const pc = PC();
+
+    auto const res_jump = pc + 4 + ( 905 << 2 );
+    auto const res_no_jump = pc + 4;
+
+    THEN( "It shall jump in the 1st case" )
+    {
+      PC() = pc;
+      $start = _blec_jump;
+      cpu.single_step();
+      REQUIRE( PC() == res_jump );
+    }
+    AND_THEN( "It shall not jump in the 2nd case" )
+    {
+      PC() = pc;
+      $start = _blec_no_jump;
+      cpu.single_step();
+      REQUIRE( PC() == res_no_jump );
+    }
+  }
+
+  WHEN( "BGTZC $20, 1111 and BGTZC $6, 25'896 are executed" )
+  {
+    auto const _bgtzc_jump = "BGTZC"_cpu | 20_rt | 1111_imm16;
+    auto const _bgtzc_no_jump = "BGTZC"_cpu | 6_rt | 25896_imm16;
+
+    auto $20 = R( 20 );
+
+    auto $6 = R( 6 );
+
+    *$20 = 65;
+
+    *$6 = 0;
+
+    auto const pc = PC();
+
+    auto const res_jump = pc + 4 + ( 1111 << 2 );
+    auto const res_no_jump = pc + 4;
+
+    THEN( "It shall jump in the 1st case" )
+    {
+      PC() = pc;
+      $start = _bgtzc_jump;
+      cpu.single_step();
+      REQUIRE( PC() == res_jump );
+    }
+    AND_THEN( "It shall not jump in the 2nd case" )
+    {
+      PC() = pc;
+      $start = _bgtzc_no_jump;
+      cpu.single_step();
+      REQUIRE( PC() == res_no_jump );
+    }
+  }
+  WHEN( "BLTZC $20, 1111 and BLTZC $6, 25'896 are executed" )
+  {
+    auto const _bltzc_jump = "BLTZC"_cpu | 20_rs | 20_rt | 1111_imm16;
+    auto const _bltzc_no_jump = "BLTZC"_cpu | 6_rs | 6_rt | 25896_imm16;
+
+    auto $20 = R( 20 );
+
+    auto $6 = R( 6 );
+
+    *$20 = -20;
+
+    *$6 = 0;
+
+    auto const pc = PC();
+
+    auto const res_jump = pc + 4 + ( 1111 << 2 );
+    auto const res_no_jump = pc + 4;
+
+    THEN( "It shall jump in the 1st case" )
+    {
+      PC() = pc;
+      $start = _bltzc_jump;
+      cpu.single_step();
+      REQUIRE( PC() == res_jump );
+    }
+    AND_THEN( "It shall not jump in the 2nd case" )
+    {
+      PC() = pc;
+      $start = _bltzc_no_jump;
+      cpu.single_step();
+      REQUIRE( PC() == res_no_jump );
+    }
+  }
+
+  WHEN( "BLTC $20, $21, 1111 and BLTC $6, $7, 25'896 are executed" )
+  {
+    auto const _bltc_jump = "BLTC"_cpu | 20_rs | 21_rt | 1111_imm16;
+    auto const _bltc_no_jump = "BLTC"_cpu | 6_rs | 7_rt | 25896_imm16;
+
+    auto $20 = R( 20 );
+    auto $21 = R( 21 );
+
+    auto $6 = R( 6 );
+    auto $7 = R( 7 );
+
+    *$20 = -3490;
+    *$21 = 854;
+
+    *$6 = -65;
+    *$7 = -65;
+
+    auto const pc = PC();
+
+    auto const res_jump = pc + 4 + ( 1111 << 2 );
+    auto const res_no_jump = pc + 4;
+
+    THEN( "It shall jump in the 1st case" )
+    {
+      PC() = pc;
+      $start = _bltc_jump;
+      cpu.single_step();
+      REQUIRE( PC() == res_jump );
+    }
+    AND_THEN( "It shall not jump in the 2nd case" )
+    {
+      PC() = pc;
+      $start = _bltc_no_jump;
+      cpu.single_step();
+      REQUIRE( PC() == res_no_jump );
+    }
+  }
+
+  WHEN( "BGTC $20, $21, 1111 and BGTC $6, $7, 25'896 are executed" )
+  {
+    auto const _bgtc_jump = "BGTC"_cpu | 20_rt | 21_rs | 1111_imm16;
+    auto const _bgtc_no_jump = "BGTC"_cpu | 6_rt | 7_rs | 25896_imm16;
+
+    auto $20 = R( 20 );
+    auto $21 = R( 21 );
+
+    auto $6 = R( 6 );
+    auto $7 = R( 7 );
+
+    *$20 = 0;
+    *$21 = -1;
+
+    *$6 = 11;
+    *$7 = 12;
+
+    auto const pc = PC();
+
+    auto const res_jump = pc + 4 + ( 1111 << 2 );
+    auto const res_no_jump = pc + 4;
+
+    THEN( "It shall jump in the 1st case" )
+    {
+      PC() = pc;
+      $start = _bgtc_jump;
+      cpu.single_step();
+      REQUIRE( PC() == res_jump );
+    }
+    AND_THEN( "It shall not jump in the 2nd case" )
+    {
+      PC() = pc;
+      $start = _bgtc_no_jump;
+      cpu.single_step();
+      REQUIRE( PC() == res_no_jump );
+    }
+  }
+
+  WHEN( "BGEUC $20, $21, 1111 and BGEUC $6, $7, 25'896 are executed" )
+  {
+    auto const _bgeuc_jump = "BGEUC"_cpu | 20_rs | 21_rt | 1111_imm16;
+    auto const _bgeuc_no_jump = "BGEUC"_cpu | 6_rs | 7_rt | 25896_imm16;
+
+    auto $20 = R( 20 );
+    auto $21 = R( 21 );
+
+    auto $6 = R( 6 );
+    auto $7 = R( 7 );
+
+    *$20 = -1;
+    *$21 = -1;
+
+    *$6 = 11;
+    *$7 = 12;
+
+    auto const pc = PC();
+
+    auto const res_jump = pc + 4 + ( 1111 << 2 );
+    auto const res_no_jump = pc + 4;
+
+    THEN( "It shall jump in the 1st case" )
+    {
+      PC() = pc;
+      $start = _bgeuc_jump;
+      cpu.single_step();
+      REQUIRE( PC() == res_jump );
+    }
+    AND_THEN( "It shall not jump in the 2nd case" )
+    {
+      PC() = pc;
+      $start = _bgeuc_no_jump;
+      cpu.single_step();
+      REQUIRE( PC() == res_no_jump );
+    }
+  }
+
+  WHEN( "BLEUC $20, $21, 1111 and BLEUC $6, $7, 25'896 are executed" )
+  {
+    auto const _bleuc_jump = "BLEUC"_cpu | 20_rt | 21_rs | 1111_imm16;
+    auto const _bleuc_no_jump = "BLEUC"_cpu | 6_rt | 7_rs | 25896_imm16;
+
+    auto $20 = R( 20 );
+    auto $21 = R( 21 );
+
+    auto $6 = R( 6 );
+    auto $7 = R( 7 );
+
+    *$20 = 0;
+    *$21 = -1;
+
+    *$6 = 1;
+    *$7 = 0;
+
+    auto const pc = PC();
+
+    auto const res_jump = pc + 4 + ( 1111 << 2 );
+    auto const res_no_jump = pc + 4;
+
+    THEN( "It shall jump in the 1st case" )
+    {
+      PC() = pc;
+      $start = _bleuc_jump;
+      cpu.single_step();
+      REQUIRE( PC() == res_jump );
+    }
+    AND_THEN( "It shall not jump in the 2nd case" )
+    {
+      PC() = pc;
+      $start = _bleuc_no_jump;
+      cpu.single_step();
+      REQUIRE( PC() == res_no_jump );
+    }
+  }
+
+  WHEN( "BLTUC $20, $21, 1111 and BLTUC $6, $7, 25'896 are executed" )
+  {
+    auto const _bltuc_jump = "BLTUC"_cpu | 20_rs | 21_rt | 1111_imm16;
+    auto const _bltuc_no_jump = "BLTUC"_cpu | 6_rs | 7_rt | 25896_imm16;
+
+    auto $20 = R( 20 );
+    auto $21 = R( 21 );
+
+    auto $6 = R( 6 );
+    auto $7 = R( 7 );
+
+    *$20 = 0;
+    *$21 = -1;
+
+    *$6 = 11;
+    *$7 = 11;
+
+    auto const pc = PC();
+
+    auto const res_jump = pc + 4 + ( 1111 << 2 );
+    auto const res_no_jump = pc + 4;
+
+    THEN( "It shall jump in the 1st case" )
+    {
+      PC() = pc;
+      $start = _bltuc_jump;
+      cpu.single_step();
+      REQUIRE( PC() == res_jump );
+    }
+    AND_THEN( "It shall not jump in the 2nd case" )
+    {
+      PC() = pc;
+      $start = _bltuc_no_jump;
+      cpu.single_step();
+      REQUIRE( PC() == res_no_jump );
+    }
+  }
+
+  WHEN( "BGTUC $20, $21, 1111 and BGTUC $6, $7, 25'896 are executed" )
+  {
+    auto const _bgtuc_jump = "BGTUC"_cpu | 20_rt | 21_rs | 1111_imm16;
+    auto const _bgtuc_no_jump = "BGTUC"_cpu | 6_rt | 7_rs | 25896_imm16;
+
+    auto $20 = R( 20 );
+    auto $21 = R( 21 );
+
+    auto $6 = R( 6 );
+    auto $7 = R( 7 );
+
+    *$20 = -1;
+    *$21 = 0;
+
+    *$6 = 11;
+    *$7 = 11;
+
+    auto const pc = PC();
+
+    auto const res_jump = pc + 4 + ( 1111 << 2 );
+    auto const res_no_jump = pc + 4;
+
+    THEN( "It shall jump in the 1st case" )
+    {
+      PC() = pc;
+      $start = _bgtuc_jump;
+      cpu.single_step();
+      REQUIRE( PC() == res_jump );
+    }
+    AND_THEN( "It shall not jump in the 2nd case" )
+    {
+      PC() = pc;
+      $start = _bgtuc_no_jump;
+      cpu.single_step();
+      REQUIRE( PC() == res_no_jump );
+    }
+  }
+
+  WHEN( "BEQC $20, $21, 1111 and BEQC $6, $7, 25'896 are executed" )
+  {
+    auto const _beqc_jump = "BEQC"_cpu | 20_rs | 21_rt | 1111_imm16;
+    auto const _beqc_no_jump = "BEQC"_cpu | 6_rs | 7_rt | 25896_imm16;
+
+    auto $20 = R( 20 );
+    auto $21 = R( 21 );
+
+    auto $6 = R( 6 );
+    auto $7 = R( 7 );
+
+    *$20 = 1;
+    *$21 = 1;
+
+    *$6 = 0;
+    *$7 = 11;
+
+    auto const pc = PC();
+
+    auto const res_jump = pc + 4 + ( 1111 << 2 );
+    auto const res_no_jump = pc + 4;
+
+    THEN( "It shall jump in the 1st case" )
+    {
+      PC() = pc;
+      $start = _beqc_jump;
+      cpu.single_step();
+      REQUIRE( PC() == res_jump );
+    }
+    AND_THEN( "It shall not jump in the 2nd case" )
+    {
+      PC() = pc;
+      $start = _beqc_no_jump;
+      cpu.single_step();
+      REQUIRE( PC() == res_no_jump );
+    }
+  }
+
+  WHEN( "BNEC $20, $21, 1111 and BNEC $6, $7, 25'896 are executed" )
+  {
+    auto const _bnec_jump = "BNEC"_cpu | 20_rs | 21_rt | 1111_imm16;
+    auto const _bnec_no_jump = "BNEC"_cpu | 6_rs | 7_rt | 25896_imm16;
+
+    auto $20 = R( 20 );
+    auto $21 = R( 21 );
+
+    auto $6 = R( 6 );
+    auto $7 = R( 7 );
+
+    *$20 = 0;
+    *$21 = -1;
+
+    *$6 = 4123;
+    *$7 = 4123;
+
+    auto const pc = PC();
+
+    auto const res_jump = pc + 4 + ( 1111 << 2 );
+    auto const res_no_jump = pc + 4;
+
+    THEN( "It shall jump in the 1st case" )
+    {
+      PC() = pc;
+      $start = _bnec_jump;
+      cpu.single_step();
+      REQUIRE( PC() == res_jump );
+    }
+    AND_THEN( "It shall not jump in the 2nd case" )
+    {
+      PC() = pc;
+      $start = _bnec_no_jump;
+      cpu.single_step();
+      REQUIRE( PC() == res_no_jump );
+    }
+  }
+
+  WHEN( "BEQZC $20, 0xF'FFFF and BEQZC $6, 0xA'BCDE are executed" )
+  {
+    auto const _beqzc_jump = "BEQZC"_cpu | 20_rs | 0xF'FFFF;
+    auto const _beqzc_no_jump = "BEQZC"_cpu | 6_rs | 0xA'BCDE;
+
+    auto $20 = R( 20 );
+
+    auto $6 = R( 6 );
+
+    *$20 = 0;
+
+    *$6 = -423;
+
+    auto const pc = PC();
+
+    auto const res_jump = pc + 4 + ( 0xF'FFFF << 2 );
+    auto const res_no_jump = pc + 4;
+
+    THEN( "It shall jump in the 1st case" )
+    {
+      PC() = pc;
+      $start = _beqzc_jump;
+      cpu.single_step();
+      REQUIRE( PC() == res_jump );
+    }
+    AND_THEN( "It shall not jump in the 2nd case" )
+    {
+      PC() = pc;
+      $start = _beqzc_no_jump;
+      cpu.single_step();
+      REQUIRE( PC() == res_no_jump );
+    }
+  }
+
+  WHEN( "BNEZC $20, 0xA'BCDE and BNEZC $6, 21 are executed" )
+  {
+    auto const _beqzc_jump = "BNEZC"_cpu | 20_rs | 0xA'BCDE;
+    auto const _beqzc_no_jump = "BNEZC"_cpu | 6_rs | 21;
+
+    auto $20 = R( 20 );
+
+    auto $6 = R( 6 );
+
+    *$20 = 1;
+
+    *$6 = 0;
+
+    auto const pc = PC();
+
+    auto const res_jump = pc + 4 + ( 0xA'BCDE << 2 );
+    auto const res_no_jump = pc + 4;
+
+    THEN( "It shall jump in the 1st case" )
+    {
+      PC() = pc;
+      $start = _beqzc_jump;
+      cpu.single_step();
+      REQUIRE( PC() == res_jump );
+    }
+    AND_THEN( "It shall not jump in the 2nd case" )
+    {
+      PC() = pc;
+      $start = _beqzc_no_jump;
+      cpu.single_step();
+      REQUIRE( PC() == res_no_jump );
+    }
+  }
 }
 
 #undef PC

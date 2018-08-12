@@ -93,6 +93,8 @@ std::uint32_t CPU::start() noexcept
     // execute
     pc += 4;
     ( this->*function_table[opcode( *word )] )( *word );
+
+    gpr[0] = 0;
   }
 
   return exit_code.load( std::memory_order_acquire );
@@ -109,16 +111,16 @@ std::uint32_t CPU::single_step() noexcept
 
   auto const *const word = mmu.access( pc, running_mode() );
 
-  // fetch
-  if ( pc & 0b11 || !word )
+  if ( pc & 0b11 || !word ) // fetch
   {
-    signal_exception( ExCause::AdEL, *word );
+    signal_exception( ExCause::AdEL, 0 );
   }
-  else
+  else // execute
   {
-  // execute
     pc += 4;
     ( this->*function_table[opcode( *word )] )( *word );
+
+    gpr[0] = 0;
   }
 
   return exit_code.load( std::memory_order_acquire );
@@ -130,6 +132,7 @@ void CPU::soft_reset() noexcept
 }
 void CPU::hard_reset() noexcept
 {
+  gpr[0] = 0;
   cp0.reset();
   cp1.reset();
   enter_kernel_mode();
@@ -273,31 +276,24 @@ void CPU::special3( std::uint32_t word ) noexcept
 {
   auto const fn = function( word );
   if ( fn == 0b000'000 )
-  {
     ext( word );
-  }
   else if ( fn == 0b000'100 )
-  {
     ins( word );
-  }
   else
-  {
     reserved( word );
-  }
 }
 void CPU::cop0( std::uint32_t word ) noexcept
 {
   auto const _rs = rs( word );
 
-  if ( _rs & 0x10 )
-  { // if the 5th bit is set, then we decode C0
+  if ( _rs & 0x10 ) // if the 5th bit is set, then we decode C0
+  {
     auto const _fn = function( word );
 
     if ( _fn == 0b011'000 )
       eret( word );
     else
       reserved( word );
-
   }
   else
   {
@@ -408,23 +404,17 @@ void CPU::pop06( std::uint32_t word ) noexcept
 
   gpr[31] = pc;
 
-  if ( _rs == 0 && _rt != 0 )
-  { // BLEZALC
-
+  if ( _rs == 0 && _rt != 0 ) // BLEZALC
+  {
     cond = ( std::int32_t )gpr[_rt] <= 0;
-
   }
-  else if ( _rs == _rt && _rt != 0 )
-  { // BGEZALC
-
+  else if ( _rs == _rt && _rt != 0 ) // BGEZALC
+  {
     cond = ( std::int32_t )gpr[_rt] >= 0;
-
   }
-  else if ( _rs != _rt && _rs != 0 && _rt != 0 )
-  { // BGEUC
-
+  else if ( _rs != _rt && _rs != 0 && _rt != 0 ) // BGEUC
+  {
     cond = gpr[_rs] >= gpr[_rt];
-
   }
   else
   {
@@ -447,23 +437,17 @@ void CPU::pop07( std::uint32_t word ) noexcept
 
   gpr[31] = pc;
 
-  if ( _rs == 0 && _rt != 0 )
-  { // BGTZALC
-
+  if ( _rs == 0 && _rt != 0 ) // BGTZALC
+  {
     cond = ( std::int32_t )gpr[_rt] > 0;
-
   }
-  else if ( _rs == _rt && _rt != 0 )
-  { // BLTZALC
-
+  else if ( _rs == _rt && _rt != 0 ) // BLTZALC
+  {
     cond = ( std::int32_t )gpr[_rt] < 0;
-
   }
-  else if ( _rs != _rt && _rs != 0 && _rt != 0 )
-  { // BLTUC
-
+  else if ( _rs != _rt && _rs != 0 && _rt != 0 ) // BLTUC
+  {
     cond = gpr[_rs] < gpr[_rt];
-
   }
   else
   {
@@ -486,25 +470,18 @@ void CPU::pop10( std::uint32_t word ) noexcept
 
   gpr[31] = pc;
 
-  if ( _rs == 0 && _rt != 0 )
-  { // BEQZALC
-
+  if ( _rs == 0 && _rt != 0 ) // BEQZALC
+  {
     cond = gpr[_rt] == 0;
-
   }
-  else if ( _rs < _rt && _rs != 0 && _rt != 0 )
-  { // BEQC
-
+  else if ( _rs < _rt && _rs != 0 && _rt != 0 ) // BEQC
+  {
     cond = gpr[_rs] == gpr[_rt];
-
   }
   else if ( _rs >= _rt )
   {
-
     auto const sum = ( std::uint64_t )gpr[_rs] + ( std::uint64_t )gpr[_rt];
-
     cond = sum & 0x1'0000'0000;
-
   }
   else
   {
@@ -523,8 +500,7 @@ void CPU::addiu( std::uint32_t word ) noexcept
   auto const _rs = rs( word );
   auto const _rt = rt( word );
 
-  if ( _rt != 0 )
-    gpr[_rt] = gpr[_rs] + sign_extend<_halfword>( immediate( word ) );
+  gpr[_rt] = gpr[_rs] + sign_extend<_halfword>( immediate( word ) );
 }
 
 void CPU::slti( std::uint32_t word ) noexcept
@@ -532,8 +508,7 @@ void CPU::slti( std::uint32_t word ) noexcept
   auto const _rs = rs( word );
   auto const _rt = rt( word );
 
-  if ( _rt != 0 )
-    gpr[_rt] = gpr[_rs] < sign_extend<_halfword>( immediate( word ) );
+  gpr[_rt] = gpr[_rs] < sign_extend<_halfword>( immediate( word ) );
 }
 
 void CPU::sltiu( std::uint32_t word ) noexcept
@@ -541,8 +516,7 @@ void CPU::sltiu( std::uint32_t word ) noexcept
   auto const _rs = rs( word );
   auto const _rt = rt( word );
 
-  if ( _rt != 0 )
-    gpr[_rt] = gpr[_rs] < sign_extend<_halfword>( immediate( word ) );
+  gpr[_rt] = gpr[_rs] < sign_extend<_halfword>( immediate( word ) );
 }
 
 void CPU::andi( std::uint32_t word ) noexcept
@@ -550,8 +524,7 @@ void CPU::andi( std::uint32_t word ) noexcept
   auto const _rs = rs( word );
   auto const _rt = rt( word );
 
-  if ( _rt != 0 )
-    gpr[_rt] = gpr[_rs] & immediate( word );
+  gpr[_rt] = gpr[_rs] & immediate( word );
 }
 
 void CPU::ori( std::uint32_t word ) noexcept
@@ -559,8 +532,7 @@ void CPU::ori( std::uint32_t word ) noexcept
   auto const _rs = rs( word );
   auto const _rt = rt( word );
 
-  if ( _rt != 0 )
-    gpr[_rt] = gpr[_rs] | immediate( word );
+  gpr[_rt] = gpr[_rs] | immediate( word );
 }
 
 void CPU::xori( std::uint32_t word ) noexcept
@@ -568,8 +540,7 @@ void CPU::xori( std::uint32_t word ) noexcept
   auto const _rs = rs( word );
   auto const _rt = rt( word );
 
-  if ( _rt != 0 )
-    gpr[_rt] = gpr[_rs] ^ immediate( word );
+  gpr[_rt] = gpr[_rs] ^ immediate( word );
 }
 
 void CPU::aui( std::uint32_t word ) noexcept
@@ -577,8 +548,7 @@ void CPU::aui( std::uint32_t word ) noexcept
   auto const _rs = rs( word );
   auto const _rt = rt( word );
 
-  if ( _rt != 0 )
-    gpr[_rt] = gpr[_rs] + ( immediate( word ) << 16 );
+  gpr[_rt] = gpr[_rs] + ( immediate( word ) << 16 );
 }
 
 void CPU::pop26( std::uint32_t word ) noexcept
@@ -589,16 +559,16 @@ void CPU::pop26( std::uint32_t word ) noexcept
 
   bool cond = false;
 
-  if ( _rs == 0 && _rt != 0 )
-  { // BLEZC
+  if ( _rs == 0 && _rt != 0 ) // BLEZC
+  {
     cond = ( std::int32_t )gpr[_rt] <= 0;
   }
-  else if ( _rs == _rt && _rt != 0 )
-  { // BGEZC
+  else if ( _rs == _rt && _rt != 0 ) // BGEZC
+  {
     cond = ( std::int32_t )gpr[_rt] >= 0;
   }
-  else if ( _rs != _rt && _rs != 0 && _rt != 0 )
-  { // BGEC
+  else if ( _rs != _rt && _rs != 0 && _rt != 0 ) // BGEC
+  {
     cond = ( std::int32_t )gpr[_rs] >= ( std::int32_t )gpr[_rt];
   }
   else
@@ -621,16 +591,16 @@ void CPU::pop27( std::uint32_t word ) noexcept
 
   bool cond = false;
 
-  if ( _rs == 0 && _rt != 0 )
-  { // BGTZC
+  if ( _rs == 0 && _rt != 0 ) // BGTZC
+  {
     cond = ( std::int32_t )gpr[_rt] > 0;
   }
-  else if ( _rs == _rt && _rt != 0 )
-  { // BLTZC
+  else if ( _rs == _rt && _rt != 0 ) // BLTZC
+  {
     cond = ( std::int32_t )gpr[_rt] < 0;
   }
-  else if ( _rs != _rt && _rs != 0 && _rt != 0 )
-  { // BLTC
+  else if ( _rs != _rt && _rs != 0 && _rt != 0 ) // BLTC
+  {
     cond = ( std::int32_t )gpr[_rs] < ( std::int32_t )gpr[_rt];
   }
   else
@@ -653,25 +623,19 @@ void CPU::pop30( std::uint32_t word ) noexcept
 
   bool cond = false;
 
-  if ( _rs < _rt && _rt != 0 )
-  { // BNEZALC
-
-    cond = gpr[_rt] != 0;
-
-  }
-  else if ( _rs < _rt && _rs != 0 && _rt != 0 )
-  { // BNEC
-
+  if ( _rs < _rt && _rs != 0 && _rt != 0 ) // BNEC
+  {
     cond = gpr[_rs] != gpr[_rt];
-
   }
-  else if ( _rs >= _rt )
-  { // BNVC
-
+  else if ( _rs < _rt && _rt != 0 ) // BNEZALC
+  {
+    gpr[31] = pc;
+    cond = gpr[_rt] != 0;
+  }
+  else if ( _rs >= _rt ) // BNVC
+  {
     auto const sum = ( std::uint64_t )gpr[_rs] + ( std::uint64_t )gpr[_rt];
-
     cond = sum & 0x1'0000'0000;
-
   }
   else
   {
@@ -681,7 +645,6 @@ void CPU::pop30( std::uint32_t word ) noexcept
 
   if ( cond )
   {
-    gpr[31] = pc;
     pc += _immediate;
   }
 }
@@ -719,8 +682,7 @@ void CPU::execute_delay_slot() noexcept
 {
   auto const *const word = mmu.access( pc, running_mode() );
 
-  // fetch
-  if ( pc & 0b11 || !word )
+  if ( pc & 0b11 || !word ) // fetch
   {
     signal_exception( ExCause::AdEL, *word );
   }
@@ -730,10 +692,12 @@ void CPU::execute_delay_slot() noexcept
     {
       signal_exception( ExCause::RI, *word );
     }
-    else
+    else // execute
     {
       pc += 4;
       ( this->*function_table[opcode( *word )] )( *word );
+
+      gpr[0] = 0;
     }
   }
 }
@@ -788,8 +752,8 @@ void CPU::op_byte( std::uint32_t word ) noexcept
 
     byte = *load_byte;
   }
-  else
-  { // store
+  else // store
+  {
     byte = gpr[_rt];
   }
 
@@ -802,8 +766,8 @@ void CPU::op_byte( std::uint32_t word ) noexcept
 
     gpr[_rt] = byte;
   }
-  else
-  { // store
+  else // store
+  {
     constexpr std::uint32_t mask_align[] = {
         0xFFFF'FF00,
         0xFFFF'00FF,
@@ -909,10 +873,9 @@ void CPU::op_halfword( std::uint32_t word ) noexcept
       gpr[_rt] = sign_extend<_halfword>( high_half | low_half );
     else
       gpr[_rt] = high_half | low_half;
-
   }
-  else
-  { // store
+  else // store
+  {
     constexpr std::uint32_t mask_align[] = {
         0xFFFF'0000,
         0xFF00'00FF,
@@ -975,6 +938,9 @@ void CPU::op_word( std::uint32_t word ) noexcept
   auto const _rt = rt( word );
   auto const address = gpr[_base] + sign_extend<_halfword>( immediate( word ) );
 
+  if ( _rt == 0 )
+    return;
+
   op_word<op>( _rt, address, word );
 }
 
@@ -982,12 +948,6 @@ template <int op>
 void CPU::op_word( std::uint32_t _rt, std::uint32_t address, std::uint32_t _word ) noexcept
 {
   static_assert( op == _load || op == _store, "Invalid operation! Use '_load' or '_store'." );
-
-  if constexpr ( op == _load )
-  {
-    if ( _rt == 0 )
-      return;
-  }
 
   auto const align = address & 0b11;
 
@@ -1004,8 +964,8 @@ void CPU::op_word( std::uint32_t _rt, std::uint32_t address, std::uint32_t _word
       }
       gpr[_rt] = *word;
     }
-    else
-    { // store
+    else // store
+    {
       if ( !word )
       {
         signal_exception( ExCause::AdES, _word );
@@ -1014,8 +974,8 @@ void CPU::op_word( std::uint32_t _rt, std::uint32_t address, std::uint32_t _word
       *word = gpr[_rt];
     }
   }
-  else
-  { // unaligned
+  else // unaligned
+  {
     if ( address > 0xFFFF'FFFB )
     {
       signal_exception( ExCause::DBE, _word );
@@ -1050,10 +1010,9 @@ void CPU::op_word( std::uint32_t _rt, std::uint32_t address, std::uint32_t _word
       }
 
       gpr[_rt] = high_word | low_word;
-
     }
-    else
-    { // store
+    else // store
+    {
       if ( !low || !high )
       {
         signal_exception( ExCause::AdES, _word );
@@ -1123,12 +1082,10 @@ void CPU::lwc1( std::uint32_t word ) noexcept
   auto const _immediate = immediate( word );
   auto const address = _base + sign_extend<_halfword>( _immediate );
 
-  auto const copy = gpr[1];
-
   op_word<_load>( 1, address, word );
-  cp1.mtc1( ft, gpr[1] );
+  cp1.mtc1( ft, gpr[0] );
 
-  gpr[1] = copy;
+  gpr[0] = 0;
 }
 
 void CPU::bc( std::uint32_t word ) noexcept
@@ -1167,11 +1124,10 @@ void CPU::pop66( std::uint32_t word ) noexcept
   auto const _rs = rs( word );
   auto const _rt = rt( word );
 
-  if ( _rs != 0 )
-  { // BEQZC
+  if ( _rs != 0 ) // BEQZC
+  {
     if ( gpr[_rs] == 0 )
     {
-
       auto _immediate = word & 0x1F'FFFF; // 21 bits
 
       if ( _immediate & 1 << 21 ) // sign extend
@@ -1181,8 +1137,8 @@ void CPU::pop66( std::uint32_t word ) noexcept
       pc += _immediate << 2;
     }
   }
-  else
-  { // JIC
+  else // JIC
+  {
     pc += sign_extend<_halfword>( immediate( word ) );
   }
 }
@@ -1223,6 +1179,7 @@ void CPU::sdc1( std::uint32_t word ) noexcept
 
   gpr[0] = cp1.mfc1( ft );
   op_word<_store>( 0, address, word );
+
   gpr[0] = cp1.mfhc1( ft );
   op_word<_store>( 0, address + 4, word );
 
@@ -1233,9 +1190,8 @@ void CPU::pop76( std::uint32_t word ) noexcept
   auto const _rs = rs( word );
   auto const _rt = rt( word );
 
-  if ( _rs != 0 )
-  { // BNEZC
-
+  if ( _rs != 0 ) // BNEZC
+  {
     if ( gpr[_rs] != 0 )
     {
       auto _immediate = word & 0x1F'FFFF; // 21 bits
@@ -1246,11 +1202,9 @@ void CPU::pop76( std::uint32_t word ) noexcept
       gpr[31] = pc;
       pc += _immediate << 2;
     }
-
   }
-  else
-  { // JIALC
-
+  else // JIALC
+  {
     gpr[31] = pc;
     pc = gpr[_rt] + sign_extend<_halfword>( immediate( word ) );
   }
@@ -1267,8 +1221,7 @@ void CPU::sll( std::uint32_t word ) noexcept
   auto const _rt = rt( word );
   auto const _shamt = shamt( word );
 
-  if ( _rd != 0 )
-    gpr[_rd] = gpr[_rt] << _shamt;
+  gpr[_rd] = gpr[_rt] << _shamt;
 }
 void CPU::srl( std::uint32_t word ) noexcept
 {
@@ -1276,15 +1229,13 @@ void CPU::srl( std::uint32_t word ) noexcept
   auto const _rt = rt( word );
   auto const _shamt = shamt( word );
 
-  if ( word & 1 << 21 )
-  { // ROTR
-    if ( _rd != 0 )
-      gpr[_rd] = gpr[_rt] >> _shamt | gpr[_rt] << ( 32 - _shamt );
+  if ( word & 1 << 21 ) // ROTR
+  {
+    gpr[_rd] = gpr[_rt] >> _shamt | gpr[_rt] << ( 32 - _shamt );
   }
-  else
-  { // SRL
-    if ( _rd != 0 )
-      gpr[_rd] = gpr[_rt] >> _shamt;
+  else // SRL
+  {
+    gpr[_rd] = gpr[_rt] >> _shamt;
   }
 }
 void CPU::sra( std::uint32_t word ) noexcept
@@ -1293,11 +1244,10 @@ void CPU::sra( std::uint32_t word ) noexcept
   auto const _rt = rt( word );
   auto const _shamt = shamt( word );
 
-  if ( _rt != 0 )
-    if ( gpr[_rt] & 0x8000'0000 )
-      gpr[_rd] = gpr[_rt] >> _shamt | 0xFFFF'FFFF << _shamt;
-    else
-      gpr[_rd] = gpr[_rt] >> _shamt;
+  if ( gpr[_rt] & 0x8000'0000 )
+    gpr[_rd] = gpr[_rt] >> _shamt | 0xFFFF'FFFF << _shamt;
+  else
+    gpr[_rd] = gpr[_rt] >> _shamt;
 }
 void CPU::sllv( std::uint32_t word ) noexcept
 {
@@ -1305,8 +1255,7 @@ void CPU::sllv( std::uint32_t word ) noexcept
   auto const _rt = rt( word );
   auto const _rs = rs( word );
 
-  if ( _rd != 0 )
-    gpr[_rd] = gpr[_rt] << gpr[_rs];
+  gpr[_rd] = gpr[_rt] << gpr[_rs];
 }
 void CPU::lsa( std::uint32_t word ) noexcept
 {
@@ -1315,8 +1264,7 @@ void CPU::lsa( std::uint32_t word ) noexcept
   auto const _rs = rs( word );
   auto const _shamt = shamt( word ) + 1;
 
-  if ( _rd != 0 )
-    gpr[_rd] = ( gpr[_rs] << _shamt ) + gpr[_rt];
+  gpr[_rd] = ( gpr[_rs] << _shamt ) + gpr[_rt];
 }
 void CPU::srlv( std::uint32_t word ) noexcept
 {
@@ -1324,15 +1272,13 @@ void CPU::srlv( std::uint32_t word ) noexcept
   auto const _rt = rt( word );
   auto const _rs = rs( word );
 
-  if ( word & 1 << 6 )
-  { // ROTRV
-    if ( _rd != 0 )
-      gpr[_rd] = gpr[_rt] >> gpr[_rs] | gpr[_rt] << ( 32 - gpr[_rs] );
+  if ( word & 1 << 6 ) // ROTRV
+  {
+    gpr[_rd] = gpr[_rt] >> gpr[_rs] | gpr[_rt] << ( 32 - gpr[_rs] );
   }
-  else
-  { // SRLV
-    if ( _rd != 0 )
-      gpr[_rd] = gpr[_rt] >> gpr[_rs];
+  else // SRLV
+  {
+    gpr[_rd] = gpr[_rt] >> gpr[_rs];
   }
 }
 void CPU::srav( std::uint32_t word ) noexcept
@@ -1341,19 +1287,17 @@ void CPU::srav( std::uint32_t word ) noexcept
   auto const _rt = rt( word );
   auto const _rs = rs( word );
 
-  if ( _rt != 0 )
-    if ( gpr[_rt] & 0x8000'0000 )
-      gpr[_rd] = gpr[_rt] >> gpr[_rs] | 0xFFFF'FFFF << gpr[_rs];
-    else
-      gpr[_rd] = gpr[_rt] >> gpr[_rs];
+  if ( gpr[_rt] & 0x8000'0000 )
+    gpr[_rd] = gpr[_rt] >> gpr[_rs] | 0xFFFF'FFFF << gpr[_rs];
+  else
+    gpr[_rd] = gpr[_rt] >> gpr[_rs];
 }
 void CPU::jalr( std::uint32_t word ) noexcept
 {
   auto const _rd = rd( word );
   auto const _rs = rs( word );
 
-  if ( _rd != 0 )
-    gpr[_rd] = pc + 4;
+  gpr[_rd] = pc + 4;
 
   pc = gpr[_rs];
 }
@@ -1374,15 +1318,12 @@ void CPU::syscall( std::uint32_t word ) noexcept
     return;
   }
 
-  if ( v0 == 1 )
-  { // print int
-
+  if ( v0 == 1 ) // print int
+  {
     io_device->write_integer( gpr[a0] );
-
   }
-  else if ( v0 == 2 )
-  { // print float
-
+  else if ( v0 == 2 ) // print float
+  {
     union
     {
       std::uint32_t i32;
@@ -1392,11 +1333,9 @@ void CPU::syscall( std::uint32_t word ) noexcept
     i32 = cp1.mfc1( 12 );
 
     io_device->write_float( f ); // $f12
-
   }
-  else if ( v0 == 3 )
-  { // print double
-
+  else if ( v0 == 3 ) // print double
+  {
     union
     {
       double        d;
@@ -1407,25 +1346,19 @@ void CPU::syscall( std::uint32_t word ) noexcept
     i64 |= ( ( std::uint64_t )cp1.mfhc1( 12 ) ) << 32;
 
     io_device->write_double( d );
-
   }
-  else if ( v0 == 4 )
-  { // print string
-
+  else if ( v0 == 4 ) // print string
+  {
     auto const address = gpr[a0];
     auto const str = string_handler.read( address, 0xFFFF'FFFF );
     io_device->write_string( str.get() );
-
   }
-  else if ( v0 == 5 )
-  { // read int
-
+  else if ( v0 == 5 ) // read int
+  {
     io_device->read_integer( gpr.data() + v0 );
-
   }
-  else if ( v0 == 6 )
-  { // read float
-
+  else if ( v0 == 6 ) // read float
+  {
     union
     {
       float         f;
@@ -1435,11 +1368,9 @@ void CPU::syscall( std::uint32_t word ) noexcept
     io_device->read_float( &f );
 
     cp1.mtc1( 0, i32 ); // $f0
-
   }
-  else if ( v0 == 7 )
-  { // read double
-
+  else if ( v0 == 7 ) // read double
+  {
     union
     {
       float         f;
@@ -1449,11 +1380,9 @@ void CPU::syscall( std::uint32_t word ) noexcept
     io_device->read_float( &f );
 
     cp1.mtc1( 0, i32 ); // $f0
-
   }
-  else if ( v0 == 8 )
-  { // read string
-
+  else if ( v0 == 8 ) // read string
+  {
     auto const address = gpr[a0];
     auto const length = gpr[a1];
 
@@ -1462,54 +1391,43 @@ void CPU::syscall( std::uint32_t word ) noexcept
     io_device->read_string( buf.get(), length );
 
     string_handler.write( address, buf.get(), length );
-
   }
-  else if ( v0 == 9 )
-  { // sbrk
-
+  else if ( v0 == 9 ) // sbrk
+  {
     signal_exception( ExCause::Int, word );
-
   }
-  else if ( v0 == 10 || v0 == 17 )
-  { // exit
-
+  else if ( v0 == 10 || v0 == 17 ) // exit
+  {
     exit_code.store( EXIT, std::memory_order_release );
-
   }
-  else if ( v0 == 11 )
-  { // print char
-
+  else if ( v0 == 11 ) // print char
+  {
     char const str[2] = {
         ( char )( gpr[a0] & 0xFF ),
         '\0',
     };
 
     io_device->write_string( str );
-
   }
-  else if ( v0 == 12 )
-  { // read char
+  else if ( v0 == 12 ) // read char
+  {
     char c;
 
     io_device->read_string( &c, 1 );
 
     gpr[v0] = ( std::uint32_t )c;
-
   }
-  else if ( v0 == 13 )
-  { // file open
-
+  else if ( v0 == 13 ) // file open
+  {
     auto const filename_address = gpr[a0];
     auto const flags = gpr[a1];
 
     auto const filename = string_handler.read( filename_address, 0xFFFF'FFFF );
 
     gpr[v0] = file_handler->open( filename.get(), ( char const * )&flags );
-
   }
-  else if ( v0 == 14 )
-  { // file read
-
+  else if ( v0 == 14 ) // file read
+  {
     auto const fd = gpr[a0];
     auto const buf = gpr[a1];
     auto const count = gpr[a2];
@@ -1519,11 +1437,9 @@ void CPU::syscall( std::uint32_t word ) noexcept
     gpr[v0] = file_handler->read( fd, data.get(), count );
 
     string_handler.write( buf, data.get(), count );
-
   }
-  else if ( v0 == 15 )
-  { // file write
-
+  else if ( v0 == 15 ) // file write
+  {
     auto const fd = gpr[a0];
     auto const buf = gpr[a1];
     auto const count = gpr[a2];
@@ -1531,16 +1447,18 @@ void CPU::syscall( std::uint32_t word ) noexcept
     auto const data = string_handler.read( buf, count );
 
     gpr[v0] = file_handler->write( fd, data.get(), count );
-
   }
-  else
-  { // file close
-
+  else if ( v0 == 16 ) // file close
+  {
     auto const fd = gpr[a0];
 
     file_handler->close( fd );
 
     gpr[v0] = 0;
+  }
+  else
+  {
+    signal_exception( ExCause::Sys, word );
   }
 }
 void CPU::break_( std::uint32_t word ) noexcept
@@ -1591,19 +1509,14 @@ void CPU::sop30( std::uint32_t word ) noexcept
   auto const _rs = rs( word );
   auto const _rt = rt( word );
 
-  if ( shamt( word ) == 0b00010 )
-  { // MUL
-
+  if ( shamt( word ) == 0b00010 ) // MUL
+  {
     gpr[_rd] = gpr[_rs] * gpr[_rt];
-
   }
-  else if ( shamt( word ) == 0b00011 )
-  { // MUH
-
+  else if ( shamt( word ) == 0b00011 ) // MUH
+  {
     auto const mul = ( std::uint64_t )gpr[_rs] * ( std::uint64_t )gpr[_rt];
-
     gpr[_rd] = ( std::uint32_t )( mul >> 32 );
-
   }
   else
   {
@@ -1616,19 +1529,14 @@ void CPU::sop31( std::uint32_t word ) noexcept
   auto const _rs = rs( word );
   auto const _rt = rt( word );
 
-  if ( shamt( word ) == 0b00010 )
-  { // MULU
-
+  if ( shamt( word ) == 0b00010 ) // MULU
+  {
     gpr[_rd] = gpr[_rs] * gpr[_rt];
-
   }
-  else if ( shamt( word ) == 0b00011 )
-  { // MUHU
-
+  else if ( shamt( word ) == 0b00011 ) // MUHU
+  {
     auto const mul = ( std::uint64_t )gpr[_rs] * ( std::uint64_t )gpr[_rt];
-
     gpr[_rd] = ( std::uint32_t )( mul >> 32 );
-
   }
   else
   {
@@ -1641,20 +1549,15 @@ void CPU::sop32( std::uint32_t word ) noexcept
   auto const _rs = rs( word );
   auto const _rt = rt( word );
 
-  if ( shamt( word ) == 0b00010 )
-  { // DIV
-
-    if ( gpr[_rt] != 0 )
-    {
+  if ( shamt( word ) == 0b00010 ) // DIV
+  {
+    if ( gpr[_rt] != 0 ) // Div By Zero is implementation defined
       gpr[_rd] = gpr[_rs] / gpr[_rt];
-    }
-
   }
-  else if ( shamt( word ) == 0b00011 )
-  { // MOD
-
-    gpr[_rd] = gpr[_rs] % gpr[_rt];
-
+  else if ( shamt( word ) == 0b00011 ) // MOD
+  {
+    if ( gpr[_rt] != 0 )
+      gpr[_rd] = gpr[_rs] % gpr[_rt];
   }
   else
   {
@@ -1667,20 +1570,15 @@ void CPU::sop33( std::uint32_t word ) noexcept
   auto const _rs = rs( word );
   auto const _rt = rt( word );
 
-  if ( shamt( word ) == 0b00010 )
-  { // DIVU
-
+  if ( shamt( word ) == 0b00010 ) // DIVU
+  {
     if ( gpr[_rt] != 0 )
-    {
       gpr[_rd] = gpr[_rs] / gpr[_rt];
-    }
-
   }
-  else if ( shamt( word ) == 0b00011 )
-  { // MODU
-
-    gpr[_rd] = gpr[_rs] % gpr[_rt];
-
+  else if ( shamt( word ) == 0b00011 ) // MODU
+  {
+    if ( gpr[_rt] != 0 )
+      gpr[_rd] = gpr[_rs] % gpr[_rt];
   }
   else
   {
@@ -1694,15 +1592,11 @@ void CPU::add( std::uint32_t word ) noexcept
   auto const _rt = rt( word );
 
   auto const res = std::uint64_t( gpr[_rs] ) + std::uint64_t( gpr[_rt] );
-  if ( res & 32 << 1 )
-  {
+
+  if ( res & 1 << 32 )
     signal_exception( ExCause::Ov, word );
-  }
   else
-  {
-    if ( _rd != 0 )
-      gpr[_rd] = ( std::uint32_t )res;
-  }
+    gpr[_rd] = ( std::uint32_t )res;
 }
 void CPU::addu( std::uint32_t word ) noexcept
 {
@@ -1710,8 +1604,7 @@ void CPU::addu( std::uint32_t word ) noexcept
   auto const _rs = rs( word );
   auto const _rt = rt( word );
 
-  if ( _rd != 0 )
-    gpr[_rd] = gpr[_rs] + gpr[_rt];
+  gpr[_rd] = gpr[_rs] + gpr[_rt];
 }
 void CPU::sub( std::uint32_t word ) noexcept
 {
@@ -1720,15 +1613,10 @@ void CPU::sub( std::uint32_t word ) noexcept
   auto const _rt = rt( word );
 
   auto const res = std::uint64_t( gpr[_rs] ) - std::uint64_t( gpr[_rt] );
-  if ( res & 32 << 1 )
-  {
+  if ( res & 1 << 32 )
     signal_exception( ExCause::Ov, word );
-  }
   else
-  {
-    if ( _rd != 0 )
-      gpr[_rd] = ( std::uint32_t )res;
-  }
+    gpr[_rd] = ( std::uint32_t )res;
 }
 void CPU::subu( std::uint32_t word ) noexcept
 {
@@ -1736,8 +1624,7 @@ void CPU::subu( std::uint32_t word ) noexcept
   auto const _rs = rs( word );
   auto const _rt = rt( word );
 
-  if ( _rd != 0 )
-    gpr[_rd] = gpr[_rs] - gpr[_rt];
+  gpr[_rd] = gpr[_rs] - gpr[_rt];
 }
 void CPU::and_( std::uint32_t word ) noexcept
 {
@@ -1745,8 +1632,7 @@ void CPU::and_( std::uint32_t word ) noexcept
   auto const _rs = rs( word );
   auto const _rt = rt( word );
 
-  if ( _rd != 0 )
-    gpr[_rd] = gpr[_rs] & gpr[_rt];
+  gpr[_rd] = gpr[_rs] & gpr[_rt];
 }
 void CPU::or_( std::uint32_t word ) noexcept
 {
@@ -1754,8 +1640,7 @@ void CPU::or_( std::uint32_t word ) noexcept
   auto const _rs = rs( word );
   auto const _rt = rt( word );
 
-  if ( _rd != 0 )
-    gpr[_rd] = gpr[_rs] | gpr[_rt];
+  gpr[_rd] = gpr[_rs] | gpr[_rt];
 }
 void CPU::xor_( std::uint32_t word ) noexcept
 {
@@ -1763,8 +1648,7 @@ void CPU::xor_( std::uint32_t word ) noexcept
   auto const _rs = rs( word );
   auto const _rt = rt( word );
 
-  if ( _rd != 0 )
-    gpr[_rd] = gpr[_rs] ^ gpr[_rt];
+  gpr[_rd] = gpr[_rs] ^ gpr[_rt];
 }
 void CPU::nor_( std::uint32_t word ) noexcept
 {
@@ -1772,8 +1656,7 @@ void CPU::nor_( std::uint32_t word ) noexcept
   auto const _rs = rs( word );
   auto const _rt = rt( word );
 
-  if ( _rd != 0 )
-    gpr[_rd] = ~( gpr[_rs] | gpr[_rt] );
+  gpr[_rd] = ~( gpr[_rs] | gpr[_rt] );
 }
 void CPU::slt( std::uint32_t word ) noexcept
 {
@@ -1781,8 +1664,7 @@ void CPU::slt( std::uint32_t word ) noexcept
   auto const _rs = rs( word );
   auto const _rt = rt( word );
 
-  if ( _rd != 0 )
-    gpr[_rd] = ( std::int32_t )gpr[_rs] < ( std::int32_t )gpr[_rt];
+  gpr[_rd] = ( std::int32_t )gpr[_rs] < ( std::int32_t )gpr[_rt];
 }
 void CPU::sltu( std::uint32_t word ) noexcept
 {
@@ -1790,8 +1672,7 @@ void CPU::sltu( std::uint32_t word ) noexcept
   auto const _rs = rs( word );
   auto const _rt = rt( word );
 
-  if ( _rd != 0 )
-    gpr[_rd] = gpr[_rs] < gpr[_rt];
+  gpr[_rd] = gpr[_rs] < gpr[_rt];
 }
 void CPU::tge( std::uint32_t word ) noexcept
 {
@@ -1844,8 +1725,7 @@ void CPU::seleqz( std::uint32_t word ) noexcept
   auto const _rs = rs( word );
   auto const _rt = rt( word );
 
-  if ( _rd != 0 )
-    gpr[_rd] = gpr[_rt] ? 0 : gpr[_rs];
+  gpr[_rd] = gpr[_rt] ? 0 : gpr[_rs];
 }
 void CPU::tne( std::uint32_t word ) noexcept
 {
@@ -1862,8 +1742,7 @@ void CPU::selnez( std::uint32_t word ) noexcept
   auto const _rs = rs( word );
   auto const _rt = rt( word );
 
-  if ( _rd != 0 )
-    gpr[_rd] = gpr[_rt] ? gpr[_rs] : 0;
+  gpr[_rd] = gpr[_rt] ? gpr[_rs] : 0;
 }
 
 /* * * * * *
@@ -1910,8 +1789,7 @@ void CPU::mfc0( std::uint32_t word ) noexcept
   auto const _rt = rt( word );
   auto const _sel = word & 0x7;
 
-  if ( _rt != 0 )
-    gpr[_rt] = cp0.read( _rd, _sel );
+  gpr[_rt] = cp0.read( _rd, _sel );
 }
 void CPU::mfhc0( std::uint32_t word ) noexcept
 {
@@ -1937,31 +1815,22 @@ void CPU::mfmc0( std::uint32_t word ) noexcept
 
   auto const enable_interrupt = word & 1 << 5;
 
-  if ( _rt != 0 )
-    gpr[_rt] = cp0.status;
+  gpr[_rt] = cp0.status;
 
   if ( enable_interrupt )
-  {
     cp0.status |= 1;
-  }
   else
-  {
     cp0.status &= ~1;
-  }
 }
 
 void CPU::eret( std::uint32_t word ) noexcept
 {
   enter_user_mode();
 
-  if ( cp0.status & 0b100 )
-  { // Status ERL
+  if ( cp0.status & 0b100 ) // Status ERL
     pc = cp0.error_epc;
-  }
   else
-  {
     pc = cp0.epc;
-  }
 
   cp0.status &= ~0b110;
 }
@@ -1975,21 +1844,18 @@ void CPU::auipc( std::uint32_t word ) noexcept
 {
   auto const _rs = rs( word );
 
-  if ( _rs != 0 )
     gpr[_rs] = pc - 4 + ( immediate( word ) << 16 );
 }
 void CPU::aluipc( std::uint32_t word ) noexcept
 {
   auto const _rs = rs( word );
 
-  if ( _rs != 0 )
     gpr[_rs] = ~0xFFFF & ( pc + ( immediate( word ) << 16 ) );
 }
 void CPU::addiupc( std::uint32_t word ) noexcept
 {
   auto const _rs = rs( word );
 
-  if ( _rs != 0 )
     gpr[_rs] = pc - 4 + ( sign_extend<_halfword>( immediate( word ) ) << 2 );
 }
 void CPU::lwpc( std::uint32_t word ) noexcept
@@ -1997,8 +1863,10 @@ void CPU::lwpc( std::uint32_t word ) noexcept
   auto const _rs = rs( word );
 
   auto address = ( word & 0x000F'FFFF ) << 2;
+  
   if ( address & 0x0020'0000 ) // sign extend
     address |= 0xFFC0'0000;
+
   address += pc - 4;
 
   op_word<_load>( _rs, address, word );

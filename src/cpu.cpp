@@ -508,7 +508,7 @@ void CPU::slti( std::uint32_t word ) noexcept
   auto const _rs = rs( word );
   auto const _rt = rt( word );
 
-  gpr[_rt] = (std::int32_t)gpr[_rs] < sign_extend<_halfword>( immediate( word ) );
+  gpr[_rt] = ( std::int32_t )gpr[_rs] < sign_extend<_halfword>( immediate( word ) );
 }
 
 void CPU::sltiu( std::uint32_t word ) noexcept
@@ -1245,7 +1245,9 @@ void CPU::sra( std::uint32_t word ) noexcept
   auto const _shamt = shamt( word );
 
   if ( gpr[_rt] & 0x8000'0000 )
-    gpr[_rd] = gpr[_rt] >> _shamt | 0xFFFF'FFFF << _shamt;
+  {
+    gpr[_rd] = gpr[_rt] >> _shamt | ( std::uint32_t )0xFFFF'FFFF << ( 32 - _shamt );
+  }
   else
     gpr[_rd] = gpr[_rt] >> _shamt;
 }
@@ -1288,7 +1290,7 @@ void CPU::srav( std::uint32_t word ) noexcept
   auto const _rs = rs( word );
 
   if ( gpr[_rt] & 0x8000'0000 )
-    gpr[_rd] = gpr[_rt] >> gpr[_rs] | 0xFFFF'FFFF << gpr[_rs];
+    gpr[_rd] = gpr[_rt] >> gpr[_rs] | ( std::uint32_t )0xFFFF'FFFF << ( 32 - gpr[_rs] );
   else
     gpr[_rd] = gpr[_rt] >> gpr[_rs];
 }

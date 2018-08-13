@@ -1911,6 +1911,90 @@ SCENARIO( "A CPU object exists" )
       REQUIRE( *$5 == 0 );
     }
   }
+
+  WHEN( "SRA $1, $2, 17 is executed" )
+  {
+    auto const _sra = "SRA"_cpu | 1_rd | 2_rt | 17_shamt;
+
+    auto $1 = R( 1 );
+    auto $2 = R( 2 );
+
+    *$2 = -47;
+
+    ui32 const res = -1;
+
+    $start = _sra;
+    cpu.single_step();
+
+    THEN( "The result must be correct" )
+    {
+      REQUIRE( *$1 == res );
+    }
+  }
+
+  WHEN( "SRAV $1, $2, $3 is executed" )
+  {
+    auto const _srav = "SRAV"_cpu | 1_rd | 2_rt | 3_rs;
+
+    auto $1 = R( 1 );
+    auto $2 = R( 2 );
+    auto $3 = R( 3 );
+
+    *$2 = -988;
+    *$3 = 4;
+
+    ui32 const res = -62;
+
+    $start = _srav;
+    cpu.single_step();
+
+    THEN( "The result must be correct" )
+    {
+      REQUIRE( *$1 == res );
+    }
+  }
+
+  WHEN( "SRL $1, $2, 18 is executed" )
+  {
+    auto const _srl = "SRL"_cpu | 1_rd | 2_rt | 18_shamt;
+
+    auto $1 = R( 1 );
+    auto $2 = R( 2 );
+
+    *$2 = -988;
+
+    ui32 const res = (ui32)-988 >> 18;
+
+    $start = _srl;
+    cpu.single_step();
+
+    THEN( "The result must be correct" )
+    {
+      REQUIRE( *$1 == res );
+    }
+  }
+
+  WHEN( "SRLV $1, $2, $3 is executed" )
+  {
+    auto const _srlv = "SRLV"_cpu | 1_rd | 2_rt | 3_rs;
+
+    auto $1 = R( 1 );
+    auto $2 = R( 2 );
+    auto $3 = R( 3 );
+
+    *$2 = -988;
+    *$3 = 4;
+
+    ui32 const res = (ui32)-988 >> 4;
+
+    $start = _srlv;
+    cpu.single_step();
+
+    THEN( "The result must be correct" )
+    {
+      REQUIRE( *$1 == res );
+    }
+  }
 }
 
 #undef PC

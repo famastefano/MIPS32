@@ -121,7 +121,7 @@ constexpr std::uint32_t operator""_cpu( char const *s, std::size_t n ) noexcept
       {"SRA"sv, 0b000'011},
       {"SRAV"sv, 0b000'111},
       {"SRL"sv, 0b10},
-      {"SLRV"sv, 0b110},
+      {"SRLV"sv, 0b110},
       {"SUB"sv, 0b100'010},
       {"SUB"sv, 0b100'011},
       {"SW"sv, 0b101'011},

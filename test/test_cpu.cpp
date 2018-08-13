@@ -317,10 +317,13 @@ SCENARIO( "A CPU object exists" )
     auto const _blezalc_jump = "BLEZALC"_cpu | 9_rt | 1_imm16;
     auto const _blezalc_no_jump = "BLEZALC"_cpu | 12_rt | 256_imm16;
 
+    auto $9 = R( 9 );
+
     auto $12 = R( 12 );
 
     auto $31 = R( 31 );
 
+    *$9 = 0;
     *$12 = 24;
 
     auto const pc = PC();
@@ -1473,6 +1476,293 @@ SCENARIO( "A CPU object exists" )
   // TODO: test SW
 
   // TODO: test SDC1
+
+  // TODO: test LSA
+
+  WHEN( "LUI $29, 0xABCD is executed" )
+  {
+    auto const _lui = "LUI"_cpu | 29_rt | 0xABCD;
+
+    auto $29 = R( 29 );
+
+    $start = _lui;
+    cpu.single_step();
+
+    THEN( "The result must be correct" )
+    {
+      REQUIRE( *$29 == 0xABCD'0000 );
+    }
+  }
+
+  WHEN( "MUL $1, $2, $3 is executed" )
+  {
+    auto const _mul = "MUL"_cpu | 1_rd | 2_rs | 3_rt;
+
+    auto $1 = R( 1 );
+    auto $2 = R( 2 );
+    auto $3 = R( 3 );
+
+    *$2 = 53'897;
+    *$3 = -9043;
+
+    ui32 const res = 53'897 * -9043;
+
+    $start = _mul;
+    cpu.single_step();
+
+    THEN( "The result must be correct" )
+    {
+      REQUIRE( *$1 == res );
+    }
+  }
+
+  WHEN( "MUH $4, $5, $6 is executed" )
+  {
+    auto const _mul = "MUH"_cpu | 4_rd | 5_rs | 6_rt;
+
+    auto $4 = R( 4 );
+    auto $5 = R( 5 );
+    auto $6 = R( 6 );
+
+    *$5 = 0xFFFF'FFFF;
+    *$6 = 0xABCD'0000;
+
+    ui32 const res = ( std::uint64_t( 0xFFFF'FFFF ) * std::uint64_t( 0xABCD'0000 ) ) >> 32;
+
+    $start = _mul;
+    cpu.single_step();
+
+    THEN( "The result must be correct" )
+    {
+      REQUIRE( *$4 == res );
+    }
+  }
+
+  WHEN( "MULU $1, $2, $3 is executed" )
+  {
+    auto const _mul = "MULU"_cpu | 1_rd | 2_rs | 3_rt;
+
+    auto $1 = R( 1 );
+    auto $2 = R( 2 );
+    auto $3 = R( 3 );
+
+    *$2 = 53'897;
+    *$3 = -9043;
+
+    ui32 const res = 53'897 * -9043;
+
+    $start = _mul;
+    cpu.single_step();
+
+    THEN( "The result must be correct" )
+    {
+      REQUIRE( *$1 == res );
+    }
+  }
+
+  WHEN( "MUHU $4, $5, $6 is executed" )
+  {
+    auto const _mul = "MUHU"_cpu | 4_rd | 5_rs | 6_rt;
+
+    auto $4 = R( 4 );
+    auto $5 = R( 5 );
+    auto $6 = R( 6 );
+
+    *$5 = 0xFFFF'FFFF;
+    *$6 = 0xABCD'0000;
+
+    ui32 const res = ( std::uint64_t( 0xFFFF'FFFF ) * std::uint64_t( 0xABCD'0000 ) ) >> 32;
+
+    $start = _mul;
+    cpu.single_step();
+
+    THEN( "The result must be correct" )
+    {
+      REQUIRE( *$4 == res );
+    }
+  }
+
+  WHEN( "NAL is executed" )
+  {
+    auto $31 = R( 31 );
+
+    auto const res = PC() + 8;
+
+    $start = "NAL"_cpu;
+    cpu.single_step();
+
+    THEN( "The result must be correct" )
+    {
+      REQUIRE( *$31 == res );
+    }
+  }
+
+  WHEN( "NOP is executed" )
+  {
+    auto const pc = PC() + 4;
+
+    $start = "NOP"_cpu;
+    cpu.single_step();
+
+    THEN( "Nothing should happen" )
+    {
+      auto begin = inspector.CPU_gpr_begin();
+      auto end = inspector.CPU_gpr_end();
+
+      REQUIRE( pc == PC() );
+
+      while ( begin != end )
+        REQUIRE( *begin++ == 0 );
+    }
+  }
+
+  WHEN( "NOR $1, $2, $3 is executed" )
+  {
+    auto const _nor = "NOR"_cpu | 1_rd | 2_rs | 3_rt;
+
+    auto $1 = R( 1 );
+    auto $2 = R( 2 );
+    auto $3 = R( 3 );
+
+    *$2 = 0x0000'ABCD;
+    *$3 = 0xDCBA'0000;
+
+    auto const res = ~( 0x0000'ABCD | 0xDCBA'0000 );
+
+    $start = _nor;
+    cpu.single_step();
+
+    THEN( "The result must be correct" )
+    {
+      REQUIRE( *$1 == res );
+    }
+  }
+
+  WHEN( "OR $1, $2, $3 is executed" )
+  {
+    auto const _nor = "OR"_cpu | 1_rd | 2_rs | 3_rt;
+
+    auto $1 = R( 1 );
+    auto $2 = R( 2 );
+    auto $3 = R( 3 );
+
+    *$2 = 0x0000'ABCD;
+    *$3 = 0xDCBA'0000;
+
+    auto const res = 0x0000'ABCD | 0xDCBA'0000;
+
+    $start = _nor;
+    cpu.single_step();
+
+    THEN( "The result must be correct" )
+    {
+      REQUIRE( *$1 == res );
+    }
+  }
+
+  WHEN( "ORI $1, $2, 0x1234 is executed" )
+  {
+    auto const _nor = "ORI"_cpu | 1_rt | 2_rs | 0x1234;
+
+    auto $1 = R( 1 );
+    auto $2 = R( 2 );
+
+    *$2 = 0x0000'ABCD;
+
+    auto const res = 0x0000'ABCD | 0x1234;
+
+    $start = _nor;
+    cpu.single_step();
+
+    THEN( "The result must be correct" )
+    {
+      REQUIRE( *$1 == res );
+    }
+  }
+
+  WHEN( "ROTR $1, $2, 5 is executed" )
+  {
+    auto const _rotr = "ROTR"_cpu | 1_rd | 2_rt | 8_shamt;
+
+    auto $1 = R( 1 );
+    auto $2 = R( 2 );
+
+    *$2 = 0xABCD'1234;
+
+    auto const res = 0xABCD'1234 >> 8 | 0xABCD'1234 << ( 32 - 8 );
+
+    $start = _rotr;
+    cpu.single_step();
+
+    THEN( "The result must be correct" )
+    {
+      REQUIRE( *$1 == res );
+    }
+  }
+
+  WHEN( "ROTRV $1, $2, $3 is executed" )
+  {
+    auto const _rotrv = "ROTRV"_cpu | 1_rd | 2_rt | 3_rs;
+
+    auto $1 = R( 1 );
+    auto $2 = R( 2 );
+    auto $3 = R( 3 );
+
+    *$2 = 0xABCD'1234;
+    *$3 = 8;
+
+    auto const res = 0xABCD'1234 >> 8 | 0xABCD'1234 << ( 32 - 8 );
+
+    $start = _rotrv;
+    cpu.single_step();
+
+    THEN( "The result must be correct" )
+    {
+      REQUIRE( *$1 == res );
+    }
+  }
+
+  WHEN( "SLL $1, $2, 18 is executed" )
+  {
+    auto const _sll = "SLL"_cpu | 1_rd | 2_rt | 18_shamt;
+
+    auto $1 = R( 1 );
+    auto $2 = R( 2 );
+
+    *$2 = 0xABCD'1234;
+
+    auto const res = 0xABCD'1234 << 18;
+
+    $start = _sll;
+    cpu.single_step();
+
+    THEN( "The result must be correct" )
+    {
+      REQUIRE( *$1 == res );
+    }
+  }
+
+  WHEN( "SLLV $1, $2, $3 is executed" )
+  {
+    auto const _sllv = "SLLV"_cpu | 1_rd | 2_rt | 3_rs;
+
+    auto $1 = R( 1 );
+    auto $2 = R( 2 );
+    auto $3 = R( 3 );
+
+    *$2 = 0xABCD'1234;
+    *$3 = 18;
+
+    auto const res = 0xABCD'1234 << 18;
+
+    $start = _sllv;
+    cpu.single_step();
+
+    THEN( "The result must be correct" )
+    {
+      REQUIRE( *$1 == res );
+    }
+  }
 
 
 }

@@ -105,7 +105,7 @@ constexpr std::uint32_t operator""_cpu( char const *s, std::size_t n ) noexcept
       {"OR"sv, 0b100'101},
       {"ORI"sv, 0b001'101 << 26},
       {"ROTR"sv, 1 << 21 | 0b10},
-      {"ROTRV"sv, 1 << 6 | 0b10},
+      {"ROTRV"sv, 1 << 6 | 0b110},
       {"SB"sv, std::uint32_t( 0b101'000 ) << 26},
       {"SDC1"sv, std::uint32_t( 0b111'101 ) << 26},
       {"SELEQZ"sv, 0b110'101},

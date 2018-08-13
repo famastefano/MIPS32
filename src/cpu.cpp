@@ -1511,17 +1511,22 @@ void CPU::clo( std::uint32_t word ) noexcept
 }
 void CPU::sop30( std::uint32_t word ) noexcept
 {
+  constexpr std::uint32_t MUL{ 0b00010 };
+  constexpr std::uint32_t MUH{ 0b00011 };
+
   auto const _rd = rd( word );
   auto const _rs = rs( word );
   auto const _rt = rt( word );
 
-  if ( shamt( word ) == 0b00010 ) // MUL
+  auto const _fn = shamt( word );
+
+  if ( _fn == MUL )
   {
-    gpr[_rd] = gpr[_rs] * gpr[_rt];
+    gpr[_rd] = ( std::int32_t )gpr[_rs] * ( std::int32_t )gpr[_rt];
   }
-  else if ( shamt( word ) == 0b00011 ) // MUH
+  else if ( _fn == MUH )
   {
-    auto const mul = ( std::uint64_t )gpr[_rs] * ( std::uint64_t )gpr[_rt];
+    auto const mul = ( std::int64_t )gpr[_rs] * ( std::int64_t )gpr[_rt];
     gpr[_rd] = ( std::uint32_t )( mul >> 32 );
   }
   else
@@ -1531,17 +1536,22 @@ void CPU::sop30( std::uint32_t word ) noexcept
 }
 void CPU::sop31( std::uint32_t word ) noexcept
 {
+  constexpr std::uint32_t MULU{ 0b00010 };
+  constexpr std::uint32_t MUHU{ 0b00011 };
+
   auto const _rd = rd( word );
   auto const _rs = rs( word );
   auto const _rt = rt( word );
 
-  if ( shamt( word ) == 0b00010 ) // MULU
+  auto const _fn = shamt( word );
+
+  if ( _fn == MULU )
   {
-    gpr[_rd] = gpr[_rs] * gpr[_rt];
+    gpr[_rd] = ( std::int64_t )gpr[_rs] * ( std::int64_t )gpr[_rt];
   }
-  else if ( shamt( word ) == 0b00011 ) // MUHU
+  else if ( _fn == MUHU )
   {
-    auto const mul = ( std::uint64_t )gpr[_rs] * ( std::uint64_t )gpr[_rt];
+    auto const mul = ( std::int64_t )gpr[_rs] * ( std::int64_t )gpr[_rt];
     gpr[_rd] = ( std::uint32_t )( mul >> 32 );
   }
   else

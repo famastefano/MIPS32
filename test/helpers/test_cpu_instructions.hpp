@@ -76,7 +76,7 @@ constexpr std::uint32_t operator""_cpu( char const *s, std::size_t n ) noexcept
       {"JALR"sv, 0b001'001},
       {"JIALC"sv, std::uint32_t( 0b111'110 ) << 26},
       {"JIC"sv, std::uint32_t( 0b110'110 ) << 26},
-      {"JR"sv, std::uint32_t( 0b111'110 ) << 26},
+      {"JR"sv, 0b001'001},
       {"LB"sv, std::uint32_t( 0b100'000 ) << 26},
       {"LBU"sv, std::uint32_t( 0b100'100 ) << 26},
       {"LDC1"sv, 0b110'101},

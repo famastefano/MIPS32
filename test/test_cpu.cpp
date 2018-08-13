@@ -284,8 +284,11 @@ SCENARIO( "A CPU object exists" )
     auto const _bgez_jump = "BGEZ"_cpu | 30_rs | 128_imm16;
     auto const _bgez_no_jump = "BGEZ"_cpu | 28_rs | 128_imm16;
 
+    auto $30 = R( 30 );
+
     auto $28 = R( 28 );
 
+    *$30 = 0;
     *$28 = -1;
 
     ui32 const pc = PC();
@@ -1393,6 +1396,85 @@ SCENARIO( "A CPU object exists" )
       REQUIRE( *$2 == ret );
     }
   }
+
+  WHEN( "JIALC $4, 21 is executed" )
+  {
+    auto const _jialc = "JIALC"_cpu | 4_rt | 21;
+
+    auto $4 = R( 4 );
+    auto $31 = R( 31 );
+
+    *$4 = 0x8000'0000;
+
+    auto const ret = PC() + 4;
+    auto const new_pc = 0x8000'0000 + 21;
+
+    $start = _jialc;
+    cpu.single_step();
+
+    THEN( "It shall jump correctly" )
+    {
+      REQUIRE( PC() == new_pc );
+      REQUIRE( *$31 == ret );
+    }
+  }
+
+  WHEN( "JIC $16, 9345 is executed" )
+  {
+    auto const _jialc = "JIALC"_cpu | 4_rt | 9345;
+
+    auto $4 = R( 4 );
+    auto $31 = R( 31 );
+
+    *$4 = 0xABCD'0000;
+
+    auto const ret = PC() + 4;
+    auto const new_pc = 0xABCD'0000 + 9345;
+
+    $start = _jialc;
+    cpu.single_step();
+
+    THEN( "It shall jump correctly" )
+    {
+      REQUIRE( PC() == new_pc );
+      REQUIRE( *$31 == ret );
+    }
+  }
+
+  WHEN( "JR $31 is executed" )
+  {
+    auto const _jr = "JR"_cpu | 31_rs;
+
+    auto $31 = R( 31 );
+
+    *$31 = 0x0024'3798;
+
+    $start = _jr;
+    cpu.single_step();
+
+    THEN( "It shall jump correctly" )
+    {
+      REQUIRE( PC() == 0x0024'3798 );
+    }
+  }
+
+  // TODO: test LB
+
+  // TODO: test LH
+
+  // TODO: test LW
+
+  // TODO: test LDC1
+
+  // TODO: test SB
+
+  // TODO: test SH
+
+  // TODO: test SW
+
+  // TODO: test SDC1
+
+
 }
 
 #undef PC

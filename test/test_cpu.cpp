@@ -1764,7 +1764,153 @@ SCENARIO( "A CPU object exists" )
     }
   }
 
+  WHEN( "SLT $1, $2, $3 and SLT $4, $5, $6 are executed" )
+  {
+    auto const _slt_set = "SLT"_cpu | 1_rd | 2_rs | 3_rt;
+    auto const _slt_clear = "SLT"_cpu | 4_rd | 5_rs | 6_rt;
 
+    auto $1 = R( 1 );
+    auto $2 = R( 2 );
+    auto $3 = R( 3 );
+
+    auto $4 = R( 4 );
+    auto $5 = R( 5 );
+    auto $6 = R( 6 );
+
+    *$2 = -124;
+    *$3 = 0;
+
+    *$5 = 523;
+    *$6 = 235;
+
+    auto const pc = PC();
+    
+    THEN( "It should be set in the 1st case" )
+    {
+      PC() = pc;
+      $start = _slt_set;
+      cpu.single_step();
+
+      REQUIRE( *$1 == 1 );
+    }
+    AND_THEN( "It should be clear in the 2nd case" )
+    {
+      PC() = pc;
+      $start = _slt_clear;
+      cpu.single_step();
+
+      REQUIRE( *$4 == 0 );
+    }
+  }
+
+  WHEN( "SLTI $2, $3, 29 and SLTI $5, $6, 68 are executed" )
+  {
+    auto const _slti_set = "SLTI"_cpu | 2_rt | 3_rs | 29;
+    auto const _slti_clear = "SLTI"_cpu | 5_rt | 6_rs | 68;
+
+    auto $2 = R( 2 );
+    auto $3 = R( 3 );
+
+    auto $5 = R( 5 );
+    auto $6 = R( 6 );
+
+    *$3 = 0;
+
+    *$6 = 235;
+
+    auto const pc = PC();
+
+    THEN( "It should be set in the 1st case" )
+    {
+      PC() = pc;
+      $start = _slti_set;
+      cpu.single_step();
+
+      REQUIRE( *$2 == 1 );
+    }
+    AND_THEN( "It should be clear in the 2nd case" )
+    {
+      PC() = pc;
+      $start = _slti_clear;
+      cpu.single_step();
+
+      REQUIRE( *$5 == 0 );
+    }
+  }
+
+  WHEN( "SLTU $1, $2, $3 and SLTU $4, $5, $6 are executed" )
+  {
+    auto const _sltu_set = "SLTU"_cpu | 1_rd | 2_rs | 3_rt;
+    auto const _sltu_clear = "SLTU"_cpu | 4_rd | 5_rs | 6_rt;
+
+    auto $1 = R( 1 );
+    auto $2 = R( 2 );
+    auto $3 = R( 3 );
+
+    auto $4 = R( 4 );
+    auto $5 = R( 5 );
+    auto $6 = R( 6 );
+
+    *$2 = 0;
+    *$3 = -124;
+
+    *$5 = -523;
+    *$6 = 235;
+
+    auto const pc = PC();
+
+    THEN( "It should be set in the 1st case" )
+    {
+      PC() = pc;
+      $start = _sltu_set;
+      cpu.single_step();
+
+      REQUIRE( *$1 == 1 );
+    }
+    AND_THEN( "It should be clear in the 2nd case" )
+    {
+      PC() = pc;
+      $start = _sltu_clear;
+      cpu.single_step();
+
+      REQUIRE( *$4 == 0 );
+    }
+  }
+
+  WHEN( "SLTIU $2, $3, 29 and SLTIU $5, $6, 68 are executed" )
+  {
+    auto const _sltiu_set = "SLTIU"_cpu | 2_rt | 3_rs | 29;
+    auto const _sltiu_clear = "SLTIU"_cpu | 5_rt | 6_rs | 68;
+
+    auto $2 = R( 2 );
+    auto $3 = R( 3 );
+
+    auto $5 = R( 5 );
+    auto $6 = R( 6 );
+
+    *$3 = 14;
+
+    *$6 = 235;
+
+    auto const pc = PC();
+
+    THEN( "It should be set in the 1st case" )
+    {
+      PC() = pc;
+      $start = _sltiu_set;
+      cpu.single_step();
+
+      REQUIRE( *$2 == 1 );
+    }
+    AND_THEN( "It should be clear in the 2nd case" )
+    {
+      PC() = pc;
+      $start = _sltiu_clear;
+      cpu.single_step();
+
+      REQUIRE( *$5 == 0 );
+    }
+  }
 }
 
 #undef PC

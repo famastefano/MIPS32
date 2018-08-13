@@ -508,7 +508,7 @@ void CPU::slti( std::uint32_t word ) noexcept
   auto const _rs = rs( word );
   auto const _rt = rt( word );
 
-  gpr[_rt] = gpr[_rs] < sign_extend<_halfword>( immediate( word ) );
+  gpr[_rt] = (std::int32_t)gpr[_rs] < sign_extend<_halfword>( immediate( word ) );
 }
 
 void CPU::sltiu( std::uint32_t word ) noexcept

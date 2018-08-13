@@ -1478,11 +1478,14 @@ void CPU::clz( std::uint32_t word ) noexcept
 
   auto num = gpr[_rs];
 
-  while ( !( num & 0x8000'0000 ) && count < 32 )
-  {
-    ++count;
-    num <<= 1;
-  }
+  if ( num == 0 )
+    count = 32;
+  else
+    while ( !( num & 0x8000'0000 ) )
+    {
+      ++count;
+      num <<= 1;
+    }
 
   gpr[_rd] = count;
 }
@@ -1498,8 +1501,11 @@ void CPU::clo( std::uint32_t word ) noexcept
 
   auto num = gpr[_rs];
 
-  while ( num <<= 1 )
+  while ( num & 0x8000'0000 )
+  {
     ++count;
+    num <<= 1;
+  }
 
   gpr[_rd] = count;
 }
@@ -1545,19 +1551,24 @@ void CPU::sop31( std::uint32_t word ) noexcept
 }
 void CPU::sop32( std::uint32_t word ) noexcept
 {
+  constexpr std::uint32_t _DIV{ 0b00010 };
+  constexpr std::uint32_t _MOD{ 0b00011 };
+
   auto const _rd = rd( word );
   auto const _rs = rs( word );
   auto const _rt = rt( word );
 
-  if ( shamt( word ) == 0b00010 ) // DIV
+  auto const _fn = shamt( word );
+
+  if ( _fn == _DIV )
   {
-    if ( gpr[_rt] != 0 ) // Div By Zero is implementation defined
-      gpr[_rd] = gpr[_rs] / gpr[_rt];
+    if ( gpr[_rt] != 0 ) // Div By Zero is "unpredictable", this means we can do whatever we want
+      gpr[_rd] = ( std::int32_t )gpr[_rs] / ( std::int32_t )gpr[_rt];
   }
-  else if ( shamt( word ) == 0b00011 ) // MOD
+  else if ( _fn == _MOD )
   {
     if ( gpr[_rt] != 0 )
-      gpr[_rd] = gpr[_rs] % gpr[_rt];
+      gpr[_rd] = ( std::int32_t )gpr[_rs] % ( std::int32_t )gpr[_rt];
   }
   else
   {
@@ -1566,16 +1577,21 @@ void CPU::sop32( std::uint32_t word ) noexcept
 }
 void CPU::sop33( std::uint32_t word ) noexcept
 {
+  constexpr std::uint32_t _DIVU{ 0b00010 };
+  constexpr std::uint32_t _MODU{ 0b00011 };
+
   auto const _rd = rd( word );
   auto const _rs = rs( word );
   auto const _rt = rt( word );
 
-  if ( shamt( word ) == 0b00010 ) // DIVU
+  auto const _fn = shamt( word );
+
+  if ( _fn == _DIVU )
   {
     if ( gpr[_rt] != 0 )
       gpr[_rd] = gpr[_rs] / gpr[_rt];
   }
-  else if ( shamt( word ) == 0b00011 ) // MODU
+  if ( _fn == _MODU )
   {
     if ( gpr[_rt] != 0 )
       gpr[_rd] = gpr[_rs] % gpr[_rt];
@@ -1593,7 +1609,7 @@ void CPU::add( std::uint32_t word ) noexcept
 
   auto const res = std::uint64_t( gpr[_rs] ) + std::uint64_t( gpr[_rt] );
 
-  if ( res & 1 << 32 )
+  if ( res & 1ull << 32 )
     signal_exception( ExCause::Ov, word );
   else
     gpr[_rd] = ( std::uint32_t )res;
@@ -1613,7 +1629,7 @@ void CPU::sub( std::uint32_t word ) noexcept
   auto const _rt = rt( word );
 
   auto const res = std::uint64_t( gpr[_rs] ) - std::uint64_t( gpr[_rt] );
-  if ( res & 1 << 32 )
+  if ( res & 1ull << 32 )
     signal_exception( ExCause::Ov, word );
   else
     gpr[_rd] = ( std::uint32_t )res;
@@ -1844,26 +1860,26 @@ void CPU::auipc( std::uint32_t word ) noexcept
 {
   auto const _rs = rs( word );
 
-    gpr[_rs] = pc - 4 + ( immediate( word ) << 16 );
+  gpr[_rs] = pc - 4 + ( immediate( word ) << 16 );
 }
 void CPU::aluipc( std::uint32_t word ) noexcept
 {
   auto const _rs = rs( word );
 
-    gpr[_rs] = ~0xFFFF & ( pc + ( immediate( word ) << 16 ) );
+  gpr[_rs] = ~0xFFFF & ( pc + ( immediate( word ) << 16 ) );
 }
 void CPU::addiupc( std::uint32_t word ) noexcept
 {
   auto const _rs = rs( word );
 
-    gpr[_rs] = pc - 4 + ( sign_extend<_halfword>( immediate( word ) ) << 2 );
+  gpr[_rs] = pc - 4 + ( sign_extend<_halfword>( immediate( word ) ) << 2 );
 }
 void CPU::lwpc( std::uint32_t word ) noexcept
 {
   auto const _rs = rs( word );
 
   auto address = ( word & 0x000F'FFFF ) << 2;
-  
+
   if ( address & 0x0020'0000 ) // sign extend
     address |= 0xFFC0'0000;
 

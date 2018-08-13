@@ -7,10 +7,12 @@
 #include <cstdint>
 #include <vector>
 
-namespace mips32 {
+namespace mips32
+{
 
 class RAM;
 //class Cache;
+class CP0;
 class CP1;
 class CPU;
 
@@ -18,14 +20,15 @@ class CPU;
  * This class allows the inspection and manipulation of the entire Machine.
  * It was created to ease the debugging purposes that a simulator creates,
  * like inspecting the RAM, CPU registers and so on.
- */
+ **/
 class MachineInspector
 {
-  public:
-  MachineInspector &inspect( RAM &ram ) noexcept;
+public:
+  MachineInspector & inspect( RAM &ram ) noexcept;
   // MachineInspector& inspect( Cache &cache ) noexcept;
+  MachineInspector &inspect( CP0 &cp0 ) noexcept;
   MachineInspector &inspect( CP1 &cp1 ) noexcept;
-  MachineInspector &inspect( CPU &cpu ) noexcept;
+  MachineInspector &inspect( CPU &cpu, bool sub_components = true) noexcept;
 
   /* * * * *
    *       *
@@ -40,12 +43,13 @@ class MachineInspector
    * **Do not** modify it manually nor try to recreate it.
    * The representation can change at any time and it is
    * *not* guaranteed to be compatible with previous versions of this library.
-   */
+   **/
 
   enum class Component
   {
     RAM,
     //CACHE,
+    CP0,
     CP1,
     CPU
   };
@@ -99,12 +103,34 @@ class MachineInspector
   std::uint32_t CACHE_line_no() const noexcept;
   std::uint32_t CACHE_associativity() const noexcept;
   std::uint32_t CACHE_block_size() const noexcept;
-*/
+  */
+
   /* * * * *
    *       *
-   * COP 1 *
+   * COP 0 *
    *       *
    * * * * */
+
+  std::uint32_t& CP0_user_local() noexcept;
+  std::uint32_t& CP0_hwr_ena() noexcept;
+  std::uint32_t& CP0_bad_vaddr() noexcept;
+  std::uint32_t& CP0_bad_instr() noexcept;
+  std::uint32_t& CP0_status() noexcept;
+  std::uint32_t& CP0_int_ctl() noexcept;
+  std::uint32_t& CP0_srs_ctl() noexcept;
+  std::uint32_t& CP0_cause() noexcept;
+  std::uint32_t& CP0_epc() noexcept;
+  std::uint32_t& CP0_pr_id() noexcept;
+  std::uint32_t& CP0_e_base() noexcept;
+  std::uint32_t& CP0_config( std::uint32_t n ) noexcept;
+  std::uint32_t& CP0_error_epc() noexcept;
+  std::uint32_t& CP0_k_scratch( std::uint32_t n ) noexcept;
+
+ /* * * * *
+  *       *
+  * COP 1 *
+  *       *
+  * * * * */
 
   using CP1_FPR_iterator = typename std::array<FPR, 32>::iterator;
 
@@ -130,9 +156,10 @@ class MachineInspector
   std::uint32_t CPU_read_exit_code() const noexcept;
   void          CPU_write_exit_code( std::uint32_t value ) noexcept;
 
-  private:
-  RAM *ram;
+private:
+  RAM * ram;
   //Cache *cache;
+  CP0 *cp0;
   CP1 *cp1;
   CPU *cpu;
 };

@@ -39,10 +39,10 @@ SCENARIO( "A CPU object exists" )
     auto $2 = R( 2 );
     auto $3 = R( 3 );
 
-    *$2 = 48;
-    *$3 = -21;
+    *$2 = -48;
+    *$3 = 21;
 
-    ui32 const res = 48 + -21;
+    ui32 const res = -48 + 21;
 
     $start = _add;
 
@@ -1107,6 +1107,290 @@ SCENARIO( "A CPU object exists" )
       $start = _beqzc_no_jump;
       cpu.single_step();
       REQUIRE( PC() == res_no_jump );
+    }
+  }
+
+  WHEN( "BREAK is executed" )
+  {
+    $start = "BREAK"_cpu;
+
+    THEN( "It shall return 'breakpoint' as exception" )
+    {
+      REQUIRE( cpu.single_step() == 3 );
+    }
+  }
+
+  WHEN( "CLO $10, $15 and CLO $21, $0 are executed" )
+  {
+    auto const _clo_15 = "CLO"_cpu | 10_rd | 15_rs;
+    auto const _clo_0 = "CLO"_cpu | 21_rd | 0_rs;
+
+    auto $10 = R( 10 );
+    auto $15 = R( 15 );
+
+    auto $21 = R( 21 );
+
+    auto const pc = PC();
+
+    auto const res_EBF8_9D0A = 3;
+    auto const res_FFFF_FFFF = 32;
+    auto const res_0000_0000 = 0;
+
+    THEN( "0xEBF8'9D0A shall return 3" )
+    {
+      PC() = pc;
+      $start = _clo_15;
+      *$15 = 0xEBF8'9D0A;
+      cpu.single_step();
+      REQUIRE( *$10 == res_EBF8_9D0A );
+    }
+    AND_THEN( "0xFFFF'FFFF shall return 32" )
+    {
+      PC() = pc;
+      $start = _clo_15;
+      *$15 = 0xFFFF'FFFF;
+      cpu.single_step();
+      REQUIRE( *$10 == res_FFFF_FFFF );
+    }
+    AND_THEN( "0x0000'0000 shall return 0" )
+    {
+      PC() = pc;
+      $start = _clo_0;
+      cpu.single_step();
+      REQUIRE( *$21 == res_0000_0000 );
+    }
+  }
+
+  WHEN( "CLZ $10, $15 and CLZ $21, $0 are executed" )
+  {
+    auto const _clo_15 = "CLZ"_cpu | 10_rd | 15_rs;
+    auto const _clo_0 = "CLZ"_cpu | 21_rd | 0_rs;
+
+    auto $10 = R( 10 );
+    auto $15 = R( 15 );
+
+    auto $21 = R( 21 );
+
+    auto const pc = PC();
+
+    auto const res_0604_7FEB = 5;
+    auto const res_FFFF_FFFF = 0;
+    auto const res_0000_0000 = 32;
+
+    THEN( "0x0604'7FEB shall return 5" )
+    {
+      PC() = pc;
+      $start = _clo_15;
+      *$15 = 0x0604'7FEB;
+      cpu.single_step();
+      REQUIRE( *$10 == res_0604_7FEB );
+    }
+    AND_THEN( "0xFFFF'FFFF shall return 0" )
+    {
+      PC() = pc;
+      $start = _clo_15;
+      *$15 = 0xFFFF'FFFF;
+      cpu.single_step();
+      REQUIRE( *$10 == res_FFFF_FFFF );
+    }
+    AND_THEN( "0x0000'0000 shall return 32" )
+    {
+      PC() = pc;
+      $start = _clo_0;
+      cpu.single_step();
+      REQUIRE( *$21 == res_0000_0000 );
+    }
+  }
+
+  WHEN( "DI is executed" )
+  {
+    inspector.CP0_status() |= 1;
+    $start = "DI"_cpu;
+    cpu.single_step();
+
+    THEN( "Interrupts shall be disabled" )
+    {
+      auto const int_disabled = inspector.CP0_status() & 1;
+      REQUIRE( int_disabled == 0 );
+    }
+  }
+
+  WHEN( "EI is executed" )
+  {
+    inspector.CP0_status() &= ~1;
+
+    $start = "EI"_cpu;
+
+    cpu.single_step();
+
+    THEN( "Interrupts shall be enabled" )
+    {
+      auto const int_enabled = inspector.CP0_status() & 1;
+      REQUIRE( int_enabled == 1 );
+    }
+  }
+
+  WHEN( "DIV $1, $2, $3 is executed" )
+  {
+    auto const _div = "DIV"_cpu | 1_rd | 2_rs | 3_rt;
+
+    auto $1 = R( 1 );
+    auto $2 = R( 2 );
+    auto $3 = R( 3 );
+
+    *$2 = -10;
+    *$3 = 5;
+
+    ui32 const res = -10 / 5;
+
+    $start = _div;
+    cpu.single_step();
+
+    THEN( "The result must be correct" )
+    {
+      REQUIRE( *$1 == res );
+    }
+  }
+
+  WHEN( "DIVU $1, $2, $3 is executed" )
+  {
+    auto const _divu = "DIVU"_cpu | 1_rd | 2_rs | 3_rt;
+
+    auto $1 = R( 1 );
+    auto $2 = R( 2 );
+    auto $3 = R( 3 );
+
+    *$2 = 17;
+    *$3 = -4;
+
+    ui32 const res = 17 / ( ui32 )-4;
+
+    $start = _divu;
+    cpu.single_step();
+
+    THEN( "The result must be correct" )
+    {
+      REQUIRE( *$1 == res );
+    }
+  }
+
+  WHEN( "MOD $1, $2, $3 is executed" )
+  {
+    auto const _mod = "MOD"_cpu | 1_rd | 2_rs | 3_rt;
+
+    auto $1 = R( 1 );
+    auto $2 = R( 2 );
+    auto $3 = R( 3 );
+
+    *$2 = 241;
+    *$3 = -25;
+
+    auto const res = 241 % -25;
+
+    $start = _mod;
+    cpu.single_step();
+
+    THEN( "The result must be correct" )
+    {
+      REQUIRE( *$1 == res );
+    }
+  }
+
+  WHEN( "MODU $1, $2, $3 is executed" )
+  {
+    auto const _mod = "MODU"_cpu | 1_rd | 2_rs | 3_rt;
+
+    auto $1 = R( 1 );
+    auto $2 = R( 2 );
+    auto $3 = R( 3 );
+
+    *$2 = 3498;
+    *$3 = -95;
+
+    auto const res = 3498 % ( ui32 )-95;
+
+    $start = _mod;
+    cpu.single_step();
+
+    THEN( "The result must be correct" )
+    {
+      REQUIRE( *$1 == res );
+    }
+  }
+
+  // TODO: test ERET
+
+  // TODO: test EXT
+
+  // TODO: test INS
+
+  WHEN( "J 0x0279'DB24 is executed" )
+  {
+    auto const _j = "J"_cpu | 0x0279'DB24;
+
+    auto const res = PC() & 0xF000'0000 | 0x0279'DB24 << 2;
+
+    $start = _j;
+
+    cpu.single_step();
+
+    THEN( "The pc must hold the correct address" )
+    {
+      REQUIRE( PC() == res );
+    }
+  }
+
+  WHEN( "JAL 2389 is executed" )
+  {
+    auto const _jal = "JAL"_cpu | 2389;
+
+    auto $31 = R( 31 );
+
+    auto const pc = PC();
+    auto const res = pc & 0xF000'0000 | 2389 << 2;
+
+    $start = _jal;
+
+    cpu.single_step();
+
+    THEN( "The pc must hold the correct address and $31 the previous value" )
+    {
+      REQUIRE( PC() == res );
+      REQUIRE( *$31 == pc + 8 );
+    }
+  }
+
+  WHEN( "JALR $1 and JALR $1, $2 are executed" )
+  {
+    auto const _jalr_31 = "JALR"_cpu | 1_rs | 31_rd;
+    auto const _jalr_2 = "JALR"_cpu | 1_rs | 2_rd;
+
+    auto $1 = R( 1 );
+    auto $2 = R( 2 );
+    auto $31 = R( 31 );
+
+    *$1 = 0x8000'0000;
+
+    auto const pc = PC();
+    auto const ret = pc + 8;
+
+    THEN( "It shall store pc into $31 in the 1st case" )
+    {
+      PC() = pc;
+      $start = _jalr_31;
+      cpu.single_step();
+
+      REQUIRE( PC() == 0x8000'0000 );
+      REQUIRE( *$31 == ret );
+    }
+    AND_THEN( "It shall store pc into $2 in the 2nd case" )
+    {
+      PC() = pc;
+      $start = _jalr_2;
+      cpu.single_step();
+
+      REQUIRE( PC() == 0x8000'0000 );
+      REQUIRE( *$2 == ret );
     }
   }
 }

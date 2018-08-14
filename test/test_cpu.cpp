@@ -9,7 +9,6 @@ using namespace mips32;
 
 using ui32 = std::uint32_t;
 
-// TODO: test for $zero that always reads/writes as 0.
 // TODO: test for exceptions.
 // TODO: test for simple executions, like an hello world program.
 

@@ -29,7 +29,6 @@ public:
 
   std::uint32_t single_step() noexcept;
 
-  void soft_reset() noexcept;
   void hard_reset() noexcept;
 
 private:

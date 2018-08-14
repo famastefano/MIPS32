@@ -126,10 +126,6 @@ std::uint32_t CPU::single_step() noexcept
   return exit_code.load( std::memory_order_acquire );
 }
 
-void CPU::soft_reset() noexcept
-{
-  // TODO: implement soft reset
-}
 void CPU::hard_reset() noexcept
 {
   gpr[0] = 0;

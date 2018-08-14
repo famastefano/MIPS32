@@ -19,7 +19,8 @@ before_build:
 - cmd: |-
     mkdir build
     cmake --version
-    cmake . -Bbuild -G "Visual Studio 15 2017" -DCMAKE_BUILD_TYPE=%configuration% -A%platform%
+    cmake . -Bbuild -G "Visual Studio 15 2017" -A%platform%
+	cmake --build build --config %configuration%
 
 build:
   project: c:\projects\MIPS32\build\MIPS32.sln

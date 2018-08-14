@@ -1245,9 +1245,7 @@ void CPU::sra( std::uint32_t word ) noexcept
   auto const _shamt = shamt( word );
 
   if ( gpr[_rt] & 0x8000'0000 )
-  {
     gpr[_rd] = gpr[_rt] >> _shamt | ( std::uint32_t )0xFFFF'FFFF << ( 32 - _shamt );
-  }
   else
     gpr[_rd] = gpr[_rt] >> _shamt;
 }

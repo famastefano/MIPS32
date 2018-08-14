@@ -1599,6 +1599,12 @@ SCENARIO( "A CPU object exists" )
 
   WHEN( "NOP is executed" )
   {
+    auto begin = inspector.CPU_gpr_begin();
+    auto end = inspector.CPU_gpr_end();
+
+    while ( begin != end )
+      *begin++ = 0;
+
     auto const pc = PC() + 4;
 
     $start = "NOP"_cpu;
@@ -1995,6 +2001,8 @@ SCENARIO( "A CPU object exists" )
       REQUIRE( *$1 == res );
     }
   }
+
+
 }
 
 #undef PC

@@ -15,6 +15,10 @@ using ui32 = std::uint32_t;
 
 #define R(n) inspector.CPU_gpr_begin() + n
 #define PC() inspector.CPU_pc()
+#define CAUSE() inspector.CP0_cause()
+#define ClearExCause() CAUSE() = CAUSE() & ~0x7C
+#define ExCause() (inspector.CP0_cause() >> 2 & 0x1F)
+#define HasTrapped() (ExCause() == 13)
 
 SCENARIO( "A CPU object exists" )
 {
@@ -2035,7 +2039,7 @@ SCENARIO( "A CPU object exists" )
     *$2 = -598;
     *$3 = 978;
 
-    ui32 const res = (ui32)-598 - (ui32)978;
+    ui32 const res = ( ui32 )-598 - ( ui32 )978;
 
     $start = _subu;
     cpu.single_step();
@@ -2043,6 +2047,248 @@ SCENARIO( "A CPU object exists" )
     THEN( "The result must be correct" )
     {
       REQUIRE( *$1 == res );
+    }
+  }
+
+  WHEN( "TEQ $1, $2 and TEQ $3, $4 are executed" )
+  {
+    auto const _teq_trap = "TEQ"_cpu | 1_rs | 2_rt;
+    auto const _teq_no_trap = "TEQ"_cpu | 3_rs | 4_rt;
+
+    auto $1 = R( 1 );
+    auto $2 = R( 2 );
+
+    auto $3 = R( 3 );
+    auto $4 = R( 4 );
+
+    *$1 = *$2;
+
+    *$3 = *$4 + 20;
+
+    auto const pc = PC();
+
+    THEN( "It shall trap in the 1st case" )
+    {
+      PC() = pc;
+      ClearExCause();
+
+      $start = _teq_trap;
+      cpu.single_step();
+
+      REQUIRE( HasTrapped() );
+    }
+    AND_THEN( "It shall not trap in the 2nd case" )
+    {
+      PC() = pc;
+      ClearExCause();
+
+      $start = _teq_no_trap;
+      cpu.single_step();
+
+      REQUIRE( !HasTrapped() );
+    }
+  }
+
+  WHEN( "TGE $1, $2 and TGE $3, $4 are executed" )
+  {
+    auto const _tge_trap = "TGE"_cpu | 1_rs | 2_rt;
+    auto const _tge_no_trap = "TGE"_cpu | 3_rs | 4_rt;
+
+    auto $1 = R( 1 );
+    auto $2 = R( 2 );
+
+    auto $3 = R( 3 );
+    auto $4 = R( 4 );
+
+    *$1 = *$2 + 1;
+
+    *$3 = *$4 - 20;
+
+    auto const pc = PC();
+
+    THEN( "It shall trap in the 1st case" )
+    {
+      PC() = pc;
+      ClearExCause();
+
+      $start = _tge_trap;
+      cpu.single_step();
+
+      REQUIRE( HasTrapped() );
+    }
+    AND_THEN( "It shall not trap in the 2nd case" )
+    {
+      PC() = pc;
+      ClearExCause();
+
+      $start = _tge_no_trap;
+      cpu.single_step();
+
+      REQUIRE( !HasTrapped() );
+    }
+  }
+
+  WHEN( "TGEU $1, $2 and TGEU $3, $4 are executed" )
+  {
+    auto const _tgeu_trap = "TGEU"_cpu | 1_rs | 2_rt;
+    auto const _tgeu_no_trap = "TGEU"_cpu | 3_rs | 4_rt;
+
+    auto $1 = R( 1 );
+    auto $2 = R( 2 );
+
+    auto $3 = R( 3 );
+    auto $4 = R( 4 );
+
+    *$1 = -112;
+    *$2 = 113;
+
+    *$3 = 0;
+    *$4 = -1;
+
+    auto const pc = PC();
+
+    THEN( "It shall trap in the 1st case" )
+    {
+      PC() = pc;
+      ClearExCause();
+
+      $start = _tgeu_trap;
+      cpu.single_step();
+
+      REQUIRE( HasTrapped() );
+    }
+    AND_THEN( "It shall not trap in the 2nd case" )
+    {
+      PC() = pc;
+      ClearExCause();
+
+      $start = _tgeu_no_trap;
+      cpu.single_step();
+
+      REQUIRE( !HasTrapped() );
+    }
+  }
+
+  WHEN( "TLT $1, $2 and TLT $3, $4 are executed" )
+  {
+    auto const _tlt_trap = "TLT"_cpu | 1_rs | 2_rt;
+    auto const _tlt_no_trap = "TLT"_cpu | 3_rs | 4_rt;
+
+    auto $1 = R( 1 );
+    auto $2 = R( 2 );
+
+    auto $3 = R( 3 );
+    auto $4 = R( 4 );
+
+    *$1 = -1;
+    *$2 = 0;
+
+    *$3 = 0;
+    *$4 = -1;
+
+    auto const pc = PC();
+
+    THEN( "It shall trap in the 1st case" )
+    {
+      PC() = pc;
+      ClearExCause();
+
+      $start = _tlt_trap;
+      cpu.single_step();
+
+      REQUIRE( HasTrapped() );
+    }
+    AND_THEN( "It shall not trap in the 2nd case" )
+    {
+      PC() = pc;
+      ClearExCause();
+
+      $start = _tlt_no_trap;
+      cpu.single_step();
+
+      REQUIRE( !HasTrapped() );
+    }
+  }
+
+  WHEN( "TLTU $1, $2 and TLTU $3, $4 are executed" )
+  {
+    auto const _tltu_trap = "TLTU"_cpu | 1_rs | 2_rt;
+    auto const _tltu_no_trap = "TLTU"_cpu | 3_rs | 4_rt;
+
+    auto $1 = R( 1 );
+    auto $2 = R( 2 );
+
+    auto $3 = R( 3 );
+    auto $4 = R( 4 );
+
+    *$1 = 0;
+    *$2 = -1;
+
+    *$3 = 412;
+    *$4 = 23;
+
+    auto const pc = PC();
+
+    THEN( "It shall trap in the 1st case" )
+    {
+      PC() = pc;
+      ClearExCause();
+
+      $start = _tltu_trap;
+      cpu.single_step();
+
+      REQUIRE( HasTrapped() );
+    }
+    AND_THEN( "It shall not trap in the 2nd case" )
+    {
+      PC() = pc;
+      ClearExCause();
+
+      $start = _tltu_no_trap;
+      cpu.single_step();
+
+      REQUIRE( !HasTrapped() );
+    }
+  }
+
+  WHEN( "TNE $1, $2 and TNE $3, $4 are executed" )
+  {
+    auto const _tne_trap = "TNE"_cpu | 1_rs | 2_rt;
+    auto const _tne_no_trap = "TNE"_cpu | 3_rs | 4_rt;
+
+    auto $1 = R( 1 );
+    auto $2 = R( 2 );
+
+    auto $3 = R( 3 );
+    auto $4 = R( 4 );
+
+    *$1 = 0;
+    *$2 = 1;
+
+    *$3 = 0;
+    *$4 = 0;
+
+    auto const pc = PC();
+
+    THEN( "It shall trap in the 1st case" )
+    {
+      PC() = pc;
+      ClearExCause();
+
+      $start = _tne_trap;
+      cpu.single_step();
+
+      REQUIRE( HasTrapped() );
+    }
+    AND_THEN( "It shall not trap in the 2nd case" )
+    {
+      PC() = pc;
+      ClearExCause();
+
+      $start = _tne_no_trap;
+      cpu.single_step();
+
+      REQUIRE( !HasTrapped() );
     }
   }
 
@@ -2089,5 +2335,9 @@ SCENARIO( "A CPU object exists" )
   }
 }
 
+#undef HasTrapped
+#undef ExCause
+#undef ClearExCause
+#undef CAUSE
 #undef PC
 #undef R

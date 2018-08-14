@@ -123,7 +123,7 @@ constexpr std::uint32_t operator""_cpu( char const *s, std::size_t n ) noexcept
       {"SRL"sv, 0b10},
       {"SRLV"sv, 0b110},
       {"SUB"sv, 0b100'010},
-      {"SUB"sv, 0b100'011},
+      {"SUBU"sv, 0b100'011},
       {"SW"sv, 0b101'011},
       {"SWC1"sv, std::uint32_t( 0b111'001) << 26},
       {"SYSCALL"sv, 0b001'100},

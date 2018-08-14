@@ -1790,7 +1790,7 @@ SCENARIO( "A CPU object exists" )
     *$6 = 235;
 
     auto const pc = PC();
-    
+
     THEN( "It should be set in the 1st case" )
     {
       PC() = pc;
@@ -1969,7 +1969,7 @@ SCENARIO( "A CPU object exists" )
 
     *$2 = -988;
 
-    ui32 const res = (ui32)-988 >> 18;
+    ui32 const res = ( ui32 )-988 >> 18;
 
     $start = _srl;
     cpu.single_step();
@@ -1991,7 +1991,7 @@ SCENARIO( "A CPU object exists" )
     *$2 = -988;
     *$3 = 4;
 
-    ui32 const res = (ui32)-988 >> 4;
+    ui32 const res = ( ui32 )-988 >> 4;
 
     $start = _srlv;
     cpu.single_step();
@@ -2002,7 +2002,91 @@ SCENARIO( "A CPU object exists" )
     }
   }
 
+  WHEN( "SUB $1, $2, $3 is executed" )
+  {
+    auto const _sub = "SUB"_cpu | 1_rd | 2_rs | 3_rt;
 
+    auto $1 = R( 1 );
+    auto $2 = R( 2 );
+    auto $3 = R( 3 );
+
+    *$2 = -253;
+    *$3 = 6;
+
+    ui32 const res = ( ui32 )-253 - ( ui32 )6;
+
+    $start = _sub;
+    cpu.single_step();
+
+    THEN( "The result must be correct" )
+    {
+      REQUIRE( *$1 == res );
+    }
+  }
+
+  WHEN( "SUBU $1, $2, $3 is executed" )
+  {
+    auto const _subu = "SUBU"_cpu | 1_rd | 2_rs | 3_rt;
+
+    auto $1 = R( 1 );
+    auto $2 = R( 2 );
+    auto $3 = R( 3 );
+
+    *$2 = -598;
+    *$3 = 978;
+
+    ui32 const res = (ui32)-598 - (ui32)978;
+
+    $start = _subu;
+    cpu.single_step();
+
+    THEN( "The result must be correct" )
+    {
+      REQUIRE( *$1 == res );
+    }
+  }
+
+  WHEN( "XOR $1, $2, $3 is executed" )
+  {
+    auto const _xor = "XOR"_cpu | 1_rd | 2_rs | 3_rt;
+
+    auto $1 = R( 1 );
+    auto $2 = R( 2 );
+    auto $3 = R( 3 );
+
+    *$2 = -253;
+    *$3 = 6;
+
+    ui32 const res = ( ui32 )-253 ^ ( ui32 )6;
+
+    $start = _xor;
+    cpu.single_step();
+
+    THEN( "The result must be correct" )
+    {
+      REQUIRE( *$1 == res );
+    }
+  }
+
+  WHEN( "XORI $1, $2, 0xABC is executed" )
+  {
+    auto const _xori = "XORI"_cpu | 1_rt | 2_rs | 0xABC;
+
+    auto $1 = R( 1 );
+    auto $2 = R( 2 );
+
+    *$2 = -253;
+
+    ui32 const res = ( ui32 )-253 ^ ( ui32 )0xABC;
+
+    $start = _xori;
+    cpu.single_step();
+
+    THEN( "The result must be correct" )
+    {
+      REQUIRE( *$1 == res );
+    }
+  }
 }
 
 #undef PC

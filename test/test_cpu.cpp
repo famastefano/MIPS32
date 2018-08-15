@@ -9,15 +9,16 @@ using namespace mips32;
 
 using ui32 = std::uint32_t;
 
-// TODO: test for exceptions.
 // TODO: test for simple executions, like an hello world program.
 
+#define $start ram[0xBFC0'0000]
 #define R(n) inspector.CPU_gpr_begin() + n
 #define PC() inspector.CPU_pc()
 #define CAUSE() inspector.CP0_cause()
 #define ClearExCause() CAUSE() = CAUSE() & ~0x7C
 #define ExCause() (inspector.CP0_cause() >> 2 & 0x1F)
 #define HasTrapped() (ExCause() == 13)
+#define HasOverflowed() (ExCause() == 12)
 
 SCENARIO( "A CPU object exists" )
 {
@@ -25,8 +26,6 @@ SCENARIO( "A CPU object exists" )
 
   RAM ram{ RAM::block_size };
   CPU cpu{ ram };
-
-  auto &$start = ram[0xBFC0'0000];
 
   inspector
     .inspect( ram )
@@ -115,7 +114,22 @@ SCENARIO( "A CPU object exists" )
     }
   }
 
-  // TODO: test ALUIPC
+  WHEN( "ALUIPC $1, 256 is executed" )
+  {
+    auto const _aluipc = "ALUIPC"_cpu | 1_rs | 256;
+
+    auto $1 = R( 1 );
+
+    auto const res = 0xFFFF'0000 & ( PC() + ( 256 << 16 ) );
+
+    $start = _aluipc;
+    cpu.single_step();
+
+    THEN( "The result must be correct" )
+    {
+      REQUIRE( *$1 == res );
+    }
+  }
 
   WHEN( "AND $5, $10, $15 is executed" )
   {
@@ -131,10 +145,10 @@ SCENARIO( "A CPU object exists" )
     ui32 const res = 0xFFFF'FFFF & 0b1010'1010'1010'1010'1010'1010'1010'1010;
 
     $start = _and;
+    cpu.single_step();
 
     THEN( "The result must be correct" )
     {
-      cpu.single_step();
       REQUIRE( *$5 == res );
     }
   }
@@ -151,10 +165,10 @@ SCENARIO( "A CPU object exists" )
     ui32 const res = 0xFFFF'FFFF & 0xCEED;
 
     $start = _andi;
+    cpu.single_step();
 
     THEN( "The result must be correct" )
     {
-      cpu.single_step();
       REQUIRE( *$4 == res );
     }
   }
@@ -171,10 +185,10 @@ SCENARIO( "A CPU object exists" )
     ui32 const res = 0xCCAA'0000;
 
     $start = _aui;
+    cpu.single_step();
 
     THEN( "The result must be correct" )
     {
-      cpu.single_step();
       REQUIRE( *$8 == res );
     }
   }
@@ -188,10 +202,10 @@ SCENARIO( "A CPU object exists" )
     ui32 const res = PC() + ( 36 << 16 );
 
     $start = _auipc;
+    cpu.single_step();
 
     THEN( "The result must be correct" )
     {
-      cpu.single_step();
       REQUIRE( *$2 == res );
     }
   }
@@ -206,10 +220,10 @@ SCENARIO( "A CPU object exists" )
     ui32 const ret = PC() + 8;
 
     $start = _bal;
+    cpu.single_step();
 
     THEN( "The result must be correct" )
     {
-      cpu.single_step();
       REQUIRE( PC() == res );
       REQUIRE( *$31 == ret );
     }
@@ -225,10 +239,10 @@ SCENARIO( "A CPU object exists" )
     ui32 const ret = PC() + 4;
 
     $start = _balc;
+    cpu.single_step();
 
     THEN( "The result must be correct" )
     {
-      cpu.single_step();
       REQUIRE( PC() == res );
       REQUIRE( *$31 == ret );
     }
@@ -242,10 +256,10 @@ SCENARIO( "A CPU object exists" )
     ui32 const ret = PC() + 4;
 
     $start = _bc;
+    cpu.single_step();
 
     THEN( "The result must be correct" )
     {
-      cpu.single_step();
       REQUIRE( PC() == res );
     }
   }
@@ -1463,20 +1477,304 @@ SCENARIO( "A CPU object exists" )
       REQUIRE( PC() == 0x0024'3798 );
     }
   }
+  
+  WHEN( "LB $1, n($2) is executed with n = {0,1,2,3}" )
+  {
+    auto const _lb_0 = "LB"_cpu | 1_rt | 0 | 2_rs;
+    auto const _lb_1 = "LB"_cpu | 1_rt | 1 | 2_rs;
+    auto const _lb_2 = "LB"_cpu | 1_rt | 2 | 2_rs;
+    auto const _lb_3 = "LB"_cpu | 1_rt | 3 | 2_rs;
 
-  // TODO: test LB
+    auto $1 = R( 1 );
+    auto $2 = R( 2 );
 
-  // TODO: test LH
+    auto const pc = PC();
 
-  // TODO: test LW
+    *$2 = 0x8000'0000;
+    ram[0x8000'0000] = 0xABCD'EF12;
+
+    // Remember that LB sign extends before writing to rt
+
+    THEN( "0($2) should load 0x12" )
+    {
+      PC() = pc;
+      ram[0xBFC0'0000] = _lb_0;
+      cpu.single_step();
+      REQUIRE( *$1 == 0x12 );
+    }
+    AND_THEN( "1($2) should load 0xEF" )
+    {
+      PC() = pc;
+      ram[0xBFC0'0000] = _lb_1;
+      cpu.single_step();
+      REQUIRE( *$1 == 0xFF'FF'FF'EF );
+    }
+    AND_THEN( "2($2) should load 0xCD" )
+    {
+      PC() = pc;
+      ram[0xBFC0'0000] = _lb_2;
+      cpu.single_step();
+      REQUIRE( *$1 == 0xFF'FF'FF'CD );
+    }
+    AND_THEN( "3($2) should load 0xAB" )
+    {
+      PC() = pc;
+      ram[0xBFC0'0000] = _lb_3;
+      cpu.single_step();
+      REQUIRE( *$1 == 0xFF'FF'FF'AB );
+    }
+  }
+
+  WHEN( "LH $1, n($2) is executed with n = {0,1,2,3}" )
+  {
+    auto const _lh_0 = "LH"_cpu | 1_rt | 0 | 2_rs;
+    auto const _lh_1 = "LH"_cpu | 1_rt | 1 | 2_rs;
+    auto const _lh_2 = "LH"_cpu | 1_rt | 2 | 2_rs;
+    auto const _lh_3 = "LH"_cpu | 1_rt | 3 | 2_rs;
+
+    auto $1 = R( 1 );
+    auto $2 = R( 2 );
+
+    auto const pc = PC();
+
+    *$2 = 0x8000'0000;
+    ram[0x8000'0000] = 0xABCD'EF12;
+    ram[0x8000'0004] = 0x3456'7890;
+
+    // Remember that LH sign extends before writing to rt
+
+    THEN( "0($2) should load 0xFFFF'EF12" )
+    {
+      PC() = pc;
+      ram[0xBFC0'0000] = _lh_0;
+      cpu.single_step();
+      REQUIRE( *$1 == 0xFFFF'EF12 );
+    }
+    AND_THEN( "1($2) should load 0xFFFF'CDEF" )
+    {
+      PC() = pc;
+      ram[0xBFC0'0000] = _lh_1;
+      cpu.single_step();
+      REQUIRE( *$1 == 0xFFFF'CDEF );
+    }
+    AND_THEN( "2($2) should load 0xFFFF'ABCD" )
+    {
+      PC() = pc;
+      ram[0xBFC0'0000] = _lh_2;
+      cpu.single_step();
+      REQUIRE( *$1 == 0xFFFF'ABCD );
+    }
+    AND_THEN( "3($2) should load 0xFFFF'90AB" )
+    {
+      PC() = pc;
+      ram[0xBFC0'0000] = _lh_3;
+      cpu.single_step();
+      REQUIRE( *$1 == 0xFFFF'90AB );
+    }
+  }
+
+  WHEN( "LW $1, n($2) is executed with n = {0,1,2,3}" )
+  {
+    auto const _lw_0 = "LW"_cpu | 1_rt | 0 | 2_rs;
+    auto const _lw_1 = "LW"_cpu | 1_rt | 1 | 2_rs;
+    auto const _lw_2 = "LW"_cpu | 1_rt | 2 | 2_rs;
+    auto const _lw_3 = "LW"_cpu | 1_rt | 3 | 2_rs;
+
+    auto $1 = R( 1 );
+    auto $2 = R( 2 );
+
+    auto const pc = PC();
+
+    *$2 = 0x8000'0000;
+    ram[0x8000'0000] = 0xABCD'EF12;
+    ram[0x8000'0004] = 0x3456'7890;
+
+    THEN( "0($2) should load 0xABCD'EF12" )
+    {
+      PC() = pc;
+      ram[0xBFC0'0000] = _lw_0;
+      cpu.single_step();
+      REQUIRE( *$1 == 0xABCD'EF12 );
+    }
+    AND_THEN( "1($2) should load 0x90AB'CDEF" )
+    {
+      PC() = pc;
+      ram[0xBFC0'0000] = _lw_1;
+      cpu.single_step();
+      REQUIRE( *$1 == 0x90AB'CDEF );
+    }
+    AND_THEN( "2($2) should load 0x7890'ABCD" )
+    {
+      PC() = pc;
+      ram[0xBFC0'0000] = _lw_2;
+      cpu.single_step();
+      REQUIRE( *$1 == 0x7890'ABCD );
+    }
+    AND_THEN( "3($2) should load 0x3456'7890" )
+    {
+      PC() = pc;
+      ram[0xBFC0'0000] = _lw_3;
+      cpu.single_step();
+      REQUIRE( *$1 == 0x5678'90AB );
+    }
+  }
 
   // TODO: test LDC1
 
-  // TODO: test SB
+  WHEN( "SB $1, n($2) is executed with n = {0,1,2,3}" )
+  {
+    auto const _sb_0 = "SB"_cpu | 1_rt | 0 | 2_rs;
+    auto const _sb_1 = "SB"_cpu | 1_rt | 1 | 2_rs;
+    auto const _sb_2 = "SB"_cpu | 1_rt | 2 | 2_rs;
+    auto const _sb_3 = "SB"_cpu | 1_rt | 3 | 2_rs;
 
-  // TODO: test SH
+    auto $1 = R( 1 );
+    auto $2 = R( 2 );
 
-  // TODO: test SW
+    auto const pc = PC();
+
+    *$1 = 0x33; // data
+    *$2 = 0x8000'0000; // address
+
+    THEN( "0($2) should store 0xCCCC'CC33" )
+    {
+      PC() = pc;
+      ram[0xBFC0'0000] = _sb_0;
+      ram[0x8000'0000] = 0xCCCC'CCCC;
+      cpu.single_step();
+      REQUIRE( ram[0x8000'0000] == 0xCCCC'CC33 );
+    }
+    AND_THEN( "1($2) should store 0xCCCC'33CC" )
+    {
+      PC() = pc;
+      ram[0xBFC0'0000] = _sb_1;
+      ram[0x8000'0000] = 0xCCCC'CCCC;
+      cpu.single_step();
+      REQUIRE( ram[0x8000'0000] == 0xCCCC'33CC );
+    }
+    AND_THEN( "2($2) should store 0xCC33'CCCC" )
+    {
+      PC() = pc;
+      ram[0xBFC0'0000] = _sb_2;
+      ram[0x8000'0000] = 0xCCCC'CCCC;
+      cpu.single_step();
+      REQUIRE( ram[0x8000'0000] == 0xCC33'CCCC );
+    }
+    AND_THEN( "3($2) should store 0x33CC'CCCC" )
+    {
+      PC() = pc;
+      ram[0xBFC0'0000] = _sb_3;
+      ram[0x8000'0000] = 0xCCCC'CCCC;
+      cpu.single_step();
+      REQUIRE( ram[0x8000'0000] == 0x33CC'CCCC );
+    }
+  }
+
+  WHEN( "SH $1, n($2) is executed with n = {0,1,2,3}" )
+  {
+    auto const _sh_0 = "SH"_cpu | 1_rt | 0 | 2_rs;
+    auto const _sh_1 = "SH"_cpu | 1_rt | 1 | 2_rs;
+    auto const _sh_2 = "SH"_cpu | 1_rt | 2 | 2_rs;
+    auto const _sh_3 = "SH"_cpu | 1_rt | 3 | 2_rs;
+
+    auto $1 = R( 1 );
+    auto $2 = R( 2 );
+
+    auto const pc = PC();
+
+    *$1 = 0x3333; // data
+    *$2 = 0x8000'0000; // address
+
+    THEN( "0($2) should store 0xCCCC'3333" )
+    {
+      PC() = pc;
+      ram[0xBFC0'0000] = _sh_0;
+      ram[0x8000'0000] = 0xCCCC'CCCC;
+      cpu.single_step();
+      REQUIRE( ram[0x8000'0000] == 0xCCCC'3333 );
+    }
+    AND_THEN( "1($2) should store 0xCC33'33CC" )
+    {
+      PC() = pc;
+      ram[0xBFC0'0000] = _sh_1;
+      ram[0x8000'0000] = 0xCCCC'CCCC;
+      cpu.single_step();
+      REQUIRE( ram[0x8000'0000] == 0xCC33'33CC );
+    }
+    AND_THEN( "2($2) should store 0x3333'CCCC" )
+    {
+      PC() = pc;
+      ram[0xBFC0'0000] = _sh_2;
+      ram[0x8000'0000] = 0xCCCC'CCCC;
+      cpu.single_step();
+      REQUIRE( ram[0x8000'0000] == 0x3333'CCCC );
+    }
+    AND_THEN( "3($2) should store 0x33CC'CCCC and 0xCCCC'CC33" )
+    {
+      PC() = pc;
+      ram[0xBFC0'0000] = _sh_3;
+      ram[0x8000'0000] = 0xCCCC'CCCC;
+      ram[0x8000'0004] = 0xCCCC'CCCC;
+      cpu.single_step();
+      REQUIRE( ram[0x8000'0000] == 0x33CC'CCCC );
+      REQUIRE( ram[0x8000'0004] == 0xCCCC'CC33 );
+    }
+  }
+
+  WHEN( "SW $1, n($2) is executed with n = {0,1,2,3}" )
+  {
+    auto const _sw_0 = "SW"_cpu | 1_rt | 0 | 2_rs;
+    auto const _sw_1 = "SW"_cpu | 1_rt | 1 | 2_rs;
+    auto const _sw_2 = "SW"_cpu | 1_rt | 2 | 2_rs;
+    auto const _sw_3 = "SW"_cpu | 1_rt | 3 | 2_rs;
+
+    auto $1 = R( 1 );
+    auto $2 = R( 2 );
+
+    auto const pc = PC();
+
+    *$1 = 0x3333'3333; // data
+    *$2 = 0x8000'0000; // address
+
+    THEN( "0($2) should store 0x3333'3333" )
+    {
+      PC() = pc;
+      ram[0xBFC0'0000] = _sw_0;
+      ram[0x8000'0000] = 0xCCCC'CCCC;
+      cpu.single_step();
+      REQUIRE( ram[0x8000'0000] == 0x3333'3333 );
+    }
+    AND_THEN( "1($2) should store 0x3333'33CC and 0xCCCC'CC33" )
+    {
+      PC() = pc;
+      ram[0xBFC0'0000] = _sw_1;
+      ram[0x8000'0000] = 0xCCCC'CCCC;
+      ram[0x8000'0004] = 0xCCCC'CCCC;
+      cpu.single_step();
+      REQUIRE( ram[0x8000'0000] == 0x3333'33CC );
+      REQUIRE( ram[0x8000'0004] == 0xCCCC'CC33 );
+    }
+    AND_THEN( "2($2) should store 0x3333'CCCC and 0xCCCC'3333" )
+    {
+      PC() = pc;
+      ram[0xBFC0'0000] = _sw_2;
+      ram[0x8000'0000] = 0xCCCC'CCCC;
+      ram[0x8000'0004] = 0xCCCC'CCCC;
+      cpu.single_step();
+      REQUIRE( ram[0x8000'0000] == 0x3333'CCCC );
+      REQUIRE( ram[0x8000'0004] == 0xCCCC'3333 );
+    }
+    AND_THEN( "3($2) should store 0x33CC'CCCC and 0xCC33'3333" )
+    {
+      PC() = pc;
+      ram[0xBFC0'0000] = _sw_3;
+      ram[0x8000'0000] = 0xCCCC'CCCC;
+      ram[0x8000'0004] = 0xCCCC'CCCC;
+      cpu.single_step();
+      REQUIRE( ram[0x8000'0000] == 0x33CC'CCCC );
+      REQUIRE( ram[0x8000'0004] == 0xCC33'3333 );
+    }
+  }
 
   // TODO: test SDC1
 
@@ -1496,7 +1794,7 @@ SCENARIO( "A CPU object exists" )
       REQUIRE( *$29 == 0xABCD'0000 );
     }
   }
-
+  
   WHEN( "MUL $1, $2, $3 is executed" )
   {
     auto const _mul = "MUL"_cpu | 1_rd | 2_rs | 3_rt;
@@ -2332,11 +2630,77 @@ SCENARIO( "A CPU object exists" )
       REQUIRE( *$1 == res );
     }
   }
+
+  /**************
+   *            *
+   * EXCEPTIONS *
+   *            *
+   **************/
+
+  //// Integer Overflow
+
+  WHEN( "ADD $1, $2, $3 is executed" )
+  {
+    auto const _add = "ADD"_cpu | 1_rd | 2_rs | 3_rt;
+
+    auto $1 = R( 1 );
+    auto $2 = R( 2 );
+    auto $3 = R( 3 );
+
+    *$1 = 0;
+    *$2 = 0xF000'0000;
+    *$3 = 0xF000'0000;
+
+    $start = _add;
+    cpu.single_step();
+
+    THEN( "$1 shall be 0 and ExCause is Overflow" )
+    {
+      REQUIRE( *$1 == 0 );
+      REQUIRE( HasOverflowed() );
+    }
+  }
+
+  WHEN( "SUB $1, $2, $3 is executed" )
+  {
+    auto const _sub = "ADD"_cpu | 1_rd | 2_rs | 3_rt;
+
+    auto $1 = R( 1 );
+    auto $2 = R( 2 );
+    auto $3 = R( 3 );
+
+    *$1 = 0;
+    *$2 = 0xFFFF'0000;
+    *$3 = 0xFFFF'FFFF;
+
+    $start = _sub;
+    cpu.single_step();
+
+    THEN( "$1 shall be 0 and ExCause is Overflow" )
+    {
+      REQUIRE( *$1 == 0 );
+      REQUIRE( HasOverflowed() );
+    }
+  }
+
+  //// Instruction Fetch
+
+  WHEN( "An instruction is fetched with a misaligned PC" )
+  {
+    PC() |= 1;
+    cpu.single_step();
+    THEN( "Address error exception shall be set" )
+    {
+      REQUIRE( ExCause() == 4 );
+    }
+  }
 }
 
+#undef HasOverflowed
 #undef HasTrapped
 #undef ExCause
 #undef ClearExCause
 #undef CAUSE
 #undef PC
 #undef R
+#undef $start

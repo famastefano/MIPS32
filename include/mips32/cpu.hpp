@@ -175,8 +175,6 @@ private:
   void ext( std::uint32_t word ) noexcept;
   void ins( std::uint32_t word ) noexcept;
 
-  void execute_delay_slot() noexcept;
-
   std::uint32_t running_mode() noexcept;
 
   template <int op, int extend>

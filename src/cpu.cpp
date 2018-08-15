@@ -183,7 +183,7 @@ constexpr std::uint32_t sign_extend( std::uint32_t imm ) noexcept
 
 void CPU::reserved( std::uint32_t word ) noexcept
 {
-  signal_exception( ExCause::RI, word );
+  sigrie( word );
 }
 void CPU::special( std::uint32_t word ) noexcept
 {
@@ -674,30 +674,6 @@ void CPU::ins( std::uint32_t word ) noexcept
   gpr[_rt] = ( gpr[_rt] & mask << _pos ) | ( gpr[_rs] & mask );
 }
 
-void CPU::execute_delay_slot() noexcept
-{
-  auto const *const word = mmu.access( pc, running_mode() );
-
-  if ( pc & 0b11 || !word ) // fetch
-  {
-    signal_exception( ExCause::AdEL, *word );
-  }
-  else
-  {
-    if ( is_cti( *word ) )
-    {
-      signal_exception( ExCause::RI, *word );
-    }
-    else // execute
-    {
-      pc += 4;
-      ( this->*function_table[opcode( *word )] )( *word );
-
-      gpr[0] = 0;
-    }
-  }
-}
-
 /**
  * Load/Store Byte, always aligned.
  *
@@ -734,7 +710,7 @@ void CPU::op_byte( std::uint32_t word ) noexcept
 
   std::uint32_t byte;
 
-  constexpr std::uint32_t shift_align[] = { 0, 8, 16, 26 };
+  constexpr std::uint32_t shift_align[] = { 0, 8, 16, 24 };
 
   if constexpr ( op == _load )
   {
@@ -858,7 +834,7 @@ void CPU::op_halfword( std::uint32_t word ) noexcept
       }
 
       high_half = *highhalf << 8 & 0xFF00;
-      low_half = low_half >> 26 & 0x00FF;
+      low_half = low_half >> 24 & 0x00FF;
     }
     else
     {
@@ -901,12 +877,12 @@ void CPU::op_halfword( std::uint32_t word ) noexcept
         return;
       }
 
-      *lowhalf = *lowhalf & 0xFF00'0000 | low_half << 26;
+      *lowhalf = *lowhalf & 0x00FF'FFFF | low_half << 24;
       *highhalf = *highhalf & ~0xFF | low_half >> 8;
     }
     else
     {
-      *lowhalf = low_half & mask_align[align] | low_half << shift_align[align];
+      *lowhalf = *lowhalf & mask_align[align] | low_half << shift_align[align];
     }
   }
 }
@@ -934,8 +910,11 @@ void CPU::op_word( std::uint32_t word ) noexcept
   auto const _rt = rt( word );
   auto const address = gpr[_base] + sign_extend<_halfword>( immediate( word ) );
 
-  if ( _rt == 0 )
-    return;
+  if constexpr ( op == _load )
+  {
+    if ( _rt == 0 )
+      return;
+  }
 
   op_word<op>( _rt, address, word );
 }
@@ -1017,7 +996,7 @@ void CPU::op_word( std::uint32_t _rt, std::uint32_t address, std::uint32_t _word
       if ( align == 1 )
       {
         *low = *low & 0xFF | gpr[_rt] << 8;
-        *high = *high & ~0xFF | gpr[_rt] >> 26;
+        *high = *high & ~0xFF | gpr[_rt] >> 24;
       }
       else if ( align == 2 )
       {
@@ -1026,8 +1005,8 @@ void CPU::op_word( std::uint32_t _rt, std::uint32_t address, std::uint32_t _word
       }
       else
       {
-        *low = *low & 0xFF00'0000 | gpr[_rt] << 26;
-        *high = *high & ~0xFF00'0000 | gpr[_rt] >> 8;
+        *low = *low & 0x00FF'FFFF | gpr[_rt] << 24;
+        *high = *high & 0xFF00'0000 | gpr[_rt] >> 8;
       }
     }
   }
@@ -1797,7 +1776,7 @@ void CPU::bal( std::uint32_t word ) noexcept
 }
 void CPU::sigrie( std::uint32_t word ) noexcept
 {
-  reserved( word );
+  signal_exception( ExCause::RI, word );
 }
 
 /* * * * *
@@ -1964,52 +1943,4 @@ void CPU::signal_exception( std::uint32_t ex, std::uint32_t word ) noexcept
 
   pc = ( cp0.e_base & 0xFFFF'F000 ) + 0x180;
 }
-
-bool is_cti( std::uint32_t word ) noexcept
-{
-  // branches, jumps, NAL, ERET
-  auto const _op = opcode( word );
-  auto const _regimm_fn = rt( word );
-  auto const _fn = function( word );
-
-  if ( _op == 1 ) // REGIMM
-  {
-    switch ( _regimm_fn )
-    {
-    case 0b10001: // BAL
-    case 0b00001: // BGEZ
-    case 0b10000: // NAL
-      return true;
-    }
-  }
-  else if ( _op == 0b010000 ) // COP1
-  {
-    if ( _fn == 0b011000 ) // ERET
-      return true;
-  }
-  else if ( _op == 0b000100 ) // BEQ
-  {
-    return true;
-  }
-  else
-  {
-    switch ( _op )
-    {
-    case 0b111010: // BALC
-    case 0b110010: // BC
-    case 0b000110: // POP06
-    case 0b000111: // POP07
-    case 0b001000: // POP10
-    case 0b011000: // POP30
-    case 0b010110: // POP26
-    case 0b010111: // POP27
-    case 0b110110: // POP66
-    case 0b111110: // POP76
-      return true;
-    }
-  }
-
-  return false;
-}
-
 } // namespace mips32

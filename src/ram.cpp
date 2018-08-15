@@ -1,5 +1,6 @@
 #include <mips32/ram.hpp>
 
+#include <algorithm>
 #include <cassert>
 #include <cstdio>
 #include <new>
@@ -138,10 +139,15 @@ std::uint32_t &RAM::operator[]( std::uint32_t address ) noexcept
 
 RAM::Block &RAM::Block::allocate() noexcept
 {
+  constexpr std::uint32_t sigrie{ 0x0417'CCCC };
+
   assert( !data && "Block already allocated." );
 
   data.reset( new ( std::nothrow ) std::uint32_t[RAM::block_size] );
   assert( data && "Couldn't allocate the block." );
+
+  if ( data )
+    std::fill_n( data.get(), RAM::block_size, sigrie ); // fill the new block with the 'sigrie' instruction
 
   return *this;
 }

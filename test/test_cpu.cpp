@@ -1477,6 +1477,8 @@ SCENARIO( "A CPU object exists" )
       REQUIRE( PC() == 0x0024'3798 );
     }
   }
+
+  //// Signed Load
   
   WHEN( "LB $1, n($2) is executed with n = {0,1,2,3}" )
   {
@@ -1616,6 +1618,101 @@ SCENARIO( "A CPU object exists" )
       $start = _lw_3;
       cpu.single_step();
       REQUIRE( *$1 == 0x5678'90AB );
+    }
+  }
+
+  //// Unsigned Load
+
+  WHEN( "LBU $1, n($2) is executed with n = {0,1,2,3}" )
+  {
+    auto const _lbu_0 = "LBU"_cpu | 1_rt | 0 | 2_rs;
+    auto const _lbu_1 = "LBU"_cpu | 1_rt | 1 | 2_rs;
+    auto const _lbu_2 = "LBU"_cpu | 1_rt | 2 | 2_rs;
+    auto const _lbu_3 = "LBU"_cpu | 1_rt | 3 | 2_rs;
+
+    auto $1 = R( 1 );
+    auto $2 = R( 2 );
+
+    auto const pc = PC();
+
+    *$2 = 0x8000'0000;
+    ram[0x8000'0000] = 0xAABB'DDEE;
+
+    THEN( "0($2) should load 0xEE" )
+    {
+      PC() = pc;
+      $start = _lbu_0;
+      cpu.single_step();
+      REQUIRE( *$1 == 0xEE );
+    }
+    AND_THEN( "1($2) should load 0xDD" )
+    {
+      PC() = pc;
+      $start = _lbu_1;
+      cpu.single_step();
+      REQUIRE( *$1 == 0xDD );
+    }
+    AND_THEN( "2($2) should load 0xBB" )
+    {
+      PC() = pc;
+      $start = _lbu_2;
+      cpu.single_step();
+      REQUIRE( *$1 == 0xBB );
+    }
+    AND_THEN( "3($2) should load 0xAA" )
+    {
+      PC() = pc;
+      $start = _lbu_3;
+      cpu.single_step();
+      REQUIRE( *$1 == 0xAA );
+    }
+  }
+
+  WHEN( "LHU $1, n($2) is executed with n = {0,1,2,3}" )
+  {
+    auto const _lhu_0 = "LHU"_cpu | 1_rt | 0 | 2_rs;
+    auto const _lhu_1 = "LHU"_cpu | 1_rt | 1 | 2_rs;
+    auto const _lhu_2 = "LHU"_cpu | 1_rt | 2 | 2_rs;
+    auto const _lhu_3 = "LHU"_cpu | 1_rt | 3 | 2_rs;
+
+    auto $1 = R( 1 );
+    auto $2 = R( 2 );
+
+    auto const pc = PC();
+
+    *$2 = 0x8000'0000;
+    ram[0x8000'0000] = 0xDDDD'EEEE;
+    ram[0x8000'0004] = 0xAAAA'BBBB;
+
+    // Remember that LH sign extends before writing to rt
+
+    THEN( "0($2) should load 0xEEEE" )
+    {
+      PC() = pc;
+      $start = _lhu_0;
+      cpu.single_step();
+      REQUIRE( *$1 == 0xEEEE );
+    }
+    AND_THEN( "1($2) should load 0xDDEE" )
+    {
+      PC() = pc;
+      $start = _lhu_1;
+      cpu.single_step();
+      REQUIRE( *$1 == 0xDDEE );
+    }
+    AND_THEN( "2($2) should load 0xDDDD" )
+    {
+      PC() = pc;
+      $start = _lhu_2;
+      cpu.single_step();
+      REQUIRE( *$1 == 0xDDDD );
+    }
+    AND_THEN( "3($2) should load 0xBBDD" )
+    {
+      PC() = pc;
+      $start = _lhu_3;
+      cpu.single_step();
+      REQUIRE( *$1 == 0xBBDD );
     }
   }
 

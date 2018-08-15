@@ -82,7 +82,7 @@ constexpr std::uint32_t operator""_cpu( char const *s, std::size_t n ) noexcept
       {"LDC1"sv, std::uint32_t( 0b110'101 ) << 26},
       {"LH"sv, std::uint32_t( 0b100'001 ) << 26},
       {"LHU"sv, std::uint32_t( 0b100'101 ) << 26},
-      {"LSA"sv, 0b000'101 << 26},
+      {"LSA"sv, 0b000'101},
       {"LUI"sv, 0b001'111 << 26},
       {"LW"sv, std::uint32_t( 0b100'011 ) << 26 },
       {"LWC1"sv, std::uint32_t( 0b110'011 ) << 26 },

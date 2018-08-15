@@ -86,7 +86,7 @@ std::uint32_t CPU::start() noexcept
     // fetch
     if ( pc & 0b11 || !word )
     {
-      signal_exception( ExCause::AdEL, *word );
+      signal_exception( ExCause::AdEL, *word, pc );
       continue;
     }
 
@@ -113,7 +113,7 @@ std::uint32_t CPU::single_step() noexcept
 
   if ( pc & 0b11 || !word ) // fetch
   {
-    signal_exception( ExCause::AdEL, 0 );
+    signal_exception( ExCause::AdEL, 0, pc );
   }
   else // execute
   {
@@ -357,7 +357,7 @@ void CPU::cop1( std::uint32_t word ) noexcept
   {
     auto const ex = cp1.execute( word );
     if ( ex != CP1::Exception::NONE )
-      signal_exception( ExCause::FPE, word );
+      signal_exception( ExCause::FPE, word, pc - 4 );
   }
 }
 
@@ -718,7 +718,7 @@ void CPU::op_byte( std::uint32_t word ) noexcept
 
     if ( !load_byte )
     {
-      signal_exception( ExCause::AdEL, word );
+      signal_exception( ExCause::AdEL, word, pc - 4 );
       return;
     }
 
@@ -751,7 +751,7 @@ void CPU::op_byte( std::uint32_t word ) noexcept
 
     if ( !store_byte )
     {
-      signal_exception( ExCause::AdES, word );
+      signal_exception( ExCause::AdES, word, pc - 4 );
       return;
     }
 
@@ -812,7 +812,7 @@ void CPU::op_halfword( std::uint32_t word ) noexcept
     auto *lowhalf = mmu.access( address, running_mode() ? MMU::Segment::USER : MMU::Segment::KERNEL );
     if ( !lowhalf )
     {
-      signal_exception( ExCause::AdEL, word );
+      signal_exception( ExCause::AdEL, word, pc - 4 );
       return;
     }
 
@@ -822,14 +822,14 @@ void CPU::op_halfword( std::uint32_t word ) noexcept
     {
       if ( address > 0xFFFF'FFFB )
       {
-        signal_exception( ExCause::DBE, word );
+        signal_exception( ExCause::DBE, word, pc - 4 );
         return;
       }
 
       auto *highhalf = mmu.access( address + 4, running_mode() ? MMU::Segment::USER : MMU::Segment::KERNEL );
       if ( !highhalf )
       {
-        signal_exception( ExCause::AdEL, word );
+        signal_exception( ExCause::AdEL, word, pc - 4 );
         return;
       }
 
@@ -859,7 +859,7 @@ void CPU::op_halfword( std::uint32_t word ) noexcept
     auto *lowhalf = mmu.access( address, running_mode() ? MMU::Segment::USER : MMU::Segment::KERNEL );
     if ( !lowhalf )
     {
-      signal_exception( ExCause::AdES, word );
+      signal_exception( ExCause::AdES, word, pc - 4 );
       return;
     }
 
@@ -867,13 +867,13 @@ void CPU::op_halfword( std::uint32_t word ) noexcept
     {
       if ( address > 0xFFFF'FFFB )
       {
-        signal_exception( ExCause::DBE, word );
+        signal_exception( ExCause::DBE, word, pc - 4 );
         return;
       }
       auto *highhalf = mmu.access( address + 4, running_mode() ? MMU::Segment::USER : MMU::Segment::KERNEL );
       if ( !highhalf )
       {
-        signal_exception( ExCause::AdES, word );
+        signal_exception( ExCause::AdES, word, pc - 4 );
         return;
       }
 
@@ -934,7 +934,7 @@ void CPU::op_word( std::uint32_t _rt, std::uint32_t address, std::uint32_t _word
     {
       if ( !word )
       {
-        signal_exception( ExCause::AdEL, _word );
+        signal_exception( ExCause::AdEL, _word, pc - 4 );
         return;
       }
       gpr[_rt] = *word;
@@ -943,7 +943,7 @@ void CPU::op_word( std::uint32_t _rt, std::uint32_t address, std::uint32_t _word
     {
       if ( !word )
       {
-        signal_exception( ExCause::AdES, _word );
+        signal_exception( ExCause::AdES, _word, pc - 4 );
         return;
       }
       *word = gpr[_rt];
@@ -953,7 +953,7 @@ void CPU::op_word( std::uint32_t _rt, std::uint32_t address, std::uint32_t _word
   {
     if ( address > 0xFFFF'FFFB )
     {
-      signal_exception( ExCause::DBE, _word );
+      signal_exception( ExCause::DBE, _word, pc - 4 );
       return;
     }
 
@@ -964,7 +964,7 @@ void CPU::op_word( std::uint32_t _rt, std::uint32_t address, std::uint32_t _word
     {
       if ( !low || !high )
       {
-        signal_exception( ExCause::AdEL, _word );
+        signal_exception( ExCause::AdEL, _word, pc - 4 );
         return;
       }
       auto low_word = *low;
@@ -990,7 +990,7 @@ void CPU::op_word( std::uint32_t _rt, std::uint32_t address, std::uint32_t _word
     {
       if ( !low || !high )
       {
-        signal_exception( ExCause::AdES, _word );
+        signal_exception( ExCause::AdES, _word, pc - 4 );
         return;
       }
       if ( align == 1 )
@@ -1289,7 +1289,7 @@ void CPU::syscall( std::uint32_t word ) noexcept
 
   if ( v0 == 0 || v0 > 17 )
   {
-    signal_exception( ExCause::Sys, word );
+    signal_exception( ExCause::Sys, word, pc - 4 );
     return;
   }
 
@@ -1369,7 +1369,7 @@ void CPU::syscall( std::uint32_t word ) noexcept
   }
   else if ( v0 == 9 ) // sbrk
   {
-    signal_exception( ExCause::Int, word );
+    signal_exception( ExCause::Int, word, pc - 4 );
   }
   else if ( v0 == 10 || v0 == 17 ) // exit
   {
@@ -1433,7 +1433,7 @@ void CPU::syscall( std::uint32_t word ) noexcept
   }
   else
   {
-    signal_exception( ExCause::Sys, word );
+    signal_exception( ExCause::Sys, word, pc - 4 );
   }
 }
 void CPU::break_( std::uint32_t word ) noexcept
@@ -1595,7 +1595,7 @@ void CPU::add( std::uint32_t word ) noexcept
   auto const res = std::uint64_t( gpr[_rs] ) + std::uint64_t( gpr[_rt] );
 
   if ( res & 1ull << 32 )
-    signal_exception( ExCause::Ov, word );
+    signal_exception( ExCause::Ov, word, pc - 4 );
   else
     gpr[_rd] = ( std::uint32_t )res;
 }
@@ -1615,7 +1615,7 @@ void CPU::sub( std::uint32_t word ) noexcept
 
   auto const res = std::uint64_t( gpr[_rs] ) - std::uint64_t( gpr[_rt] );
   if ( res & 1ull << 32 )
-    signal_exception( ExCause::Ov, word );
+    signal_exception( ExCause::Ov, word, pc - 4 );
   else
     gpr[_rd] = ( std::uint32_t )res;
 }
@@ -1682,7 +1682,7 @@ void CPU::tge( std::uint32_t word ) noexcept
   auto const _rt = rt( word );
 
   if ( ( std::int32_t )gpr[_rs] >= ( std::int32_t )gpr[_rt] )
-    signal_exception( ExCause::Tr, word );
+    signal_exception( ExCause::Tr, word, pc - 4 );
 }
 void CPU::tgeu( std::uint32_t word ) noexcept
 {
@@ -1691,7 +1691,7 @@ void CPU::tgeu( std::uint32_t word ) noexcept
   auto const _rt = rt( word );
 
   if ( gpr[_rs] >= gpr[_rt] )
-    signal_exception( ExCause::Tr, word );
+    signal_exception( ExCause::Tr, word, pc - 4 );
 }
 void CPU::tlt( std::uint32_t word ) noexcept
 {
@@ -1700,7 +1700,7 @@ void CPU::tlt( std::uint32_t word ) noexcept
   auto const _rt = rt( word );
 
   if ( ( std::int32_t )gpr[_rs] < ( std::int32_t )gpr[_rt] )
-    signal_exception( ExCause::Tr, word );
+    signal_exception( ExCause::Tr, word, pc - 4 );
 }
 void CPU::tltu( std::uint32_t word ) noexcept
 {
@@ -1709,7 +1709,7 @@ void CPU::tltu( std::uint32_t word ) noexcept
   auto const _rt = rt( word );
 
   if ( gpr[_rs] < gpr[_rt] )
-    signal_exception( ExCause::Tr, word );
+    signal_exception( ExCause::Tr, word, pc - 4 );
 }
 void CPU::teq( std::uint32_t word ) noexcept
 {
@@ -1718,7 +1718,7 @@ void CPU::teq( std::uint32_t word ) noexcept
   auto const _rt = rt( word );
 
   if ( gpr[_rs] == gpr[_rt] )
-    signal_exception( ExCause::Tr, word );
+    signal_exception( ExCause::Tr, word, pc - 4 );
 }
 void CPU::seleqz( std::uint32_t word ) noexcept
 {
@@ -1735,7 +1735,7 @@ void CPU::tne( std::uint32_t word ) noexcept
   auto const _rt = rt( word );
 
   if ( gpr[_rs] != gpr[_rt] )
-    signal_exception( ExCause::Tr, word );
+    signal_exception( ExCause::Tr, word, pc - 4 );
 }
 void CPU::selnez( std::uint32_t word ) noexcept
 {
@@ -1776,7 +1776,7 @@ void CPU::bal( std::uint32_t word ) noexcept
 }
 void CPU::sigrie( std::uint32_t word ) noexcept
 {
-  signal_exception( ExCause::RI, word );
+  signal_exception( ExCause::RI, word, pc - 4 );
 }
 
 /* * * * *
@@ -1923,7 +1923,7 @@ void CPU::set_ex_cause( std::uint32_t ex ) noexcept
  * 3. Enter kernel mode
  * 4. Jump to the handler.
  **/
-void CPU::signal_exception( std::uint32_t ex, std::uint32_t word ) noexcept
+void CPU::signal_exception( std::uint32_t ex, std::uint32_t word, std::uint32_t pc ) noexcept
 {
   auto const interrupt = ex == ExCause::Int;
 
@@ -1933,14 +1933,23 @@ void CPU::signal_exception( std::uint32_t ex, std::uint32_t word ) noexcept
     auto const erl_exl = cp0.status & 0b110;
     if ( !ie || erl_exl )
       return;
+
+    cp0.epc = pc;
+  }
+  else
+  {
+    if ( ex == ExCause::AdEL || ex == ExCause::AdES )
+      cp0.bad_vaddr = pc;
+
+    cp0.bad_instr = word;
+    cp0.error_epc = pc;
+    cp0.status |= 0b10; // Sets Status EXL
   }
 
   enter_kernel_mode();
-  cp0.epc = pc - 4;
-  cp0.bad_instr = word;
-  set_ex_cause( ex );
-  cp0.status |= 0b10; // Sets Status EXL
 
-  pc = ( cp0.e_base & 0xFFFF'F000 ) + 0x180;
+  set_ex_cause( ex );
+
+  this->pc = ( cp0.e_base & 0xFFFF'F000 ) + 0x180;
 }
 } // namespace mips32

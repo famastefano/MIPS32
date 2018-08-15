@@ -1341,7 +1341,19 @@ SCENARIO( "A CPU object exists" )
     }
   }
 
-  // TODO: test ERET
+  WHEN( "ERET is executed to return from an interrupt/exception" )
+  {
+    $start = "SIGRIE"_cpu;
+    ram[0x8000'0180] = "ERET"_cpu;
+
+    THEN( "Returning from an exception should set PC to EPC" )
+    {
+      cpu.single_step(); // sigrie
+      REQUIRE( PC() == 0x8000'0180 );
+      cpu.single_step(); // eret
+      REQUIRE( PC() == 0xBFC0'0000 );
+    }
+  }
 
   // TODO: test EXT
 
@@ -1990,7 +2002,59 @@ SCENARIO( "A CPU object exists" )
     }
   }
 
-  // TODO: test LSA
+  WHEN( "LSA $1, $2, $3, n is executed with n = {0,1,2,3}" )
+  {
+    auto const _lsa_0 = "LSA"_cpu | 1_rd | 2_rs | 3_rt | 0_shamt;
+    auto const _lsa_1 = "LSA"_cpu | 1_rd | 2_rs | 3_rt | 1_shamt;
+    auto const _lsa_2 = "LSA"_cpu | 1_rd | 2_rs | 3_rt | 2_shamt;
+    auto const _lsa_3 = "LSA"_cpu | 1_rd | 2_rs | 3_rt | 3_shamt;
+
+    auto $1 = R( 1 );
+    auto $2 = R( 2 );
+    auto $3 = R( 3 );
+
+    auto const pc = PC();
+
+    *$2 = 0x8000;
+    *$3 = 512;
+
+    THEN( "The result shall be correct in the 1st case" )
+    {
+      PC() = pc;
+      $start = _lsa_0;
+      cpu.single_step();
+
+      auto const res = ( 0x8000 << 1 ) + 512;
+      REQUIRE( *$1 == res );
+    }
+    AND_THEN( "The result shall be correct in the 2nd case" )
+    {
+      PC() = pc;
+      $start = _lsa_1;
+      cpu.single_step();
+
+      auto const res = ( 0x8000 << 2 ) + 512;
+      REQUIRE( *$1 == res );
+    }
+    AND_THEN( "The result shall be correct in the 3rd case" )
+    {
+      PC() = pc;
+      $start = _lsa_2;
+      cpu.single_step();
+
+      auto const res = ( 0x8000 << 3 ) + 512;
+      REQUIRE( *$1 == res );
+    }
+    AND_THEN( "The result shall be correct in the 4th case" )
+    {
+      PC() = pc;
+      $start = _lsa_3;
+      cpu.single_step();
+
+      auto const res = ( 0x8000 << 4 ) + 512;
+      REQUIRE( *$1 == res );
+    }
+  }
 
   WHEN( "LUI $29, 0xABCD is executed" )
   {

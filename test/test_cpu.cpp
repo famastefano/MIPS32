@@ -11,6 +11,9 @@ using ui32 = std::uint32_t;
 
 // TODO: test for simple executions, like an hello world program.
 
+// TODO: test SYSCALL
+// TODO: test MTC0/1 MFC0/1
+
 #define $start ram[0xBFC0'0000]
 #define R(n) inspector.CPU_gpr_begin() + n
 #define PC() inspector.CPU_pc()
@@ -1355,9 +1358,46 @@ SCENARIO( "A CPU object exists" )
     }
   }
 
-  // TODO: test EXT
+  WHEN( "EXT $1, $2, 14, 8 is executed" )
+  {
+    auto const _ext = "EXT"_cpu | 1_rt | 2_rs | 14_shamt | 7_rd;
 
-  // TODO: test INS
+    auto $1 = R( 1 );
+    auto $2 = R( 2 );
+
+    *$2 = 0x001F'C000;
+
+    auto const res = 0x7F;
+
+    $start = _ext;
+    cpu.single_step();
+
+    THEN( "The result shall be correct" )
+    {
+      REQUIRE( *$1 == res );
+    }
+  }
+
+  WHEN( "INS $1, $2, 19, 4 is executed" )
+  {
+    auto const _ins = "INS"_cpu | 1_rt | 2_rs | 19_shamt | 22_rd;
+
+    auto $1 = R( 1 );
+    auto $2 = R( 2 );
+
+    *$1 = 0x0000'0000;
+    *$2 = 0xF;
+
+    auto const res = 0x0078'0000;
+
+    $start = _ins;
+    cpu.single_step();
+
+    THEN( "The result shall be correct" )
+    {
+      REQUIRE( *$1 == res );
+    }
+  }
 
   WHEN( "J 0x0279'DB24 is executed" )
   {

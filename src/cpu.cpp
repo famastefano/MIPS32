@@ -657,7 +657,7 @@ void CPU::ext( std::uint32_t word ) noexcept
   auto const _size = rd( word ) + 1;
   auto const _pos = shamt( word );
 
-  auto const left_shift = 32 - _pos + _size;
+  auto const left_shift = 32 - ( _pos + _size );
   auto const right_shift = left_shift + _pos;
 
   gpr[_rt] = gpr[_rs] << left_shift >> right_shift;
@@ -666,12 +666,12 @@ void CPU::ins( std::uint32_t word ) noexcept
 {
   auto const _rs = rs( word );
   auto const _rt = rt( word );
-  auto const _size = rd( word ) + 1;
   auto const _pos = shamt( word );
+  auto const _size = rd( word ) + 1 - _pos;
 
   auto const mask = 0xFFFF'FFFF << ( 32 - _size ) >> ( 32 - _size );
 
-  gpr[_rt] = ( gpr[_rt] & mask << _pos ) | ( gpr[_rs] & mask );
+  gpr[_rt] = ( gpr[_rt] & ~( mask << _pos ) ) | ( gpr[_rs] & mask ) << _pos;
 }
 
 /**

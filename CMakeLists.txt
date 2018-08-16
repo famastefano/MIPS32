@@ -40,6 +40,7 @@ add_executable(Tests
     src/ram_string.cpp
     src/cp0.cpp
     src/mmu.cpp
+	test/helpers/Terminal.cpp
 )
 
 target_compile_features(Tests PRIVATE cxx_std_17)

@@ -1123,7 +1123,7 @@ void CPU::swc1( std::uint32_t word ) noexcept
   auto const ft = rt( word );
   auto const _base = rs( word );
   auto const _immediate = immediate( word );
-  auto const address = gpr[_base] +sign_extend<_halfword>( _immediate );
+  auto const address = gpr[_base] + sign_extend<_halfword>( _immediate );
 
   gpr[0] = cp1.mfc1( ft );
 
@@ -1330,7 +1330,7 @@ void CPU::syscall( std::uint32_t word ) noexcept
   }
   else if ( v0 == 5 ) // read int
   {
-    io_device->read_integer( gpr.data() + v0 );
+    io_device->read_integer( gpr.data() + _v0 );
   }
   else if ( v0 == 6 ) // read float
   {
@@ -1348,13 +1348,14 @@ void CPU::syscall( std::uint32_t word ) noexcept
   {
     union
     {
-      float         f;
-      std::uint32_t i32;
+      double          d;
+      std::uint64_t i64;
     };
 
-    io_device->read_float( &f );
+    io_device->read_double( &d );
 
-    cp1.mtc1( 0, i32 ); // $f0
+    cp1.mtc1( 0, i64 & 0xFFFF'FFFF ); // $f0 low
+    cp1.mthc1( 0, i64 >> 32 );        // $f0 high
   }
   else if ( v0 == 8 ) // read string
   {
@@ -1390,7 +1391,7 @@ void CPU::syscall( std::uint32_t word ) noexcept
 
     io_device->read_string( &c, 1 );
 
-    gpr[v0] = ( std::uint32_t )c;
+    gpr[_v0] = ( std::uint32_t )c;
   }
   else if ( v0 == 13 ) // file open
   {

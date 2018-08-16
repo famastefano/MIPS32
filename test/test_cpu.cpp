@@ -4,24 +4,55 @@
 #include <mips32/machine_inspector.hpp>
 
 #include "helpers/test_cpu_instructions.hpp"
+#include "helpers/Terminal.hpp"
+
+#include <memory>
 
 using namespace mips32;
 
 using ui32 = std::uint32_t;
 
-// TODO: test for simple executions, like an hello world program.
-
-// TODO: test SYSCALL
-// TODO: test MTC0/1 MFC0/1
-
 #define $start ram[0xBFC0'0000]
 #define R(n) inspector.CPU_gpr_begin() + n
+#define FP(n) inspector.CP1_fpr_begin() + n
 #define PC() inspector.CPU_pc()
 #define CAUSE() inspector.CP0_cause()
 #define ClearExCause() CAUSE() = CAUSE() & ~0x7C
 #define ExCause() (inspector.CP0_cause() >> 2 & 0x1F)
 #define HasTrapped() (ExCause() == 13)
 #define HasOverflowed() (ExCause() == 12)
+
+// SYSCALL helpers
+
+constexpr int _v0 = 2;
+constexpr int _v1 = 3;
+
+constexpr int _a0 = 4;
+constexpr int _a1 = 5;
+constexpr int _a2 = 6;
+
+enum SYSCALL
+{
+  PRINT_INT = 1,
+  PRINT_FLOAT,
+  PRINT_DOUBLE,
+  PRINT_STRING,
+  READ_INT,
+  READ_FLOAT,
+  READ_DOUBLE,
+  READ_STRING,
+  SBRK,
+  EXIT,
+  PRINT_CHAR,
+  READ_CHAR,
+  OPEN,
+  READ,
+  WRITE,
+  CLOSE,
+  EXIT2,
+};
+
+std::unique_ptr<Terminal> terminal = std::make_unique<Terminal>();
 
 SCENARIO( "A CPU object exists" )
 {
@@ -35,6 +66,8 @@ SCENARIO( "A CPU object exists" )
     .inspect( cpu );
 
   cpu.hard_reset();
+
+  cpu.attach_iodevice( terminal.get() );
 
   WHEN( "ADD $1, $2, $3 is executed" )
   {
@@ -1680,7 +1713,7 @@ SCENARIO( "A CPU object exists" )
     auto const _lwc1_2 = "LWC1"_cpu | 0_rt | 1_rs | 2;
     auto const _lwc1_3 = "LWC1"_cpu | 0_rt | 1_rs | 3;
 
-    auto $f0 = inspector.CP1_fpr_begin();
+    auto $f0 = FP( 0 );
     auto $1 = R( 1 );
 
     *$1 = 0x8000'0000;
@@ -1826,7 +1859,7 @@ SCENARIO( "A CPU object exists" )
     auto const _ldc1_2 = "LDC1"_cpu | 0_rt | 2 | 1_rs;
     auto const _ldc1_3 = "LDC1"_cpu | 0_rt | 3 | 1_rs;
 
-    auto $f0 = inspector.CP1_fpr_begin();
+    auto $f0 = FP( 0 );
     auto $1 = R( 1 );
 
     auto const pc = PC();
@@ -2039,7 +2072,7 @@ SCENARIO( "A CPU object exists" )
     auto const _swc1_2 = "SWC1"_cpu | 0_rt | 1_rs | 2;
     auto const _swc1_3 = "SWC1"_cpu | 0_rt | 1_rs | 3;
 
-    auto $f0 = inspector.CP1_fpr_begin();
+    auto $f0 = FP( 0 );
     auto $1 = R( 1 );
 
     *$1 = 0x8000'0000;
@@ -2103,7 +2136,7 @@ SCENARIO( "A CPU object exists" )
     auto const _sdc1_2 = "SDC1"_cpu | 0_rt | 2 | 1_rs;
     auto const _sdc1_3 = "SDC1"_cpu | 0_rt | 3 | 1_rs;
 
-    auto $f0 = inspector.CP1_fpr_begin();
+    auto $f0 = FP( 0 );
     auto $1 = R( 1 );
 
     auto const pc = PC();
@@ -3071,11 +3104,146 @@ SCENARIO( "A CPU object exists" )
     }
   }
 
-  /**************
-   *            *
-   * EXCEPTIONS *
-   *            *
-   **************/
+  /* * * * * * * * * *
+   *                 *
+   * COPROCESSOR 0|1 *
+   *                 *
+   * * * * * * * * * */
+
+  WHEN( "MFC1 $1, $f0 is executed" )
+  {
+    auto const _mfc1 = "MFC1"_cpu | 1_rt | 0_rd;
+
+    auto $f0 = FP( 0 );
+    auto $1 = R( 1 );
+
+    $f0->i64 = 0xAAAA'BBBB'DDDD'EEEEull;
+
+    $start = _mfc1;
+    cpu.single_step();
+
+    THEN( "$1 shall contain 0xDDDD'EEEE" )
+    {
+      REQUIRE( *$1 == 0xDDDD'EEEE );
+    }
+  }
+
+  WHEN( "MFHC1 $1, $f0 is executed" )
+  {
+    auto const _mfhc1 = "MFHC1"_cpu | 1_rt | 0_rd;
+
+    auto $f0 = FP( 0 );
+    auto $1 = R( 1 );
+
+    $f0->i64 = 0xAAAA'BBBB'DDDD'EEEEull;
+
+    $start = _mfhc1;
+    cpu.single_step();
+
+    THEN( "$1 shall contain 0xAAAA'BBBB" )
+    {
+      REQUIRE( *$1 == 0xAAAA'BBBB );
+    }
+  }
+
+  WHEN( "MTC1 $1, $f0 is executed" )
+  {
+    auto const _mtc1 = "MTC1"_cpu | 1_rt | 0_rd;
+
+    auto $f0 = FP( 0 );
+    auto $1 = R( 1 );
+
+    *$1 = 0xAAAA'BBBB;
+    $f0->i64 = 0xCCCC'CCCC'CCCC'CCCCull;
+
+    $start = _mtc1;
+    cpu.single_step();
+
+    THEN( "$f0 shall contain 0xCCCC'CCCC'AAAA'BBBB" )
+    {
+      REQUIRE( $f0->i64 == 0xCCCC'CCCC'AAAA'BBBBull );
+    }
+  }
+
+  WHEN( "MTHC1 $1, $f0 is executed" )
+  {
+    auto const _mthc1 = "MTHC1"_cpu | 1_rt | 0_rd;
+
+    auto $f0 = FP( 0 );
+    auto $1 = R( 1 );
+
+    *$1 = 0xDDDD'EEEE;
+    $f0->i64 = 0xCCCC'CCCC'CCCC'CCCCull;
+
+    $start = _mthc1;
+    cpu.single_step();
+
+    THEN( "$f0 shall contain 0xDDDD'EEEE'CCCC'CCCC" )
+    {
+      REQUIRE( $f0->i64 == 0xDDDD'EEEE'CCCC'CCCCull );
+    }
+  }
+
+  WHEN( "Swapping 2 FPRs registers using GPRS" )
+  {
+    // $f0 into $1, $2
+    auto const _mfc1_0 = "MFC1"_cpu | 1_rt | 0_rd;
+    auto const _mfhc1_0 = "MFHC1"_cpu | 2_rt | 0_rd;
+
+    // $f1 into $3, $4
+    auto const _mfc1_1 = "MFC1"_cpu | 3_rt | 1_rd;
+    auto const _mfhc1_1 = "MFHC1"_cpu | 4_rt | 1_rd;
+
+    // $1, $2 ($f0) into $f1
+    auto const _mtc1_1 = "MTC1"_cpu | 1_rt | 1_rd;
+    auto const _mthc1_1 = "MTHC1"_cpu | 2_rt | 1_rd;
+
+    // $3, $4 ($f1) into $f0
+    auto const _mtc1_0 = "MTC1"_cpu | 3_rt | 0_rd;
+    auto const _mthc1_0 = "MTHC1"_cpu | 4_rt | 0_rd;
+
+    // Copying $f0/$f1 into GPRs
+    ram[0xBFC0'0000] = _mfc1_0;  // mfc1 $1, $f0
+    ram[0xBFC0'0004] = _mfhc1_0; // mfhc1 $2, $f0
+
+    ram[0xBFC0'0008] = _mfc1_1;  // mfc1 $3, $f1
+    ram[0xBFC0'000C] = _mfhc1_1; // mfhc1 $4, $f1
+
+    // Swapping FPRs
+    ram[0xBFC0'0010] = _mtc1_1;  // mtc1 $3, $f1
+    ram[0xBFC0'0014] = _mthc1_1; // mthc1 $4, $f1
+
+    ram[0xBFC0'0018] = _mtc1_0;  // mfhc1 $1, $f0
+    ram[0xBFC0'001C] = _mthc1_0; // mfhc1 $2, $f0
+
+    ram[0xBFC0'0020] = "BREAK"_cpu;
+
+    auto $1 = R( 1 );
+    auto $2 = R( 2 );
+
+    auto $3 = R( 3 );
+    auto $4 = R( 4 );
+
+    auto $f0 = FP( 0 );
+    auto $f1 = FP( 1 );
+
+    $f0->i64 = 0XBBBB'BBBB'AAAA'AAAAull;
+    $f1->i64 = 0xEEEE'EEEE'DDDD'DDDDull;
+
+    cpu.start();
+
+    THEN( "$f0 and $f1 shall be swapped" )
+    {
+      REQUIRE( $f0->i64 == 0xEEEE'EEEE'DDDD'DDDDull );
+      REQUIRE( $f1->i64 == 0XBBBB'BBBB'AAAA'AAAAull );
+    }
+  }
+
+  /* * * * * * * *
+   *             *
+   * EXCEPTIONS  *
+   *             *
+   * * * * * * * */
 
   //// Integer Overflow
 
@@ -3134,6 +3302,199 @@ SCENARIO( "A CPU object exists" )
       REQUIRE( ExCause() == 4 );
     }
   }
+
+  /* * * * * *
+   *         *
+   * SYSCALL *
+   *         *
+   * * * * * */
+
+  WHEN( "[SYSCALL] print_int is executed" )
+  {
+    auto $v0 = R( _v0 );
+    auto $a0 = R( _a0 );
+
+    *$v0 = PRINT_INT;
+    *$a0 = 19940915;
+
+    $start = "SYSCALL"_cpu;
+    cpu.single_step();
+
+    THEN( "An int shall be printed" )
+    {
+      REQUIRE( terminal->out_int == 19940915 );
+    }
+  }
+
+  WHEN( "[SYSCALL] print_float is executed" )
+  {
+    auto $v0 = R( _v0 );
+    auto $f12 = FP( 12 );
+
+    *$v0 = PRINT_FLOAT;
+    $f12->f = 1200.53f;
+
+    $start = "SYSCALL"_cpu;
+    cpu.single_step();
+
+    THEN( "A float shall be printed" )
+    {
+      REQUIRE( terminal->out_float == 1200.53f );
+    }
+  }
+
+  WHEN( "[SYSCALL] print_double is executed" )
+  {
+    auto $v0 = R( _v0 );
+    auto $f12 = FP( 12 );
+
+    *$v0 = PRINT_DOUBLE;
+    $f12->d = 987654.23;
+
+    $start = "SYSCALL"_cpu;
+    cpu.single_step();
+
+    THEN( "A double shall be printed" )
+    {
+      REQUIRE( terminal->out_double == 987654.23 );
+    }
+  }
+
+  // TODO: test SYSCALL print_string
+
+  WHEN( "[SYSCALL] read_int is executed" )
+  {
+    auto $v0 = R( _v0 );
+
+    *$v0 = READ_INT;
+
+    $start = "SYSCALL"_cpu;
+    cpu.single_step();
+
+    THEN( "An int shall be read" )
+    {
+      REQUIRE( *$v0 == ( std::uint32_t )terminal->in_int );
+    }
+  }
+
+  WHEN( "[SYSCALL] read_float is executed" )
+  {
+    auto $v0 = R( _v0 );
+    auto $f0 = FP( 0 );
+
+    *$v0 = READ_FLOAT;
+
+    $start = "SYSCALL"_cpu;
+    cpu.single_step();
+
+    THEN( "A float shall be read" )
+    {
+      REQUIRE( $f0->f == terminal->in_float );
+    }
+  }
+
+  WHEN( "[SYSCALL] read_double is executed" )
+  {
+    auto $v0 = R( _v0 );
+    auto $f0 = FP( 0 );
+
+    *$v0 = READ_DOUBLE;
+
+    $start = "SYSCALL"_cpu;
+    cpu.single_step();
+
+    THEN( "A float shall be read" )
+    {
+      REQUIRE( $f0->d == terminal->in_double );
+    }
+  }
+
+  // TODO: test SYSCALL read_string
+
+  WHEN( "[SYSCALL] sbrk is executed" )
+  {
+    auto $v0 = R( _v0 );
+    auto $a0 = R( _a0 );
+
+    *$v0 = SBRK;
+    *$a0 = 0;
+
+    ram[0xBFC0'0000] = "EI"_cpu;
+    ram[0xBFC0'0004] = "SYSCALL"_cpu;
+    cpu.single_step();
+    cpu.single_step();
+
+    THEN( "The CPU shall jump to the interrupt handler" )
+    {
+      REQUIRE( PC() == 0x8000'0180 );
+    }
+  }
+
+  WHEN( "[SYSCALL] exit is executed" )
+  {
+    auto $v0 = R( _v0 );
+    auto $a0 = R( _a0 );
+
+    *$v0 = EXIT;
+    *$a0 = 0;
+
+    $start = "SYSCALL"_cpu;
+
+    THEN( "'EXIT' shall be returned and $a0 left untouched" )
+    {
+      REQUIRE( cpu.single_step() == 4 );
+      REQUIRE( *$a0 == 0 );
+    }
+  }
+
+  WHEN( "[SYSCALL] print_char is executed" )
+  {
+    auto $v0 = R( _v0 );
+    auto $a0 = R( _a0 );
+
+    *$v0 = PRINT_CHAR;
+    *$a0 = 'n';
+
+    $start = "SYSCALL"_cpu;
+    cpu.single_step();
+
+    THEN( "A char shall be printed" )
+    {
+      REQUIRE( terminal->out_string == "n" );
+    }
+  }
+
+  WHEN( "[SYSCALL] read_char is executed" )
+  {
+    auto $v0 = R( _v0 );
+
+    *$v0 = READ_CHAR;
+
+    $start = "SYSCALL"_cpu;
+    cpu.single_step();
+
+    THEN( "A char shall be printed" )
+    {
+      REQUIRE( *$v0 == (std::uint32_t)terminal->in_char );
+    }
+  }
+
+  WHEN( "[SYSCALL] exit2 is executed" )
+  {
+    auto $v0 = R( _v0 );
+    auto $a0 = R( _a0 );
+
+    *$v0 = EXIT2;
+    *$a0 = 2537;
+
+    $start = "SYSCALL"_cpu;
+
+    THEN( "'EXIT' shall be returned and $a0 left untouched" )
+    {
+      REQUIRE( cpu.single_step() == 4 );
+      REQUIRE( *$a0 == 2537 );
+    }
+  }
 }
 
 #undef HasOverflowed
@@ -3142,5 +3503,6 @@ SCENARIO( "A CPU object exists" )
 #undef ClearExCause
 #undef CAUSE
 #undef PC
+#undef FP
 #undef R
 #undef $start

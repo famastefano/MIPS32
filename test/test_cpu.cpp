@@ -8,13 +8,10 @@
 
 #include <memory>
 
-// TODO: test BOVC
-// TODO: test BNVC
 // TODO: test for reserved(word) path
 // TODO: test BNEZALC
 // TODO: test for [L|S][B|H|W] with address overflow and $zero as destination
 // TODO: test JIC
-// TODO: test SUB overflow
 // TODO: test SELEQZ
 // TODO: test SELNEZ
 // TODO: test BLTZ
@@ -1181,6 +1178,86 @@ SCENARIO( "A CPU object exists" )
       $start = _beqzc_no_jump;
       cpu.single_step();
       REQUIRE( PC() == res_no_jump );
+    }
+  }
+
+  WHEN( "BOVC $2, $1, 256 and BOVC $4, $3, 1024 are executed" )
+  {
+    auto const _bovc_jump = "BOVC"_cpu | 2_rs | 1_rt | 256;
+    auto const _bovc_no_jump = "BOVC"_cpu | 4_rs | 3_rt | 1024;
+
+    auto $1 = R( 1 );
+    auto $2 = R( 2 );
+
+    auto $3 = R( 3 );
+    auto $4 = R( 4 );
+
+    *$1 = 0x8000'0000;
+    *$2 = 0x8000'0000;
+
+    *$3 = 1;
+    *$4 = 1;
+
+    auto const pc = PC();
+
+    auto const pc_jump = pc + 4 + ( 256 << 2 );
+    auto const pc_no_jump = pc + 4;
+
+    THEN( "It shall jump in the 1st case" )
+    {
+      PC() = pc;
+      $start = _bovc_jump;
+      cpu.single_step();
+
+      REQUIRE( PC() == pc_jump );
+    }
+    AND_THEN( "It shall not jump in the 2nd case" )
+    {
+      PC() = pc;
+      $start = _bovc_no_jump;
+      cpu.single_step();
+
+      REQUIRE( PC() == pc_no_jump );
+    }
+  }
+
+  WHEN( "BNVC $2, $1, 256 and BNVC $4, $3, 1024 are executed" )
+  {
+    auto const _bnvc_jump = "BNVC"_cpu | 2_rs | 1_rt | 256;
+    auto const _bnvc_no_jump = "BNVC"_cpu | 4_rs | 3_rt | 1024;
+
+    auto $1 = R( 1 );
+    auto $2 = R( 2 );
+
+    auto $3 = R( 3 );
+    auto $4 = R( 4 );
+
+    *$1 = 1;
+    *$2 = 1;
+
+    *$3 = 0x8000'0000;
+    *$4 = 0x8000'0000;
+
+    auto const pc = PC();
+
+    auto const pc_jump = pc + 4 + ( 256 << 2 );
+    auto const pc_no_jump = pc + 4;
+
+    THEN( "It shall jump in the 1st case" )
+    {
+      PC() = pc;
+      $start = _bnvc_jump;
+      cpu.single_step();
+
+      REQUIRE( PC() == pc_jump );
+    }
+    AND_THEN( "It shall not jump in the 2nd case" )
+    {
+      PC() = pc;
+      $start = _bnvc_no_jump;
+      cpu.single_step();
+
+      REQUIRE( PC() == pc_no_jump );
     }
   }
 
@@ -3286,7 +3363,7 @@ SCENARIO( "A CPU object exists" )
 
   WHEN( "SUB $1, $2, $3 is executed" )
   {
-    auto const _sub = "ADD"_cpu | 1_rd | 2_rs | 3_rt;
+    auto const _sub = "SUB"_cpu | 1_rd | 2_rs | 3_rt;
 
     auto $1 = R( 1 );
     auto $2 = R( 2 );

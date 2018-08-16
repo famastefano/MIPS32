@@ -48,10 +48,10 @@ std::unique_ptr<char[]> RAMString::read( std::uint32_t address, std::uint32_t co
   RAM::Block *block = nullptr;
   RAM::Block  tmp;
 
-  while ( index != -1 || !eof || length < count )
+  while ( index != -1 && !eof && length < count )
   {
-    if ( !in_memory )
-    { // [2]
+    if ( !in_memory ) // [2]
+    {
       tmp.base_address = ram.swapped[index].base_address;
 
       if ( !tmp.data )
@@ -63,8 +63,8 @@ std::unique_ptr<char[]> RAMString::read( std::uint32_t address, std::uint32_t co
       block = &tmp;
 
     }
-    else
-    { // [1]
+    else // [1]
+    {
       block = ram.blocks.data() + index;
     }
 
@@ -124,7 +124,7 @@ std::unique_ptr<char[]> RAMString::read( std::uint32_t address, std::uint32_t co
       index = _index;
       in_memory = _in_memory;
     }
-  } // while ( index != -1 || !eof || length < count )
+  } // while ( index != -1 && !eof && length < count )
 
   // [3]
   if ( !str_buf )
@@ -172,11 +172,10 @@ void RAMString::write( std::uint32_t address, char const *src, std::uint32_t cou
 
   auto[index, in_memory] = get_block( address );
 
-  while ( !eof || count )
+  while ( !eof && count )
   {
-    if ( in_memory )
-    { // [1]
-
+    if ( in_memory ) // [1]
+    {
       auto &block = ram.blocks[index];
 
       auto const begin = address - block.base_address;
@@ -187,11 +186,9 @@ void RAMString::write( std::uint32_t address, char const *src, std::uint32_t cou
 
       char_written += size;
       count -= size;
-
     }
-    else if ( !in_memory && index != -1 )
-    { // [2]
-
+    else if ( !in_memory && index != -1 ) // [2]
+    {
       auto const &block = ram.swapped[index];
 
       char file_name[18]{ '\0' };
@@ -213,18 +210,17 @@ void RAMString::write( std::uint32_t address, char const *src, std::uint32_t cou
 
       char_written += size;
       count -= size;
-
     }
-    else
-    { // [3]
-
+    else // [3]
+    {
       RAM::Block block;
 
       block.base_address = 0;
       while ( block.base_address + RAM::block_size <= address )
         block.base_address += RAM::block_size;
 
-      assert( block.allocate().data && "Couldn't allocate block!" );
+      block.allocate();
+      assert( block.data && "Couldn't allocate block!" );
 
       auto const begin = address - block.base_address;
       auto const limit = ( RAM::block_size - begin ) * sizeof( std::uint32_t );
@@ -232,7 +228,16 @@ void RAMString::write( std::uint32_t address, char const *src, std::uint32_t cou
 
       std::memcpy( ( char * )( block.data.get() + begin ) + ( address & 0b11 ), src + char_written, size );
 
-      block.deserialize();
+      // If we can push the new block directly into memory, we add it to the allocated blocks
+      if ( ram.swapped.empty() && ( ram.blocks.size() * RAM::block_size < ram.alloc_limit ) )
+      {
+        ram.blocks.emplace_back( std::move( block ) );
+      }
+      else // Otherwise we treat it like a swapped one
+      {
+        block.deserialize();
+        ram.swapped.push_back( { block.base_address } );
+      }
 
       char_written += size;
       count -= size;
@@ -250,7 +255,7 @@ void RAMString::write( std::uint32_t address, char const *src, std::uint32_t cou
       index = _index;
       in_memory = _in_memory;
     }
-  } // while ( !eof || count )
+  } // while ( !eof && count )
 }
 
 std::pair<std::uint32_t, bool> RAMString::get_block( std::uint32_t address ) const noexcept

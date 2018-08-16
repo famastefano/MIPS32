@@ -58,7 +58,7 @@ SCENARIO( "A CPU object exists" )
 {
   MachineInspector inspector;
 
-  RAM ram{ RAM::block_size };
+  RAM ram{ 1 * 1024 * 1024 * 1024 }; // 1 MB
   CPU cpu{ ram };
 
   inspector
@@ -3409,7 +3409,28 @@ SCENARIO( "A CPU object exists" )
     }
   }
 
-  // TODO: test SYSCALL read_string
+  WHEN( "[SYSCALL] read_string is executed (with string buffer between bounds)" )
+  {
+    auto $v0 = R( _v0 );
+    auto $a0 = R( _a0 );
+    auto $a1 = R( _a1 );
+
+    *$v0 = READ_STRING;
+    *$a0 = 0x8000'0000;
+    *$a1 = 80;
+
+    $start = "SYSCALL"_cpu;
+    cpu.single_step();
+
+    THEN( "Every character shall equal to terminal->in_char" )
+    {
+      auto const * _str = ( char* )std::addressof( ram[0x8000'0000] );
+      for ( int i = 0; i < 80; ++i )
+      {
+        REQUIRE( _str[i] == terminal->in_char );
+      }
+    }
+  }
 
   WHEN( "[SYSCALL] sbrk is executed" )
   {
@@ -3475,7 +3496,7 @@ SCENARIO( "A CPU object exists" )
 
     THEN( "A char shall be printed" )
     {
-      REQUIRE( *$v0 == (std::uint32_t)terminal->in_char );
+      REQUIRE( *$v0 == ( std::uint32_t )terminal->in_char );
     }
   }
 

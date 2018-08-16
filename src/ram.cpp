@@ -78,7 +78,7 @@ std::uint32_t &RAM::operator[]( std::uint32_t address ) noexcept
   {
     if ( contains( block_on_disk.base_address, address, block_size ) )
     {
-// Find a block to swap
+      // Find a block to swap
       auto &allocated_block = least_accessed();
 
       auto old_addr = allocated_block.base_address;

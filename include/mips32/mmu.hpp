@@ -15,11 +15,12 @@ class MMU
 public:
   struct Segment
   {
-    static inline constexpr std::uint32_t KERNEL = 0x0000'0001;
-    static inline constexpr std::uint32_t SUPERVISOR = 0x0000'0003;
-    static inline constexpr std::uint32_t USER = 0x0000'0007;
-    static inline constexpr std::uint32_t DEBUG = 0x0000'000F;
-    static inline constexpr std::uint32_t CACHED = 0x0000'0010;
+    static inline constexpr std::uint32_t USER = 0x01;
+    static inline constexpr std::uint32_t SUPERVISOR = 0x02;
+    static inline constexpr std::uint32_t KERNEL = 0x04;
+    static inline constexpr std::uint32_t ALL = 0x07;
+    static inline constexpr std::uint32_t DEBUG = 0x08;
+    static inline constexpr std::uint32_t CACHED = 0x10;
 
     std::uint32_t base_address,
       limit, access_flags;

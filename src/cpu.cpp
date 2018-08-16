@@ -6,9 +6,9 @@ namespace mips32
 {
 
 std::initializer_list<MMU::Segment> fixed_mapping_segments{
-    {0x0000'0000, 0x7FFF'FFFF, MMU::Segment::USER},       // useg
+    {0x0000'0000, 0x7FFF'FFFF, MMU::Segment::ALL},       // useg
     {0x8000'0000, 0x3FFF'FFFF, MMU::Segment::KERNEL},     // kseg0 + kseg1
-    {0xC000'0000, 0x1FFF'FFFF, MMU::Segment::SUPERVISOR}, // ksseg
+    {0xC000'0000, 0x1FFF'FFFF, MMU::Segment::SUPERVISOR | MMU::Segment::KERNEL}, // ksseg
     {0xE000'0000, 0x1FFF'FFFF, MMU::Segment::KERNEL},     // kseg3
 };
 
@@ -474,7 +474,7 @@ void CPU::pop10( std::uint32_t word ) noexcept
   {
     cond = gpr[_rs] == gpr[_rt];
   }
-  else if ( _rs >= _rt )
+  else if ( _rs >= _rt ) // BOVC
   {
     auto const sum = ( std::uint64_t )gpr[_rs] + ( std::uint64_t )gpr[_rt];
     cond = sum & 0x1'0000'0000;
@@ -631,7 +631,7 @@ void CPU::pop30( std::uint32_t word ) noexcept
   else if ( _rs >= _rt ) // BNVC
   {
     auto const sum = ( std::uint64_t )gpr[_rs] + ( std::uint64_t )gpr[_rt];
-    cond = sum & 0x1'0000'0000;
+    cond = !( sum & 0x1'0000'0000 );
   }
   else
   {
@@ -714,7 +714,7 @@ void CPU::op_byte( std::uint32_t word ) noexcept
 
   if constexpr ( op == _load )
   {
-    auto *load_byte = mmu.access( address, running_mode() ? MMU::Segment::USER : MMU::Segment::KERNEL );
+    auto *load_byte = mmu.access( address, running_mode() );
 
     if ( !load_byte )
     {
@@ -747,7 +747,7 @@ void CPU::op_byte( std::uint32_t word ) noexcept
         0x00FF'FFFF,
     };
 
-    auto *store_byte = mmu.access( address, running_mode() ? MMU::Segment::USER : MMU::Segment::KERNEL );
+    auto *store_byte = mmu.access( address, running_mode() );
 
     if ( !store_byte )
     {
@@ -809,7 +809,7 @@ void CPU::op_halfword( std::uint32_t word ) noexcept
 
   if constexpr ( op == _load )
   {
-    auto *lowhalf = mmu.access( address, running_mode() ? MMU::Segment::USER : MMU::Segment::KERNEL );
+    auto *lowhalf = mmu.access( address, running_mode() );
     if ( !lowhalf )
     {
       signal_exception( ExCause::AdEL, word, pc - 4 );
@@ -826,7 +826,7 @@ void CPU::op_halfword( std::uint32_t word ) noexcept
         return;
       }
 
-      auto *highhalf = mmu.access( address + 4, running_mode() ? MMU::Segment::USER : MMU::Segment::KERNEL );
+      auto *highhalf = mmu.access( address + 4, running_mode() );
       if ( !highhalf )
       {
         signal_exception( ExCause::AdEL, word, pc - 4 );
@@ -856,7 +856,7 @@ void CPU::op_halfword( std::uint32_t word ) noexcept
 
     low_half = gpr[_rt] & 0xFFFF;
 
-    auto *lowhalf = mmu.access( address, running_mode() ? MMU::Segment::USER : MMU::Segment::KERNEL );
+    auto *lowhalf = mmu.access( address, running_mode() );
     if ( !lowhalf )
     {
       signal_exception( ExCause::AdES, word, pc - 4 );
@@ -870,7 +870,7 @@ void CPU::op_halfword( std::uint32_t word ) noexcept
         signal_exception( ExCause::DBE, word, pc - 4 );
         return;
       }
-      auto *highhalf = mmu.access( address + 4, running_mode() ? MMU::Segment::USER : MMU::Segment::KERNEL );
+      auto *highhalf = mmu.access( address + 4, running_mode() );
       if ( !highhalf )
       {
         signal_exception( ExCause::AdES, word, pc - 4 );
@@ -928,7 +928,7 @@ void CPU::op_word( std::uint32_t _rt, std::uint32_t address, std::uint32_t _word
 
   if ( align == 0 )
   {
-    auto *word = mmu.access( address, running_mode() ? MMU::Segment::USER : MMU::Segment::KERNEL );
+    auto *word = mmu.access( address, running_mode() );
 
     if constexpr ( op == _load )
     {
@@ -957,8 +957,8 @@ void CPU::op_word( std::uint32_t _rt, std::uint32_t address, std::uint32_t _word
       return;
     }
 
-    auto *low = mmu.access( address, running_mode() ? MMU::Segment::USER : MMU::Segment::KERNEL );
-    auto *high = mmu.access( address + 4, running_mode() ? MMU::Segment::USER : MMU::Segment::KERNEL );
+    auto *low = mmu.access( address, running_mode() );
+    auto *high = mmu.access( address + 4, running_mode() );
 
     if constexpr ( op == _load )
     {

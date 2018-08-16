@@ -13,7 +13,7 @@ std::uint32_t *MMU::access( std::uint32_t address, std::uint32_t access_flags ) 
 {
   for ( auto const &segment : segments )
   {
-// 1
+  // 1
     if ( segment.contains( address ) && segment.has_access( access_flags ) )
     {
       return { &ram[address] };

@@ -8,6 +8,21 @@
 
 #include <memory>
 
+// TODO: test BOVC
+// TODO: test BNVC
+// TODO: test for reserved(word) path
+// TODO: test BNEZALC
+// TODO: test for [L|S][B|H|W] with address overflow and $zero as destination
+// TODO: test JIC
+// TODO: test SUB overflow
+// TODO: test SELEQZ
+// TODO: test SELNEZ
+// TODO: test BLTZ
+// TODO: test MFC0, MFHC0
+// TODO: test MTC0, MTHC0
+// TODO: test LWPC
+// TODO: test LWUPC
+
 using namespace mips32;
 
 using ui32 = std::uint32_t;
@@ -3514,6 +3529,38 @@ SCENARIO( "A CPU object exists" )
     {
       REQUIRE( cpu.single_step() == 4 );
       REQUIRE( *$a0 == 2537 );
+    }
+  }
+
+  WHEN( "SYSCALL is executed with an incorrect value in $v0" )
+  {
+    auto $v0 = R( _v0 );
+
+    *$v0 = -1;
+
+    $start = "SYSCALL"_cpu;
+    cpu.single_step();
+
+    THEN( "The CPU should raise an exception" )
+    {
+      REQUIRE( ExCause() == 8 );
+    }
+  }
+
+  WHEN( "The CPU fetches an instruction from an address that doesn't have access to" )
+  {
+     // forcing User Mode
+    inspector.CP0_status() &= ~0x1E;
+    inspector.CP0_status() |= 0x10;
+
+    $start = "SIGRIE"_cpu; // this will never be executed
+
+    cpu.single_step();
+
+    THEN( "The cpu shall raise an Address Error Exception on fetch" )
+    {
+      REQUIRE( ExCause() == 4 );
+      REQUIRE( PC() == 0x8000'0180 );
     }
   }
 }

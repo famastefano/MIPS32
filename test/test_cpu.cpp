@@ -1531,7 +1531,7 @@ SCENARIO( "A CPU object exists" )
   }
 
   //// Signed Load
-  
+
   WHEN( "LB $1, n($2) is executed with n = {0,1,2,3}" )
   {
     auto const _lb_0 = "LB"_cpu | 1_rt | 0 | 2_rs;
@@ -1670,6 +1670,57 @@ SCENARIO( "A CPU object exists" )
       $start = _lw_3;
       cpu.single_step();
       REQUIRE( *$1 == 0x5678'90AB );
+    }
+  }
+
+  WHEN( "LWC1 $f0, n($1) is executed with n = {0,1,2,3}" )
+  {
+    auto const _lwc1_0 = "LWC1"_cpu | 0_rt | 1_rs | 0;
+    auto const _lwc1_1 = "LWC1"_cpu | 0_rt | 1_rs | 1;
+    auto const _lwc1_2 = "LWC1"_cpu | 0_rt | 1_rs | 2;
+    auto const _lwc1_3 = "LWC1"_cpu | 0_rt | 1_rs | 3;
+
+    auto $f0 = inspector.CP1_fpr_begin();
+    auto $1 = R( 1 );
+
+    *$1 = 0x8000'0000;
+
+    ram[0x8000'0000] = 0xDDDD'EEEE;
+    ram[0x8000'0004] = 0xAAAA'BBBB;
+
+    auto const pc = PC();
+
+    THEN( "0($1) should load 0xDDDD'EEEE" )
+    {
+      PC() = pc;
+      $start = _lwc1_0;
+      cpu.single_step();
+
+      REQUIRE( $f0->i32 == 0xDDDD'EEEE );
+    }
+    AND_THEN( "1($1) should load 0xBBDD'DDEE" )
+    {
+      PC() = pc;
+      $start = _lwc1_1;
+      cpu.single_step();
+
+      REQUIRE( $f0->i32 == 0xBBDD'DDEE );
+    }
+    AND_THEN( "2($1) should load 0xBBBB'DDDD" )
+    {
+      PC() = pc;
+      $start = _lwc1_2;
+      cpu.single_step();
+
+      REQUIRE( $f0->i32 == 0xBBBB'DDDD );
+    }
+    AND_THEN( "3($1) should load 0xAABB'BBDD" )
+    {
+      PC() = pc;
+      $start = _lwc1_3;
+      cpu.single_step();
+
+      REQUIRE( $f0->i32 == 0xAABB'BBDD );
     }
   }
 
@@ -1887,24 +1938,30 @@ SCENARIO( "A CPU object exists" )
       PC() = pc;
       $start = _sh_0;
       ram[0x8000'0000] = 0xCCCC'CCCC;
+      ram[0x8000'0004] = 0xCCCC'CCCC;
       cpu.single_step();
       REQUIRE( ram[0x8000'0000] == 0xCCCC'3333 );
+      REQUIRE( ram[0x8000'0004] == 0xCCCC'CCCC );
     }
     AND_THEN( "1($2) should store 0xCC33'33CC" )
     {
       PC() = pc;
       $start = _sh_1;
       ram[0x8000'0000] = 0xCCCC'CCCC;
+      ram[0x8000'0004] = 0xCCCC'CCCC;
       cpu.single_step();
       REQUIRE( ram[0x8000'0000] == 0xCC33'33CC );
+      REQUIRE( ram[0x8000'0004] == 0xCCCC'CCCC );
     }
     AND_THEN( "2($2) should store 0x3333'CCCC" )
     {
       PC() = pc;
       $start = _sh_2;
       ram[0x8000'0000] = 0xCCCC'CCCC;
+      ram[0x8000'0004] = 0xCCCC'CCCC;
       cpu.single_step();
       REQUIRE( ram[0x8000'0000] == 0x3333'CCCC );
+      REQUIRE( ram[0x8000'0004] == 0xCCCC'CCCC );
     }
     AND_THEN( "3($2) should store 0x33CC'CCCC and 0xCCCC'CC33" )
     {
@@ -1938,8 +1995,10 @@ SCENARIO( "A CPU object exists" )
       PC() = pc;
       $start = _sw_0;
       ram[0x8000'0000] = 0xCCCC'CCCC;
+      ram[0x8000'0004] = 0xCCCC'CCCC;
       cpu.single_step();
       REQUIRE( ram[0x8000'0000] == 0x3333'3333 );
+      REQUIRE( ram[0x8000'0004] == 0xCCCC'CCCC );
     }
     AND_THEN( "1($2) should store 0x3333'33CC and 0xCCCC'CC33" )
     {
@@ -1973,6 +2032,70 @@ SCENARIO( "A CPU object exists" )
     }
   }
 
+  WHEN( "SWC1 $f0, n($1) is executed with n = {0,1,2,3}" )
+  {
+    auto const _swc1_0 = "SWC1"_cpu | 0_rt | 1_rs | 0;
+    auto const _swc1_1 = "SWC1"_cpu | 0_rt | 1_rs | 1;
+    auto const _swc1_2 = "SWC1"_cpu | 0_rt | 1_rs | 2;
+    auto const _swc1_3 = "SWC1"_cpu | 0_rt | 1_rs | 3;
+
+    auto $f0 = inspector.CP1_fpr_begin();
+    auto $1 = R( 1 );
+
+    *$1 = 0x8000'0000;
+    $f0->i32 = 0xAAAA'BBBB;
+
+    ram[0x8000'0000] = 0xCCCC'CCCC;
+    ram[0x8000'0004] = 0xCCCC'CCCC;
+
+    auto const pc = PC();
+
+    THEN( "0($1) should store 0xAAAA'BBBB" )
+    {
+      PC() = pc;
+      $start = _swc1_0;
+      ram[0x8000'0000] = 0xCCCC'CCCC;
+      ram[0x8000'0004] = 0xCCCC'CCCC;
+      cpu.single_step();
+
+      REQUIRE( ram[0x8000'0000] == 0xAAAA'BBBB );
+      REQUIRE( ram[0x8000'0004] == 0xCCCC'CCCC );
+    }
+    AND_THEN( "1($1) should load 0xAABB'BBCC and 0xCCCC'CCAA" )
+    {
+      PC() = pc;
+      $start = _swc1_1;
+      ram[0x8000'0000] = 0xCCCC'CCCC;
+      ram[0x8000'0004] = 0xCCCC'CCCC;
+      cpu.single_step();
+
+      REQUIRE( ram[0x8000'0000] == 0xAABB'BBCC );
+      REQUIRE( ram[0x8000'0004] == 0xCCCC'CCAA );
+    }
+    AND_THEN( "2($1) should load 0xBBBB'CCCC and 0xCCCC'AAAA" )
+    {
+      PC() = pc;
+      $start = _swc1_2;
+      ram[0x8000'0000] = 0xCCCC'CCCC;
+      ram[0x8000'0004] = 0xCCCC'CCCC;
+      cpu.single_step();
+
+      REQUIRE( ram[0x8000'0000] == 0xBBBB'CCCC );
+      REQUIRE( ram[0x8000'0004] == 0xCCCC'AAAA );
+    }
+    AND_THEN( "3($1) should load 0xBBCC'CCCC and 0xCCAA'AABB" )
+    {
+      PC() = pc;
+      $start = _swc1_3;
+      ram[0x8000'0000] = 0xCCCC'CCCC;
+      ram[0x8000'0004] = 0xCCCC'CCCC;
+      cpu.single_step();
+
+      REQUIRE( ram[0x8000'0000] == 0xBBCC'CCCC );
+      REQUIRE( ram[0x8000'0004] == 0xCCAA'AABB );
+    }
+  }
+
   WHEN( "SDC1 $f0, n($1) is executed with n = {0,1,2,3}" )
   {
     auto const _sdc1_0 = "SDC1"_cpu | 0_rt | 0 | 1_rs;
@@ -2003,6 +2126,7 @@ SCENARIO( "A CPU object exists" )
       cpu.single_step();
       REQUIRE( ram[0x8000'0000] == 0xDDDD'EEEE );
       REQUIRE( ram[0x8000'0004] == 0xAAAA'BBBB );
+      REQUIRE( ram[0x8000'0008] == 0xCCCC'CCCC );
     }
     AND_THEN( "1($1) should store 0xDDEE'EECC and 0xAABB'BBDD and 0xCCCC'CCAA" )
     {
@@ -2110,7 +2234,7 @@ SCENARIO( "A CPU object exists" )
       REQUIRE( *$29 == 0xABCD'0000 );
     }
   }
-  
+
   WHEN( "MUL $1, $2, $3 is executed" )
   {
     auto const _mul = "MUL"_cpu | 1_rd | 2_rs | 3_rt;

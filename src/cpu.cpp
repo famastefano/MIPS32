@@ -1055,9 +1055,9 @@ void CPU::lwc1( std::uint32_t word ) noexcept
   auto const ft = rt( word );
   auto const _base = rs( word );
   auto const _immediate = immediate( word );
-  auto const address = _base + sign_extend<_halfword>( _immediate );
+  auto const address = gpr[_base] + sign_extend<_halfword>( _immediate );
 
-  op_word<_load>( 1, address, word );
+  op_word<_load>( 0, address, word );
   cp1.mtc1( ft, gpr[0] );
 
   gpr[0] = 0;
@@ -1123,7 +1123,7 @@ void CPU::swc1( std::uint32_t word ) noexcept
   auto const ft = rt( word );
   auto const _base = rs( word );
   auto const _immediate = immediate( word );
-  auto const address = _base + sign_extend<_halfword>( _immediate );
+  auto const address = gpr[_base] +sign_extend<_halfword>( _immediate );
 
   gpr[0] = cp1.mfc1( ft );
 

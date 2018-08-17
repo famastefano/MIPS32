@@ -20,8 +20,6 @@ constexpr std::uint32_t shamt( std::uint32_t word ) noexcept;
 constexpr std::uint32_t function( std::uint32_t word ) noexcept;
 constexpr std::uint32_t immediate( std::uint32_t word ) noexcept;
 
-bool is_cti( std::uint32_t word ) noexcept;
-
 template <int type>
 constexpr std::uint32_t sign_extend( std::uint32_t imm ) noexcept;
 
@@ -1114,7 +1112,7 @@ void CPU::pop66( std::uint32_t word ) noexcept
   }
   else // JIC
   {
-    pc += sign_extend<_halfword>( immediate( word ) );
+    pc = gpr[_rt] + sign_extend<_halfword>( immediate( word ) );
   }
 }
 
@@ -1864,7 +1862,7 @@ void CPU::lwpc( std::uint32_t word ) noexcept
 {
   auto const _rs = rs( word );
 
-  auto address = ( word & 0x000F'FFFF ) << 2;
+  auto address = ( word & 0x0007'FFFF ) << 2;
 
   if ( address & 0x0020'0000 ) // sign extend
     address |= 0xFFC0'0000;
@@ -1876,7 +1874,7 @@ void CPU::lwpc( std::uint32_t word ) noexcept
 void CPU::lwupc( std::uint32_t word ) noexcept
 {
   auto const _rs = rs( word );
-  auto const address = ( pc - 4 ) + ( ( word & 0x000F'FFFF ) << 2 );
+  auto const address = ( pc - 4 ) + ( ( word & 0x0007'FFFF ) << 2 );
 
   op_word<_load>( _rs, address, word );
 }

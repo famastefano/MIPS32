@@ -11,14 +11,6 @@
 // TODO: test for reserved(word) path
 // TODO: test BNEZALC
 // TODO: test for [L|S][B|H|W] with address overflow and $zero as destination
-// TODO: test JIC
-// TODO: test SELEQZ
-// TODO: test SELNEZ
-// TODO: test BLTZ
-// TODO: test MFC0, MFHC0
-// TODO: test MTC0, MTHC0
-// TODO: test LWPC
-// TODO: test LWUPC
 
 using namespace mips32;
 
@@ -1638,6 +1630,25 @@ SCENARIO( "A CPU object exists" )
     }
   }
 
+  WHEN( "JIC $1, 51 is executed" )
+  {
+    auto const _jic = "JIC"_cpu | 1_rt | 51;
+
+    auto $1 = R( 1 );
+
+    *$1 = 0xAE00'0000;
+
+    auto const res = 0xAE00'0000 + 51;
+
+    $start = _jic;
+    cpu.single_step();
+
+    THEN( "The new PC shall be 0xAE00'0033" )
+    {
+      REQUIRE( PC() == 0xAE00'0033 );
+    }
+  }
+
   WHEN( "JR $31 is executed" )
   {
     auto const _jr = "JR"_cpu | 31_rs;
@@ -1846,6 +1857,44 @@ SCENARIO( "A CPU object exists" )
       cpu.single_step();
 
       REQUIRE( $f0->i32 == 0xAABB'BBDD );
+    }
+  }
+
+  WHEN( "LWPC $1, 6000 is executed" )
+  {
+    auto const _lwpc = "LWPC"_cpu | 1_rs | 6000;
+
+    auto $1 = R( 1 );
+
+    *$1 = 0xCCCC'CCCC;
+
+    ram[0xBFC0'0000 + ( 6000 << 2 )] = 0xAAAA'BBBB;
+
+    $start = _lwpc;
+    cpu.single_step();
+
+    THEN( "$1 shall equal to 0xAAAA'BBBB" )
+    {
+      REQUIRE( *$1 == 0xAAAA'BBBB );
+    }
+  }
+
+  WHEN( "LWUPC $1, 6000 is executed" )
+  {
+    auto const _lwupc = "LWUPC"_cpu | 1_rs | 6000;
+
+    auto $1 = R( 1 );
+
+    *$1 = 0xCCCC'CCCC;
+
+    ram[0xBFC0'0000 + ( 6000 << 2 )] = 0xAAAA'BBBB;
+
+    $start = _lwupc;
+    cpu.single_step();
+
+    THEN( "$1 shall equal to 0xAAAA'BBBB" )
+    {
+      REQUIRE( *$1 == 0xAAAA'BBBB );
     }
   }
 
@@ -2594,6 +2643,88 @@ SCENARIO( "A CPU object exists" )
     }
   }
 
+  WHEN( "SELEQZ $1, $2, $3 and SELEQZ $4, $5, $6 are executed" )
+  {
+    auto const _seleqz_select = "SELEQZ"_cpu | 1_rd | 2_rs | 3_rt;
+    auto const _seleqz_no_select = "SELEQZ"_cpu | 4_rd | 5_rs | 6_rt;
+
+    auto $1 = R( 1 );
+    auto $2 = R( 2 );
+    auto $3 = R( 3 );
+
+    auto $4 = R( 4 );
+    auto $5 = R( 5 );
+    auto $6 = R( 6 );
+
+    *$1 = 0;
+    *$3 = 0;
+    *$2 = 523;
+
+    *$4 = 6000;
+    *$6 = 1;
+    *$5 = 9;
+
+    auto const pc = PC();
+
+    THEN( "It shall change $1 to $2 in the 1st case" )
+    {
+      PC() = pc;
+      $start = _seleqz_select;
+      cpu.single_step();
+
+      REQUIRE( *$1 == *$2 );
+    }
+    THEN( "It shall change $4 to 0 in the 2nd case" )
+    {
+      PC() = pc;
+      $start = _seleqz_no_select;
+      cpu.single_step();
+
+      REQUIRE( *$4 == 0 );
+    }
+  }
+
+  WHEN( "SELNEZ $1, $2, $3 and SELNEZ $4, $5, $6 are executed" )
+  {
+    auto const _selnez_select = "SELNEZ"_cpu | 1_rd | 2_rs | 3_rt;
+    auto const _selnez_no_select = "SELNEZ"_cpu | 4_rd | 5_rs | 6_rt;
+
+    auto $1 = R( 1 );
+    auto $2 = R( 2 );
+    auto $3 = R( 3 );
+
+    auto $4 = R( 4 );
+    auto $5 = R( 5 );
+    auto $6 = R( 6 );
+
+    *$1 = 0;
+    *$3 = 1;
+    *$2 = 523;
+
+    *$4 = 6000;
+    *$6 = 0;
+    *$5 = 9;
+
+    auto const pc = PC();
+
+    THEN( "It shall change $1 to $2 in the 1st case" )
+    {
+      PC() = pc;
+      $start = _selnez_select;
+      cpu.single_step();
+
+      REQUIRE( *$1 == *$2 );
+    }
+    THEN( "It shall change $4 to 0 in the 2nd case" )
+    {
+      PC() = pc;
+      $start = _selnez_no_select;
+      cpu.single_step();
+
+      REQUIRE( *$4 == 0 );
+    }
+  }
+
   WHEN( "SLL $1, $2, 18 is executed" )
   {
     auto const _sll = "SLL"_cpu | 1_rd | 2_rt | 18_shamt;
@@ -3202,6 +3333,373 @@ SCENARIO( "A CPU object exists" )
    *                 *
    * * * * * * * * * */
 
+  WHEN( "[MFC0] is executed with multiple selections (all of them write to $1)" )
+  {
+    auto const _user_local = "MFC0"_cpu | 1_rt | 4_rd | 2;
+    auto const _hwrena = "MFC0"_cpu | 1_rt | 7_rd | 0;
+    auto const _badvaddr = "MFC0"_cpu | 1_rt | 8_rd | 0;
+    auto const _badinstr = "MFC0"_cpu | 1_rt | 8_rd | 1;
+    auto const _status = "MFC0"_cpu | 1_rt | 12_rd | 0;
+    auto const _intctl = "MFC0"_cpu | 1_rt | 12_rd | 1;
+    auto const _srsctl = "MFC0"_cpu | 1_rt | 12_rd | 2;
+    auto const _cause = "MFC0"_cpu | 1_rt | 13_rd | 0;
+    auto const _epc = "MFC0"_cpu | 1_rt | 14_rd | 0;
+    auto const _prid = "MFC0"_cpu | 1_rt | 15_rd | 0;
+    auto const _ebase = "MFC0"_cpu | 1_rt | 15_rd | 1;
+    ui32 const _config[6] = {
+      "MFC0"_cpu | 1_rt | 16_rd | 0,
+      "MFC0"_cpu | 1_rt | 16_rd | 1,
+      "MFC0"_cpu | 1_rt | 16_rd | 2,
+      "MFC0"_cpu | 1_rt | 16_rd | 3,
+      "MFC0"_cpu | 1_rt | 16_rd | 4,
+      "MFC0"_cpu | 1_rt | 16_rd | 5,
+    };
+    auto const _errorepc = "MFC0"_cpu | 1_rt | 30_rd | 0;
+    ui32 const _kscratch[6] = {
+      "MFC0"_cpu | 1_rt | 31_rd | 2,
+      "MFC0"_cpu | 1_rt | 31_rd | 3,
+      "MFC0"_cpu | 1_rt | 31_rd | 4,
+      "MFC0"_cpu | 1_rt | 31_rd | 5,
+      "MFC0"_cpu | 1_rt | 31_rd | 6,
+      "MFC0"_cpu | 1_rt | 31_rd | 7,
+    };
+
+    auto const pc = PC();
+
+    auto $1 = R( 1 );
+
+    THEN( "I shall able to read user_local" )
+    {
+      PC() = pc;
+      $start = _user_local;
+      cpu.single_step();
+
+      REQUIRE( *$1 == inspector.CP0_user_local() );
+    }
+    AND_THEN( "I shall able to read HWREna" )
+    {
+      PC() = pc;
+      $start = _hwrena;
+      cpu.single_step();
+
+      REQUIRE( *$1 == inspector.CP0_hwr_ena() );
+    }
+    AND_THEN( "I shall able to read BadVAddr" )
+    {
+      PC() = pc;
+      $start = _badvaddr;
+      cpu.single_step();
+
+      REQUIRE( *$1 == inspector.CP0_bad_vaddr() );
+    }
+    AND_THEN( "I shall able to read BadInstr" )
+    {
+      PC() = pc;
+      $start = _badinstr;
+      cpu.single_step();
+
+      REQUIRE( *$1 == inspector.CP0_bad_instr() );
+    }
+    AND_THEN( "I shall able to read Status" )
+    {
+      PC() = pc;
+      $start = _status;
+      cpu.single_step();
+
+      REQUIRE( *$1 == inspector.CP0_status() );
+    }
+    AND_THEN( "I shall able to read IntCtl" )
+    {
+      PC() = pc;
+      $start = _intctl;
+      cpu.single_step();
+
+      REQUIRE( *$1 == inspector.CP0_int_ctl() );
+    }
+    AND_THEN( "I shall able to read SRSCtl" )
+    {
+      PC() = pc;
+      $start = _srsctl;
+      cpu.single_step();
+
+      REQUIRE( *$1 == inspector.CP0_srs_ctl() );
+    }
+    AND_THEN( "I shall able to read Cause" )
+    {
+      PC() = pc;
+      $start = _cause;
+      cpu.single_step();
+
+      REQUIRE( *$1 == inspector.CP0_cause() );
+    }
+    AND_THEN( "I shall able to read EPC" )
+    {
+      PC() = pc;
+      $start = _epc;
+      cpu.single_step();
+
+      REQUIRE( *$1 == inspector.CP0_epc() );
+    }
+    AND_THEN( "I shall able to read PRId" )
+    {
+      PC() = pc;
+      $start = _prid;
+      cpu.single_step();
+
+      REQUIRE( *$1 == inspector.CP0_pr_id() );
+    }
+    AND_THEN( "I shall able to read EBase" )
+    {
+      PC() = pc;
+      $start = _ebase;
+      cpu.single_step();
+
+      REQUIRE( *$1 == inspector.CP0_e_base() );
+    }
+    AND_THEN( "I shall able to read Config registers" )
+    {
+      for ( int i = 0; i < 6; ++i )
+      {
+        PC() = pc;
+        $start = _config[i];
+        cpu.single_step();
+
+        REQUIRE( *$1 == inspector.CP0_config( i ) );
+      }
+    }
+    AND_THEN( "I shall able to read ErrorEPC" )
+    {
+      PC() = pc;
+      $start = _errorepc;
+      cpu.single_step();
+
+      REQUIRE( *$1 == inspector.CP0_error_epc() );
+    }
+    AND_THEN( "I shall able to read KScratch registers" )
+    {
+      for ( int i = 0; i < 6; ++i )
+      {
+        PC() = pc;
+        $start = _kscratch[i];
+        cpu.single_step();
+
+        REQUIRE( *$1 == inspector.CP0_k_scratch( i + 2 ) );
+      }
+    }
+  }
+
+  WHEN( "MFHC0 is executed" )
+  {
+    auto $1 = R( 1 );
+
+    *$1 = 21;
+
+    $start = "MFHC0"_cpu | 1_rt;
+
+    cpu.single_step();
+
+    THEN( "MFHC0 is implemented to always write 0" )
+    {
+      REQUIRE( *$1 == 0 );
+    }
+  }
+
+  WHEN( "[MTC0] is executed with multiple selections (all of them read from $1)" )
+  {
+    auto const _user_local = "MTC0"_cpu | 1_rt | 4_rd | 2;
+    auto const _hwrena = "MTC0"_cpu | 1_rt | 7_rd | 0;
+    auto const _badvaddr = "MTC0"_cpu | 1_rt | 8_rd | 0;
+    auto const _badinstr = "MTC0"_cpu | 1_rt | 8_rd | 1;
+    auto const _status = "MTC0"_cpu | 1_rt | 12_rd | 0;
+    auto const _intctl = "MTC0"_cpu | 1_rt | 12_rd | 1;
+    auto const _srsctl = "MTC0"_cpu | 1_rt | 12_rd | 2;
+    auto const _cause = "MTC0"_cpu | 1_rt | 13_rd | 0;
+    auto const _epc = "MTC0"_cpu | 1_rt | 14_rd | 0;
+    auto const _prid = "MTC0"_cpu | 1_rt | 15_rd | 0;
+    auto const _ebase = "MTC0"_cpu | 1_rt | 15_rd | 1;
+    ui32 const _config[6] = {
+      "MTC0"_cpu | 1_rt | 16_rd | 0,
+      "MTC0"_cpu | 1_rt | 16_rd | 1,
+      "MTC0"_cpu | 1_rt | 16_rd | 2,
+      "MTC0"_cpu | 1_rt | 16_rd | 3,
+      "MTC0"_cpu | 1_rt | 16_rd | 4,
+      "MTC0"_cpu | 1_rt | 16_rd | 5,
+    };
+    auto const _errorepc = "MTC0"_cpu | 1_rt | 30_rd | 0;
+    ui32 const _kscratch[6] = {
+      "MTC0"_cpu | 1_rt | 31_rd | 2,
+      "MTC0"_cpu | 1_rt | 31_rd | 3,
+      "MTC0"_cpu | 1_rt | 31_rd | 4,
+      "MTC0"_cpu | 1_rt | 31_rd | 5,
+      "MTC0"_cpu | 1_rt | 31_rd | 6,
+      "MTC0"_cpu | 1_rt | 31_rd | 7,
+    };
+
+    auto const pc = PC();
+
+    auto $1 = R( 1 );
+
+    *$1 = 0xFFFF'FFFF;
+
+    THEN( "I shall able to write user_local" )
+    {
+      PC() = pc;
+      $start = _user_local;
+      cpu.single_step();
+
+      REQUIRE( *$1 == inspector.CP0_user_local() );
+    }
+    AND_THEN( "I shall not able to write HWREna" )
+    {
+      auto const _prev_hwr_ena = inspector.CP0_hwr_ena();
+
+      PC() = pc;
+      $start = _hwrena;
+      cpu.single_step();
+
+      REQUIRE( _prev_hwr_ena == inspector.CP0_hwr_ena() );
+    }
+    AND_THEN( "I shall not able to write BadVAddr" )
+    {
+      auto const _prev_bad_vaddr = inspector.CP0_bad_vaddr();
+
+      PC() = pc;
+      $start = _badvaddr;
+      cpu.single_step();
+
+      REQUIRE( _prev_bad_vaddr == inspector.CP0_bad_vaddr() );
+    }
+    AND_THEN( "I shall not able to write BadInstr" )
+    {
+      auto const _prev_bad_instr = inspector.CP0_bad_instr();
+
+      PC() = pc;
+      $start = _badinstr;
+      cpu.single_step();
+
+      REQUIRE( _prev_bad_instr == inspector.CP0_bad_instr() );
+    }
+    AND_THEN( "I shall able to write Status" )
+    {
+      ui32 const expected_status = 0xFFFF'FFFF & 0x1000'FF13 | inspector.CP0_status();
+
+      PC() = pc;
+      $start = _status;
+      cpu.single_step();
+
+      REQUIRE( expected_status == inspector.CP0_status() );
+    }
+    AND_THEN( "I shall not able to write IntCtl" )
+    {
+      auto const _prev_int_ctl = inspector.CP0_int_ctl();
+
+      PC() = pc;
+      $start = _intctl;
+      cpu.single_step();
+
+      REQUIRE( _prev_int_ctl == inspector.CP0_int_ctl() );
+    }
+    AND_THEN( "I shall not able to write SRSCtl" )
+    {
+      auto const _prev_srs_ctl = inspector.CP0_srs_ctl();
+
+      PC() = pc;
+      $start = _srsctl;
+      cpu.single_step();
+
+      REQUIRE( _prev_srs_ctl == inspector.CP0_srs_ctl() );
+    }
+    AND_THEN( "I shall not able to write Cause" )
+    {
+      auto const _prev_cause = inspector.CP0_cause();
+
+      PC() = pc;
+      $start = _cause;
+      cpu.single_step();
+
+      REQUIRE( _prev_cause == inspector.CP0_cause() );
+    }
+    AND_THEN( "I shall able to write EPC" )
+    {
+      PC() = pc;
+      $start = _epc;
+      cpu.single_step();
+
+      REQUIRE( *$1 == inspector.CP0_epc() );
+    }
+    AND_THEN( "I shall not able to write PRId" )
+    {
+      auto const _prev_pr_id = inspector.CP0_pr_id();
+
+      PC() = pc;
+      $start = _prid;
+      cpu.single_step();
+
+      REQUIRE( _prev_pr_id == inspector.CP0_pr_id() );
+    }
+    AND_THEN( "I shall able to write EBase (WG disabled)" )
+    {
+      *$1 &= ~( 1 << 11 ); // otherwise we could enable the WG
+      
+      PC() = pc;
+      $start = _ebase;
+      cpu.single_step();
+
+      *$1 = 0xFFFF'FFFF;
+
+      REQUIRE( 0x3FFF'F000 == inspector.CP0_e_base() );
+    }
+    AND_THEN( "I shall able to write EBase (WG enabled)" )
+    {
+      inspector.CP0_e_base() |= 1 << 11; // enable WG
+
+      PC() = pc;
+      $start = _ebase;
+      cpu.single_step();
+
+      REQUIRE( 0xFFFF'F800 == inspector.CP0_e_base() ); // 31..30 and WG are set
+    }
+    AND_THEN( "I shall not able to write Config registers" )
+    {
+      for ( int i = 0; i < 6; ++i )
+      {
+        auto const _prev_config = inspector.CP0_config( i );
+
+        PC() = pc;
+        $start = _config[i];
+        cpu.single_step();
+
+        REQUIRE( _prev_config == inspector.CP0_config( i ) );
+      }
+    }
+    AND_THEN( "I shall able to write ErrorEPC" )
+    {
+      PC() = pc;
+      $start = _errorepc;
+      cpu.single_step();
+
+      REQUIRE( *$1 == inspector.CP0_error_epc() );
+    }
+    AND_THEN( "I shall able to write KScratch registers" )
+    {
+      for ( int i = 0; i < 6; ++i )
+      {
+        PC() = pc;
+        $start = _kscratch[i];
+        cpu.single_step();
+
+        REQUIRE( *$1 == inspector.CP0_k_scratch( i + 2 ) );
+      }
+    }
+  }
+
+  // This test is used just to increase the coverage, MTHC0 behave like a NOP
+  WHEN( "MTHC0 is executed" )
+  {
+    $start = "MTHC0"_cpu;
+    cpu.single_step();
+  }
+
   WHEN( "MFC1 $1, $f0 is executed" )
   {
     auto const _mfc1 = "MFC1"_cpu | 1_rt | 0_rd;
@@ -3640,6 +4138,8 @@ SCENARIO( "A CPU object exists" )
       REQUIRE( PC() == 0x8000'0180 );
     }
   }
+
+
 }
 
 #undef HasOverflowed

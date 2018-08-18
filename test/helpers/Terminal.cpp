@@ -1,21 +1,21 @@
 #include "Terminal.hpp"
 
-void Terminal::write_integer( std::uint32_t value ) noexcept
+void Terminal::print_integer( std::uint32_t value ) noexcept
 {
   out_int = ( std::int32_t )value;
 }
 
-void Terminal::write_float( float value ) noexcept
+void Terminal::print_float( float value ) noexcept
 {
   out_float = value;
 }
 
-void Terminal::write_double( double value ) noexcept
+void Terminal::print_double( double value ) noexcept
 {
   out_double = value;
 }
 
-void Terminal::write_string( char const * string ) noexcept
+void Terminal::print_string( char const * string ) noexcept
 {
   out_string = string;
 }

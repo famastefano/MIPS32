@@ -1276,26 +1276,26 @@ void CPU::jalr( std::uint32_t word ) noexcept
 }
 void CPU::syscall( std::uint32_t word ) noexcept
 {
-  constexpr std::uint32_t _v0{ 2 };
-  constexpr std::uint32_t _v1{ 3 };
+  constexpr std::uint32_t v0{ 2 };
+  constexpr std::uint32_t v1{ 3 };
 
   constexpr std::uint32_t a0{ 4 };
   constexpr std::uint32_t a1{ 5 };
   constexpr std::uint32_t a2{ 6 };
 
-  auto const v0 = gpr[_v0];
+  auto const sysnum = gpr[v0];
 
-  if ( v0 == 0 || v0 > 17 )
+  if ( sysnum == 0 || sysnum > 17 )
   {
     signal_exception( ExCause::Sys, word, pc - 4 );
     return;
   }
 
-  if ( v0 == 1 ) // print int
+  if ( sysnum == 1 ) // print int
   {
-    io_device->write_integer( gpr[a0] );
+    io_device->print_integer( gpr[a0] );
   }
-  else if ( v0 == 2 ) // print float
+  else if ( sysnum == 2 ) // print float
   {
     union
     {
@@ -1305,9 +1305,9 @@ void CPU::syscall( std::uint32_t word ) noexcept
 
     i32 = cp1.mfc1( 12 );
 
-    io_device->write_float( f ); // $f12
+    io_device->print_float( f ); // $f12
   }
-  else if ( v0 == 3 ) // print double
+  else if ( sysnum == 3 ) // print double
   {
     union
     {
@@ -1316,21 +1316,21 @@ void CPU::syscall( std::uint32_t word ) noexcept
     };
 
     i64 = ( std::uint64_t )cp1.mfc1( 12 );
-    i64 |= ( ( std::uint64_t )cp1.mfhc1( 12 ) ) << 32;
+    i64 |= std::uint64_t( cp1.mfhc1( 12 ) ) << 32;
 
-    io_device->write_double( d );
+    io_device->print_double( d );
   }
-  else if ( v0 == 4 ) // print string
+  else if ( sysnum == 4 ) // print string
   {
     auto const address = gpr[a0];
     auto const str = string_handler.read( address, 0xFFFF'FFFF );
-    io_device->write_string( str.get() );
+    io_device->print_string( str.get() );
   }
-  else if ( v0 == 5 ) // read int
+  else if ( sysnum == 5 ) // read int
   {
-    io_device->read_integer( gpr.data() + _v0 );
+    io_device->read_integer( gpr.data() + v0 );
   }
-  else if ( v0 == 6 ) // read float
+  else if ( sysnum == 6 ) // read float
   {
     union
     {
@@ -1342,7 +1342,7 @@ void CPU::syscall( std::uint32_t word ) noexcept
 
     cp1.mtc1( 0, i32 ); // $f0
   }
-  else if ( v0 == 7 ) // read double
+  else if ( sysnum == 7 ) // read double
   {
     union
     {
@@ -1355,7 +1355,7 @@ void CPU::syscall( std::uint32_t word ) noexcept
     cp1.mtc1( 0, i64 & 0xFFFF'FFFF ); // $f0 low
     cp1.mthc1( 0, i64 >> 32 );        // $f0 high
   }
-  else if ( v0 == 8 ) // read string
+  else if ( sysnum == 8 ) // read string
   {
     auto const address = gpr[a0];
     auto const length = gpr[a1];
@@ -1366,41 +1366,43 @@ void CPU::syscall( std::uint32_t word ) noexcept
 
     string_handler.write( address, buf.get(), length );
   }
-  else if ( v0 == 9 ) // sbrk
+  else if ( sysnum == 9 ) // sbrk
   {
     signal_exception( ExCause::Int, word, pc - 4 );
   }
-  else if ( v0 == 10 || v0 == 17 ) // exit
+  else if ( sysnum == 10 || sysnum == 17 ) // exit
   {
     exit_code.store( EXIT, std::memory_order_release );
   }
-  else if ( v0 == 11 ) // print char
+  else if ( sysnum == 11 ) // print char
   {
     char const str[2] = {
         ( char )( gpr[a0] & 0xFF ),
         '\0',
     };
 
-    io_device->write_string( str );
+    io_device->print_string( str );
   }
-  else if ( v0 == 12 ) // read char
+  else if ( sysnum == 12 ) // read char
   {
     char c;
 
     io_device->read_string( &c, 1 );
 
-    gpr[_v0] = ( std::uint32_t )c;
+    gpr[v0] = ( std::uint32_t )c;
   }
-  else if ( v0 == 13 ) // file open
+  else if ( sysnum == 13 ) // file open
   {
     auto const filename_address = gpr[a0];
-    auto const flags = gpr[a1];
 
     auto const filename = string_handler.read( filename_address, 0xFFFF'FFFF );
+    char flags[5] = {0}; // flags must be null terminated, but $a1 can contain up to 4 chars without '\0'
 
-    gpr[v0] = file_handler->open( filename.get(), ( char const * )&flags );
+    std::memcpy( flags, &gpr[a1], 4 );
+
+    gpr[v0] = file_handler->open( filename.get(), flags );
   }
-  else if ( v0 == 14 ) // file read
+  else if ( sysnum == 14 ) // file read
   {
     auto const fd = gpr[a0];
     auto const buf = gpr[a1];
@@ -1412,7 +1414,7 @@ void CPU::syscall( std::uint32_t word ) noexcept
 
     string_handler.write( buf, data.get(), count );
   }
-  else if ( v0 == 15 ) // file write
+  else if ( sysnum == 15 ) // file write
   {
     auto const fd = gpr[a0];
     auto const buf = gpr[a1];
@@ -1422,7 +1424,7 @@ void CPU::syscall( std::uint32_t word ) noexcept
 
     gpr[v0] = file_handler->write( fd, data.get(), count );
   }
-  else if ( v0 == 16 ) // file close
+  else if ( sysnum == 16 ) // file close
   {
     auto const fd = gpr[a0];
 

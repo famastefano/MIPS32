@@ -37,7 +37,8 @@ namespace mips32
  **/
 std::unique_ptr<char[]> RAMString::read( std::uint32_t address, std::uint32_t count ) const noexcept
 {
-  assert( ( address + count > address ) && "Reading out of bounds." );
+  if ( address + count < address ) // overflows
+    count = 0xFFFF'FFFF - address; // we read up to the last byte
 
   bool                    eof = false;
   std::uint32_t           length = 0; // length of our string
@@ -78,10 +79,10 @@ std::unique_ptr<char[]> RAMString::read( std::uint32_t address, std::uint32_t co
       auto const word = block->data[i];
 
       std::uint32_t const byte[] = {
-          word >> 24,
-          word >> 16 & 0xFF,
-          word >> 8 & 0xFF,
           word & 0xFF,
+          word >> 8 & 0xFF,
+          word >> 16 & 0xFF,
+          word >> 24,
       };
 
       // [Aligned] | [Unaligned]
@@ -164,7 +165,8 @@ std::unique_ptr<char[]> RAMString::read( std::uint32_t address, std::uint32_t co
  **/
 void RAMString::write( std::uint32_t address, char const *src, std::uint32_t count ) noexcept
 {
-  assert( ( address + count > address ) && "Writing out of bounds." );
+  if ( address + count < address ) // overflows
+    count = 0xFFFF'FFFF - address; // we write up to the last byte
 
   std::uint32_t char_written = 0;
 

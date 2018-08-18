@@ -6,13 +6,13 @@
 class Terminal : public mips32::IODevice
 {
 public:
-  virtual void write_integer( std::uint32_t value ) noexcept;
+  virtual void print_integer( std::uint32_t value ) noexcept;
 
-  virtual void write_float( float value ) noexcept;
+  virtual void print_float( float value ) noexcept;
 
-  virtual void write_double( double value ) noexcept;
+  virtual void print_double( double value ) noexcept;
 
-  virtual void write_string( char const *string ) noexcept;
+  virtual void print_string( char const *string ) noexcept;
 
   virtual void read_integer( std::uint32_t *value ) noexcept;
 
@@ -22,7 +22,7 @@ public:
 
   virtual void read_string( char *string, std::uint32_t max_count ) noexcept;
 
-  ~Terminal();
+  virtual ~Terminal();
 
   std::uint32_t in_int = 0xAAAA'BBBB;
   float in_float = 3.1415f;

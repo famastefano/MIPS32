@@ -5,6 +5,7 @@
 
 #include "helpers/test_cpu_instructions.hpp"
 #include "helpers/Terminal.hpp"
+#include "helpers/FileManager.hpp"
 
 #include <memory>
 
@@ -57,6 +58,7 @@ enum SYSCALL
 };
 
 std::unique_ptr<Terminal> terminal = std::make_unique<Terminal>();
+std::unique_ptr<FileManager> filehandler = std::make_unique<FileManager>();
 
 SCENARIO( "A CPU object exists" )
 {
@@ -72,6 +74,8 @@ SCENARIO( "A CPU object exists" )
   cpu.hard_reset();
 
   cpu.attach_iodevice( terminal.get() );
+  cpu.attach_file_handler( filehandler.get() );
+  filehandler->reset();
 
   WHEN( "ADD $1, $2, $3 is executed" )
   {
@@ -3950,7 +3954,30 @@ SCENARIO( "A CPU object exists" )
     }
   }
 
-  // TODO: test SYSCALL print_string
+  WHEN( "[SYSCALL] print_string is executed" )
+  {
+    auto $v0 = R( _v0 );
+    auto $a0 = R( _a0 );
+
+    *$v0 = PRINT_STRING;
+
+    *$a0 = 0x8000'0000;
+
+    char const _data[] = "[SYSCALL] print_string";
+
+    auto * str = (char*)std::addressof( ram[0x8000'0000] );
+    
+    for ( int i = 0; i < 23; ++i )
+      str[i] = _data[i];
+
+    $start = "SYSCALL"_cpu;
+    cpu.single_step();
+
+    THEN( "_data should be printed" )
+    {
+      REQUIRE( terminal->out_string == "[SYSCALL] print_string" );
+    }
+  }
 
   WHEN( "[SYSCALL] read_int is executed" )
   {
@@ -4090,6 +4117,105 @@ SCENARIO( "A CPU object exists" )
     }
   }
 
+  WHEN( "[SYSCALL] open is executed" )
+  {
+    auto $v0 = R( _v0 );
+    auto $a0 = R( _a0 );
+    auto $a1 = R( _a1 );
+
+    *$v0 = OPEN;
+    *$a0 = 0x8000'0000;
+    *$a1 = 0x00'62'2B'72; // r+b
+
+    char const _name[] = "Donald_Duck.dat";
+
+    auto * _ram_name = ( char* )std::addressof( ram[0x8000'0000] );
+
+    for ( int i = 0; i < 16; ++i )
+      _ram_name[i] = _name[i];
+
+    $start = "SYSCALL"_cpu;
+    cpu.single_step();
+
+    THEN( "The file handler shall receive the correct parameters" )
+    {
+      REQUIRE( filehandler->param.name == _name );
+      REQUIRE( filehandler->param.flags == "r+b" );
+      REQUIRE( *$v0 == filehandler->fd_value );
+    }
+  }
+
+  WHEN( "[SYSCALL] read is executed" )
+  {
+    auto $v0 = R( _v0 );
+    
+    auto $a0 = R( _a0 );
+    auto $a1 = R( _a1 );
+    auto $a2 = R( _a2 );
+
+    *$v0 = READ;
+
+    *$a0 = 0xDDDD'EEEE;
+    *$a1 = 0x8877'6655;
+    *$a2 = 235;
+    
+    $start = "SYSCALL"_cpu;
+    cpu.single_step();
+
+    THEN( "The file handler shall receive the correct parameters" )
+    {
+      REQUIRE( filehandler->param.fd == 0xDDDD'EEEE );
+      REQUIRE( filehandler->param.dst != nullptr );
+      REQUIRE( filehandler->param.count == 235 );
+      REQUIRE( *$v0 == filehandler->read_count );
+    }
+  }
+
+  WHEN( "[SYSCALL] write is executed" )
+  {
+    auto $v0 = R( _v0 );
+
+    auto $a0 = R( _a0 );
+    auto $a1 = R( _a1 );
+    auto $a2 = R( _a2 );
+
+    *$v0 = WRITE;
+
+    *$a0 = 0xAABB'EEDD;
+    *$a1 = 0x3322'1100;
+    *$a2 = 897;
+
+    $start = "SYSCALL"_cpu;
+    cpu.single_step();
+
+    THEN( "The file handler shall receive the correct parameters" )
+    {
+      REQUIRE( filehandler->param.fd == 0xAABB'EEDD );
+      REQUIRE( filehandler->param.src != nullptr );
+      REQUIRE( filehandler->param.count == 897 );
+      REQUIRE( *$v0 == filehandler->write_count );
+    }
+  }
+
+  WHEN( "[SYSCALL] close is executed" )
+  {
+    auto $v0 = R( _v0 );
+
+    auto $a0 = R( _a0 );
+
+    *$v0 = CLOSE;
+
+    *$a0 = 0xDDDD'EEEE;
+
+    $start = "SYSCALL"_cpu;
+    cpu.single_step();
+
+    THEN( "The file handler shall receive the correct parameters" )
+    {
+      REQUIRE( filehandler->param.fd == 0xDDDD'EEEE );
+    }
+  }
+
   WHEN( "[SYSCALL] exit2 is executed" )
   {
     auto $v0 = R( _v0 );
@@ -4138,8 +4264,6 @@ SCENARIO( "A CPU object exists" )
       REQUIRE( PC() == 0x8000'0180 );
     }
   }
-
-
 }
 
 #undef HasOverflowed

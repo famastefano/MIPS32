@@ -23,13 +23,13 @@ class IODevice
 {
 public:
   // Writes an integer to the device
-  virtual void write_integer( std::uint32_t value ) noexcept = 0;
+  virtual void print_integer( std::uint32_t value ) noexcept = 0;
 
   // Writes a float to the device
-  virtual void write_float( float value ) noexcept = 0;
+  virtual void print_float( float value ) noexcept = 0;
 
   // Writes a double to the device
-  virtual void write_double( double value ) noexcept = 0;
+  virtual void print_double( double value ) noexcept = 0;
 
   // Writes a string to the device
   // `string` is guaranteed to point to a valid address.
@@ -37,7 +37,7 @@ public:
   // #!#!#!
   // [WARNING] `string` could be NOT null terminated.
   // !#!#!#
-  virtual void write_string( char const *string ) noexcept = 0;
+  virtual void print_string( char const *string ) noexcept = 0;
 
   // Reads an integer from the device and stores it inside `value`
   // `value` is guaranteed to point to a valid address.
@@ -58,5 +58,8 @@ public:
   // [WARNING] Writing more than `max_count` characters is undefined behaviour.
   // !#!#!#
   virtual void read_string( char *string, std::uint32_t max_count ) noexcept = 0;
+
+  virtual ~IODevice()
+  {}
 };
 } // namespace mips32

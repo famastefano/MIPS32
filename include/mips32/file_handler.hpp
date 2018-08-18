@@ -1,6 +1,6 @@
+#pragma once
+
 #include <cstdint>
-#include <cstdio>
-#include <vector>
 
 namespace mips32
 {
@@ -15,6 +15,7 @@ public:
 
   virtual void close( std::uint32_t fd ) noexcept = 0;
 
-  virtual ~FileHandler() = 0;
+  virtual ~FileHandler()
+  {}
 };
 } // namespace mips32

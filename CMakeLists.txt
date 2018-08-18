@@ -41,6 +41,7 @@ add_executable(Tests
     src/cp0.cpp
     src/mmu.cpp
 	test/helpers/Terminal.cpp
+	test/helpers/FileManager.cpp
 )
 
 target_compile_features(Tests PRIVATE cxx_std_17)
@@ -49,7 +50,7 @@ target_include_directories(Tests PRIVATE include third-party test/helpers)
 if (NOT (CMAKE_BUILD_TYPE STREQUAL "Coverage"))
     if(MSVC)
 
-        target_compile_options(Tests PRIVATE /W3 /fp:strict /wd4146)
+        target_compile_options(Tests PRIVATE /W3 /fp:strict /wd4146 /wd4267)
         target_compile_definitions(Tests PRIVATE "-D_CRT_SECURE_NO_WARNINGS")
 
     else() # GCC - Clang

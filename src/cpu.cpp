@@ -1437,7 +1437,7 @@ void CPU::syscall( std::uint32_t word ) noexcept
     signal_exception( ExCause::Sys, word, pc - 4 );
   }
 }
-void CPU::break_( std::uint32_t word ) noexcept
+void CPU::break_( std::uint32_t ) noexcept
 {
   set_ex_cause( ExCause::Bp );
   exit_code.store( EXCEPTION, std::memory_order_release );
@@ -1766,7 +1766,7 @@ void CPU::bgez( std::uint32_t word ) noexcept
   if ( ( std::int32_t )gpr[_rs] >= 0 )
     pc += sign_extend<_halfword>( immediate( word ) ) << 2;
 }
-void CPU::nal( std::uint32_t word ) noexcept
+void CPU::nal( std::uint32_t ) noexcept
 {
   gpr[31] = pc + 4;
 }
@@ -1807,7 +1807,7 @@ void CPU::mtc0( std::uint32_t word ) noexcept
 
   cp0.write( _rd, _sel, gpr[_rt] );
 }
-void CPU::mthc0( std::uint32_t word ) noexcept
+void CPU::mthc0( std::uint32_t ) noexcept
 {
   return;
 }
@@ -1825,7 +1825,7 @@ void CPU::mfmc0( std::uint32_t word ) noexcept
     cp0.status &= ~1;
 }
 
-void CPU::eret( std::uint32_t word ) noexcept
+void CPU::eret( std::uint32_t ) noexcept
 {
   enter_user_mode();
 

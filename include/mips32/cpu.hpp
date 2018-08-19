@@ -104,7 +104,7 @@ private:
   void srav( std::uint32_t word ) noexcept;
   void jalr( std::uint32_t word ) noexcept;
   void syscall( std::uint32_t word ) noexcept;
-  void break_( std::uint32_t word ) noexcept;
+  void break_( std::uint32_t ) noexcept;
   void clz( std::uint32_t word ) noexcept;
   void clo( std::uint32_t word ) noexcept;
   void sop30( std::uint32_t word ) noexcept;
@@ -137,7 +137,7 @@ private:
    * * * * * */
   void bltz( std::uint32_t word ) noexcept;
   void bgez( std::uint32_t word ) noexcept;
-  void nal( std::uint32_t word ) noexcept;
+  void nal( std::uint32_t ) noexcept;
   void bal( std::uint32_t word ) noexcept;
   void sigrie( std::uint32_t word ) noexcept;
 
@@ -149,11 +149,9 @@ private:
   void mfc0( std::uint32_t word ) noexcept;
   void mfhc0( std::uint32_t word ) noexcept;
   void mtc0( std::uint32_t word ) noexcept;
-  void mthc0( std::uint32_t word ) noexcept;
-  void rdpgpr( std::uint32_t word ) noexcept;
+  void mthc0( std::uint32_t ) noexcept;
   void mfmc0( std::uint32_t word ) noexcept;
-  void wrpgpr( std::uint32_t word ) noexcept;
-  void eret( std::uint32_t word ) noexcept;
+  void eret( std::uint32_t ) noexcept;
 
   /* * * * *
    *       *

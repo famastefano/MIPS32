@@ -24,8 +24,7 @@ public:
     static inline constexpr std::uint32_t DEBUG = 0x08;
     static inline constexpr std::uint32_t CACHED = 0x10;
 
-    std::uint32_t base_address,
-      limit, access_flags;
+    std::uint32_t base_address, limit, access_flags;
 
     inline bool contains( std::uint32_t address ) const noexcept { return base_address <= address && address < base_address + limit; }
     inline bool has_access( std::uint32_t access_flags ) const noexcept { return this->access_flags & access_flags; }
@@ -37,8 +36,7 @@ public:
   std::uint32_t *access( std::uint32_t address, std::uint32_t access_flags ) noexcept;
 
 private:
-  std::vector<Segment> segments;
-
   RAM &ram;
+  std::vector<Segment> segments;
 };
 } // namespace mips32

@@ -59,10 +59,20 @@ if (NOT (CMAKE_BUILD_TYPE STREQUAL "Coverage"))
         
         if(${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang")
 
-            target_compile_options(Tests PRIVATE -Wno-logical-op-parentheses -Wno-bitwise-op-parentheses)
+            target_compile_options(Tests PRIVATE
+				-Wno-logical-op-parentheses
+				-Wno-bitwise-op-parentheses
+				-Wno-implicit-fallthrough
+				-Wno-dollar-in-identifier-extension
+			)
             
         else() # GCC
-            target_compile_options(Tests PRIVATE -Wno-parentheses)
+
+            target_compile_options(Tests PRIVATE
+				-Wno-parentheses
+				-Wimplicit-fallthrough=0
+			)
+
         endif()
 
         # x86 build
@@ -77,10 +87,8 @@ if (NOT (CMAKE_BUILD_TYPE STREQUAL "Coverage"))
 			-Wall -Wextra
 			-mfpmath=sse -msse2
 			-pedantic
-			-Wimplicit-fallthrough=0
 			-Wno-unknown-pragmas
 			-Wno-missing-braces
-			-Wno-dollar-in-identifier-extension
 			-Wno-unused-variable
 			-Wno-sign-compare
 		)
@@ -89,7 +97,7 @@ if (NOT (CMAKE_BUILD_TYPE STREQUAL "Coverage"))
 endif()
 
 if (CMAKE_BUILD_TYPE STREQUAL "Coverage")
-    target_compile_options(Tests PRIVATE -g -O0 --coverage)
+    target_compile_options(Tests PRIVATE -g -O0 --coverage -w)
     target_link_libraries(Tests PRIVATE -lgcov --coverage)
 endif()
 

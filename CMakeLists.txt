@@ -42,6 +42,8 @@ add_executable(Tests
     src/mmu.cpp
 	test/helpers/Terminal.cpp
 	test/helpers/FileManager.cpp
+# Machine Inspector
+	test/test_save_restore_state.cpp
 )
 
 target_compile_features(Tests PRIVATE cxx_std_17)

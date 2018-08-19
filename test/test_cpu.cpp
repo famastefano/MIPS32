@@ -13,17 +13,19 @@
 // TODO: test BNEZALC
 // TODO: test for [L|S][B|H|W] with address overflow and $zero as destination
 
+// TODO: test for multiple code path in RAMString
+
 using namespace mips32;
 
 using ui32 = std::uint32_t;
 
-#define $start ram[0xBFC0'0000]
 #define R(n) inspector.CPU_gpr_begin() + n
 #define FP(n) inspector.CP1_fpr_begin() + n
 #define PC() inspector.CPU_pc()
-#define CAUSE() inspector.CP0_cause()
+#define $start ram[0xBFC0'0000]
+#define CAUSE() cp0.cause
 #define ClearExCause() CAUSE() = CAUSE() & ~0x7C
-#define ExCause() (inspector.CP0_cause() >> 2 & 0x1F)
+#define ExCause() (CAUSE() >> 2 & 0x1F)
 #define HasTrapped() (ExCause() == 13)
 #define HasOverflowed() (ExCause() == 12)
 
@@ -60,11 +62,11 @@ enum SYSCALL
 std::unique_ptr<Terminal> terminal = std::make_unique<Terminal>();
 std::unique_ptr<FileManager> filehandler = std::make_unique<FileManager>();
 
-SCENARIO( "A CPU object exists" )
+TEST_CASE( "A CPU object exists" )
 {
   MachineInspector inspector;
 
-  RAM ram{ 1 * 1024 * 1024 * 1024 }; // 1 MB
+  RAM ram{ 1_MB }; // 1 MB
   CPU cpu{ ram };
 
   inspector
@@ -77,7 +79,13 @@ SCENARIO( "A CPU object exists" )
   cpu.attach_file_handler( filehandler.get() );
   filehandler->reset();
 
-  WHEN( "ADD $1, $2, $3 is executed" )
+  auto & cp0 = inspector.access_cp0();
+
+  auto const pc = PC();
+
+  ClearExCause();
+
+  SECTION( "ADD $1, $2, $3 is executed" )
   {
     auto const _add = "ADD"_cpu | 1_rd | 2_rs | 3_rt;
 
@@ -91,15 +99,11 @@ SCENARIO( "A CPU object exists" )
     ui32 const res = -48 + 21;
 
     $start = _add;
-
-    THEN( "The result must be correct" )
-    {
-      cpu.single_step();
-      REQUIRE( *$1 == res );
-    }
+    cpu.single_step();
+    REQUIRE( *$1 == res );
   }
 
-  WHEN( "ADDIU $21, $3, 32'000 is executed" )
+  SECTION( "ADDIU $21, $3, 32'000 is executed" )
   {
     auto const _addiu = "ADDIU"_cpu | 21_rt | 3_rs | 32000_imm16;
 
@@ -111,32 +115,24 @@ SCENARIO( "A CPU object exists" )
     ui32 const res = 123'098 + 32'000;
 
     $start = _addiu;
-
-    THEN( "The result must be correct" )
-    {
-      cpu.single_step();
-      REQUIRE( *$21 == res );
-    }
+    cpu.single_step();
+    REQUIRE( *$21 == res );
   }
 
-  WHEN( "ADDIUPC $30, 16 is executed" )
+  SECTION( "ADDIUPC $30, 16 is executed" )
   {
     auto const _addiupc = "ADDIUPC"_cpu | 30_rs | 16_imm19;
 
     auto $30 = R( 30 );
 
-    ui32 const res = PC() + ( 16 << 2 );
+    ui32 const res = pc + ( 16 << 2 );
 
     $start = _addiupc;
-
-    THEN( "The result must be correct" )
-    {
-      cpu.single_step();
-      REQUIRE( *$30 == res );
-    }
+    cpu.single_step();
+    REQUIRE( *$30 == res );
   }
 
-  WHEN( "ADDU $6, $8, $10 is executed" )
+  SECTION( "ADDU $6, $8, $10 is executed" )
   {
     auto const _addu = "ADDU"_cpu | 6_rd | 8_rs | 10_rt;
 
@@ -150,32 +146,24 @@ SCENARIO( "A CPU object exists" )
     ui32 const res = 305 + 3894;
 
     $start = _addu;
-
-    THEN( "The result must be correct" )
-    {
-      cpu.single_step();
-      REQUIRE( *$6 == res );
-    }
+    cpu.single_step();
+    REQUIRE( *$6 == res );
   }
 
-  WHEN( "ALUIPC $1, 256 is executed" )
+  SECTION( "ALUIPC $1, 256 is executed" )
   {
     auto const _aluipc = "ALUIPC"_cpu | 1_rs | 256;
 
     auto $1 = R( 1 );
 
-    auto const res = 0xFFFF'0000 & ( PC() + ( 256 << 16 ) );
+    auto const res = 0xFFFF'0000 & ( pc + ( 256 << 16 ) );
 
     $start = _aluipc;
     cpu.single_step();
-
-    THEN( "The result must be correct" )
-    {
-      REQUIRE( *$1 == res );
-    }
+    REQUIRE( *$1 == res );
   }
 
-  WHEN( "AND $5, $10, $15 is executed" )
+  SECTION( "AND $5, $10, $15 is executed" )
   {
     auto const _and = "AND"_cpu | 5_rd | 10_rs | 15_rt;
 
@@ -186,18 +174,14 @@ SCENARIO( "A CPU object exists" )
     *$10 = 0xFFFF'FFFF;
     *$15 = 0b1010'1010'1010'1010'1010'1010'1010'1010;
 
-    ui32 const res = 0xFFFF'FFFF & 0b1010'1010'1010'1010'1010'1010'1010'1010;
+    ui32 const res = *$10 & *$15;
 
     $start = _and;
     cpu.single_step();
-
-    THEN( "The result must be correct" )
-    {
-      REQUIRE( *$5 == res );
-    }
+    REQUIRE( *$5 == res );
   }
 
-  WHEN( "ANDI $4, $18 is executed" )
+  SECTION( "ANDI $4, $18 is executed" )
   {
     auto const _andi = "ANDI"_cpu | 4_rt | 18_rs | 0xCEED_imm16;
 
@@ -210,14 +194,10 @@ SCENARIO( "A CPU object exists" )
 
     $start = _andi;
     cpu.single_step();
-
-    THEN( "The result must be correct" )
-    {
-      REQUIRE( *$4 == res );
-    }
+    REQUIRE( *$4 == res );
   }
 
-  WHEN( "AUI $8, $20 is executed" )
+  SECTION( "AUI $8, $20 is executed" )
   {
     auto const _aui = "AUI"_cpu | 8_rt | 20_rs | 0xCCAA_imm16;
 
@@ -230,85 +210,65 @@ SCENARIO( "A CPU object exists" )
 
     $start = _aui;
     cpu.single_step();
-
-    THEN( "The result must be correct" )
-    {
-      REQUIRE( *$8 == res );
-    }
+    REQUIRE( *$8 == res );
   }
 
-  WHEN( "AUIPC $2, 36 is executed" )
+  SECTION( "AUIPC $2, 36 is executed" )
   {
     auto const _auipc = "AUIPC"_cpu | 2_rs | 36_imm16;
 
     auto $2 = R( 2 );
 
-    ui32 const res = PC() + ( 36 << 16 );
+    ui32 const res = pc + ( 36 << 16 );
 
     $start = _auipc;
     cpu.single_step();
-
-    THEN( "The result must be correct" )
-    {
-      REQUIRE( *$2 == res );
-    }
+    REQUIRE( *$2 == res );
   }
 
-  WHEN( "BAL 768 is executed" )
+  SECTION( "BAL 768 is executed" )
   {
     auto const _bal = "BAL"_cpu | 768_imm16;
 
     auto $31 = R( 31 );
 
-    ui32 const res = PC() + 4 + ( 768 << 2 );
-    ui32 const ret = PC() + 8;
+    ui32 const res = pc + 4 + ( 768 << 2 );
+    ui32 const ret = pc + 8;
 
     $start = _bal;
     cpu.single_step();
-
-    THEN( "The result must be correct" )
-    {
-      REQUIRE( PC() == res );
-      REQUIRE( *$31 == ret );
-    }
+    REQUIRE( PC() == res );
+    REQUIRE( *$31 == ret );
   }
 
-  WHEN( "BALC 0x0123'4567 is executed" )
+  SECTION( "BALC 0x0123'4567 is executed" )
   {
     auto const _balc = "BALC"_cpu | 0x01234567_imm26;
 
     auto $31 = inspector.CPU_gpr_begin() + 31;
 
-    ui32 const res = PC() + 4 + ( 0x01234567 << 2 );
-    ui32 const ret = PC() + 4;
+    ui32 const res = pc + 4 + ( 0x01234567 << 2 );
+    ui32 const ret = pc + 4;
 
     $start = _balc;
     cpu.single_step();
-
-    THEN( "The result must be correct" )
-    {
-      REQUIRE( PC() == res );
-      REQUIRE( *$31 == ret );
-    }
+    REQUIRE( PC() == res );
+    REQUIRE( *$31 == ret );
   }
 
-  WHEN( "BC 0x02BC'DEFF is executed" )
+  SECTION( "BC 0x02BC'DEFF is executed" )
   {
     auto const _bc = "BC"_cpu | 0x02BCDEFF_imm26;
 
-    ui32 const res = PC() + 4 + 0xFAF3'7BFC;
-    ui32 const ret = PC() + 4;
+    ui32 const res = pc + 4 + 0xFAF3'7BFC;
+    ui32 const ret = pc + 4;
 
     $start = _bc;
     cpu.single_step();
-
-    THEN( "The result must be correct" )
-    {
-      REQUIRE( PC() == res );
-    }
+    REQUIRE( PC() == res );
   }
 
-  WHEN( "BEQ $0, $0, 81 and BEQ $1, $2, 81 are executed" )
+  SECTION( "BEQ $0, $0, 81 and BEQ $1, $2, 81 are executed" )
   {
     auto const _beq_jump = "BEQ"_cpu | 0_rs | 0_rt | 81_imm16;
     auto const _beq_no_jump = "BEQ"_cpu | 1_rs | 2_rt | 81_imm16;
@@ -319,28 +279,25 @@ SCENARIO( "A CPU object exists" )
     *$1 = 44;
     *$2 = -44;
 
-    ui32 const pc = PC();
-
     ui32 const res_jump = pc + 4 + ( 81 << 2 );
     ui32 const res_no_jump = pc + 4;
 
-    THEN( "It shall jump in the 1st case" )
+    SECTION( "It shall jump in the 1st case" )
     {
-      PC() = pc;
       $start = _beq_jump;
       cpu.single_step();
       REQUIRE( PC() == res_jump );
     }
-    AND_THEN( "It shall not jump in the 2nd case" )
+
+    SECTION( "It shall not jump in the 2nd case" )
     {
-      PC() = pc;
       $start = _beq_no_jump;
       cpu.single_step();
       REQUIRE( PC() == res_no_jump );
     }
   }
 
-  WHEN( "BGEZ $30, 128 and BGEZ $28, 128 are executed" )
+  SECTION( "BGEZ $30, 128 and BGEZ $28, 128 are executed" )
   {
     auto const _bgez_jump = "BGEZ"_cpu | 30_rs | 128_imm16;
     auto const _bgez_no_jump = "BGEZ"_cpu | 28_rs | 128_imm16;
@@ -352,28 +309,25 @@ SCENARIO( "A CPU object exists" )
     *$30 = 0;
     *$28 = -1;
 
-    ui32 const pc = PC();
-
     ui32 const res_jump = pc + 4 + ( 128 << 2 );
     ui32 const res_no_jump = pc + 4;
 
-    THEN( "It shall jump in the 1st case" )
+    SECTION( "It shall jump in the 1st case" )
     {
-      PC() = pc;
       $start = _bgez_jump;
       cpu.single_step();
       REQUIRE( PC() == res_jump );
     }
-    AND_THEN( "It shall not jump in the 2nd case" )
+
+    SECTION( "It shall not jump in the 2nd case" )
     {
-      PC() = pc;
       $start = _bgez_no_jump;
       cpu.single_step();
       REQUIRE( PC() == res_no_jump );
     }
   }
 
-  WHEN( "BLEZALC $9, 1 and BLEZALC $12, 256 are executed" )
+  SECTION( "BLEZALC $9, 1 and BLEZALC $12, 256 are executed" )
   {
     auto const _blezalc_jump = "BLEZALC"_cpu | 9_rt | 1_imm16;
     auto const _blezalc_no_jump = "BLEZALC"_cpu | 12_rt | 256_imm16;
@@ -387,22 +341,19 @@ SCENARIO( "A CPU object exists" )
     *$9 = 0;
     *$12 = 24;
 
-    auto const pc = PC();
-
     auto const res_jump = pc + 4 + ( 1 << 2 );
     auto const res_no_jump = pc + 4;
 
-    THEN( "It shall jump in the 1st case" )
+    SECTION( "It shall jump in the 1st case" )
     {
-      PC() = pc;
       $start = _blezalc_jump;
       cpu.single_step();
       REQUIRE( PC() == res_jump );
       REQUIRE( *$31 == pc + 4 );
     }
-    AND_THEN( "It shall not jump in the 2nd case" )
+
+    SECTION( "It shall not jump in the 2nd case" )
     {
-      PC() = pc;
       $start = _blezalc_no_jump;
       cpu.single_step();
       REQUIRE( PC() == res_no_jump );
@@ -410,7 +361,7 @@ SCENARIO( "A CPU object exists" )
     }
   }
 
-  WHEN( "BGEZALC $13, 14 and BGEZALC $19, 964 are executed" )
+  SECTION( "BGEZALC $13, 14 and BGEZALC $19, 964 are executed" )
   {
     auto const _bgezalc_jump = "BGEZALC"_cpu | 13_rs | 13_rt | 14_imm16;
     auto const _bgezalc_no_jump = "BGEZALC"_cpu | 19_rs | 19_rt | 964_imm16;
@@ -424,22 +375,19 @@ SCENARIO( "A CPU object exists" )
 
     *$19 = -3498;
 
-    auto const pc = PC();
-
     auto const res_jump = pc + 4 + ( 14 << 2 );
     auto const res_no_jump = pc + 4;
 
-    THEN( "It shall jump in the 1st case" )
+    SECTION( "It shall jump in the 1st case" )
     {
-      PC() = pc;
       $start = _bgezalc_jump;
       cpu.single_step();
       REQUIRE( PC() == res_jump );
       REQUIRE( *$31 == pc + 4 );
     }
-    AND_THEN( "It shall not jump in the 2nd case" )
+
+    SECTION( "It shall not jump in the 2nd case" )
     {
-      PC() = pc;
       $start = _bgezalc_no_jump;
       cpu.single_step();
       REQUIRE( PC() == res_no_jump );
@@ -447,7 +395,7 @@ SCENARIO( "A CPU object exists" )
     }
   }
 
-  WHEN( "BGTZALC $8, 97 and BGTZALC $1, 1000 are executed" )
+  SECTION( "BGTZALC $8, 97 and BGTZALC $1, 1000 are executed" )
   {
     auto const _bgtzalc_jump = "BGTZALC"_cpu | 8_rt | 97_imm16;
     auto const _bgtzalc_no_jump = "BGTZALC"_cpu | 1_rt | 1000_imm16;
@@ -461,22 +409,21 @@ SCENARIO( "A CPU object exists" )
     *$8 = 534;
     *$1 = 0;
 
-    auto const pc = PC();
+    PC() = pc;
 
     auto const res_jump = pc + 4 + ( 97 << 2 );
     auto const res_no_jump = pc + 4;
 
-    THEN( "It shall jump in the 1st case" )
+    SECTION( "It shall jump in the 1st case" )
     {
-      PC() = pc;
       $start = _bgtzalc_jump;
       cpu.single_step();
       REQUIRE( PC() == res_jump );
       REQUIRE( *$31 == pc + 4 );
     }
-    AND_THEN( "It shall not jump in the 2nd case" )
+
+    SECTION( "It shall not jump in the 2nd case" )
     {
-      PC() = pc;
       $start = _bgtzalc_no_jump;
       cpu.single_step();
       REQUIRE( PC() == res_no_jump );
@@ -484,7 +431,7 @@ SCENARIO( "A CPU object exists" )
     }
   }
 
-  WHEN( "BLTZALC $17, 77 and BLTZALC $20, 93 are executed" )
+  SECTION( "BLTZALC $17, 77 and BLTZALC $20, 93 are executed" )
   {
     auto const _bltzalc_jump = "BLTZALC"_cpu | 17_rs | 17_rt | 77_imm16;
     auto const _bltzalc_no_jump = "BLTZALC"_cpu | 20_rs | 20_rt | 93_imm16;
@@ -498,22 +445,21 @@ SCENARIO( "A CPU object exists" )
 
     *$20 = 0;
 
-    auto const pc = PC();
+    PC() = pc;
 
     auto const res_jump = pc + 4 + ( 77 << 2 );
     auto const res_no_jump = pc + 4;
 
-    THEN( "It shall jump in the 1st case" )
+    SECTION( "It shall jump in the 1st case" )
     {
-      PC() = pc;
       $start = _bltzalc_jump;
       cpu.single_step();
       REQUIRE( PC() == res_jump );
       REQUIRE( *$31 == pc + 4 );
     }
-    AND_THEN( "It shall not jump in the 2nd case" )
+
+    SECTION( "It shall not jump in the 2nd case" )
     {
-      PC() = pc;
       $start = _bltzalc_no_jump;
       cpu.single_step();
       REQUIRE( PC() == res_no_jump );
@@ -521,7 +467,7 @@ SCENARIO( "A CPU object exists" )
     }
   }
 
-  WHEN( "BEQZALC $24, 816 and BEQZALC $11, 789 are executed" )
+  SECTION( "BEQZALC $24, 816 and BEQZALC $11, 789 are executed" )
   {
     auto const _beqzalc_jump = "BEQZALC"_cpu | 24_rt | 816_imm16;
     auto const _beqzalc_no_jump = "BEQZALC"_cpu | 11_rt | 789_imm16;
@@ -535,22 +481,21 @@ SCENARIO( "A CPU object exists" )
 
     *$11 = 1;
 
-    auto const pc = PC();
+    PC() = pc;
 
     auto const res_jump = pc + 4 + ( 816 << 2 );
     auto const res_no_jump = pc + 4;
 
-    THEN( "It shall jump in the 1st case" )
+    SECTION( "It shall jump in the 1st case" )
     {
-      PC() = pc;
       $start = _beqzalc_jump;
       cpu.single_step();
       REQUIRE( PC() == res_jump );
       REQUIRE( *$31 == pc + 4 );
     }
-    AND_THEN( "It shall not jump in the 2nd case" )
+
+    SECTION( "It shall not jump in the 2nd case" )
     {
-      PC() = pc;
       $start = _beqzalc_no_jump;
       cpu.single_step();
       REQUIRE( PC() == res_no_jump );
@@ -558,7 +503,7 @@ SCENARIO( "A CPU object exists" )
     }
   }
 
-  WHEN( "BNEZALC $17, 1598 and BNEZALC $20, 795 are executed" )
+  SECTION( "BNEZALC $17, 1598 and BNEZALC $20, 795 are executed" )
   {
     auto const _bnezalc_jump = "BNEZALC"_cpu | 17_rt | 1598_imm16;
     auto const _bnezalc_no_jump = "BNEZALC"_cpu | 20_rt | 795_imm16;
@@ -572,22 +517,20 @@ SCENARIO( "A CPU object exists" )
 
     *$20 = 1;
 
-    auto const pc = PC();
+    PC() = pc;
 
     auto const res_jump = pc + 4 + ( 1598 << 2 );
     auto const res_no_jump = pc + 4;
 
-    THEN( "It shall jump in the 1st case" )
+    SECTION( "It shall jump in the 1st case" )
     {
-      PC() = pc;
       $start = _bnezalc_jump;
       cpu.single_step();
       REQUIRE( PC() == res_jump );
       REQUIRE( *$31 == pc + 4 );
     }
-    AND_THEN( "It shall not jump in the 2nd case" )
+    SECTION( "It shall not jump in the 2nd case" )
     {
-      PC() = pc;
       $start = _bnezalc_no_jump;
       cpu.single_step();
       REQUIRE( PC() == res_no_jump );
@@ -595,7 +538,7 @@ SCENARIO( "A CPU object exists" )
     }
   }
 
-  WHEN( "BLEZC $18, 8 and BLEZC $4, 6 are executed" )
+  SECTION( "BLEZC $18, 8 and BLEZC $4, 6 are executed" )
   {
     auto const _blezc_jump = "BLEZC"_cpu | 18_rt | 8_imm16;
     auto const _blezc_no_jump = "BLEZC"_cpu | 4_rt | 6_imm16;
@@ -608,28 +551,26 @@ SCENARIO( "A CPU object exists" )
 
     *$4 = 12;
 
-    auto const pc = PC();
+    PC() = pc;
 
     auto const res_jump = pc + 4 + ( 8 << 2 );
     auto const res_no_jump = pc + 4;
 
-    THEN( "It shall jump in the 1st case" )
+    SECTION( "It shall jump in the 1st case" )
     {
-      PC() = pc;
       $start = _blezc_jump;
       cpu.single_step();
       REQUIRE( PC() == res_jump );
     }
-    AND_THEN( "It shall not jump in the 2nd case" )
+    SECTION( "It shall not jump in the 2nd case" )
     {
-      PC() = pc;
       $start = _blezc_no_jump;
       cpu.single_step();
       REQUIRE( PC() == res_no_jump );
     }
   }
 
-  WHEN( "BGEZC $15, 99 and BGEZC $1, 17 are executed" )
+  SECTION( "BGEZC $15, 99 and BGEZC $1, 17 are executed" )
   {
     auto const _bgezc_jump = "BGEZC"_cpu | 15_rs | 15_rt | 99_imm16;
     auto const _bgezc_no_jump = "BGEZC"_cpu | 1_rs | 1_rt | 17_imm16;
@@ -641,28 +582,26 @@ SCENARIO( "A CPU object exists" )
     *$15 = 5234;
     *$1 = -564;
 
-    auto const pc = PC();
+    PC() = pc;
 
     auto const res_jump = pc + 4 + ( 99 << 2 );
     auto const res_no_jump = pc + 4;
 
-    THEN( "It shall jump in the 1st case" )
+    SECTION( "It shall jump in the 1st case" )
     {
-      PC() = pc;
       $start = _bgezc_jump;
       cpu.single_step();
       REQUIRE( PC() == res_jump );
     }
-    AND_THEN( "It shall not jump in the 2nd case" )
+    SECTION( "It shall not jump in the 2nd case" )
     {
-      PC() = pc;
       $start = _bgezc_no_jump;
       cpu.single_step();
       REQUIRE( PC() == res_no_jump );
     }
   }
 
-  WHEN( "BGEC $31, $3, 905 and BGEC $30, $20, 54 are executed" )
+  SECTION( "BGEC $31, $3, 905 and BGEC $30, $20, 54 are executed" )
   {
     auto const _bgec_jump = "BGEC"_cpu | 31_rs | 3_rt | 905_imm16;
     auto const _bgec_no_jump = "BGEC"_cpu | 30_rs | 20_rt | 54_imm16;
@@ -679,28 +618,26 @@ SCENARIO( "A CPU object exists" )
     *$30 = -98'734;
     *$20 = -98'000;
 
-    auto const pc = PC();
+    PC() = pc;
 
     auto const res_jump = pc + 4 + ( 905 << 2 );
     auto const res_no_jump = pc + 4;
 
-    THEN( "It shall jump in the 1st case" )
+    SECTION( "It shall jump in the 1st case" )
     {
-      PC() = pc;
       $start = _bgec_jump;
       cpu.single_step();
       REQUIRE( PC() == res_jump );
     }
-    AND_THEN( "It shall not jump in the 2nd case" )
+    SECTION( "It shall not jump in the 2nd case" )
     {
-      PC() = pc;
       $start = _bgec_no_jump;
       cpu.single_step();
       REQUIRE( PC() == res_no_jump );
     }
   }
 
-  WHEN( "BLEC $31, $3, 905 and BLEC $30, $20, 54 are executed" )
+  SECTION( "BLEC $31, $3, 905 and BLEC $30, $20, 54 are executed" )
   {
     auto const _blec_jump = "BLEC"_cpu | 31_rt | 3_rs | 905_imm16;
     auto const _blec_no_jump = "BLEC"_cpu | 30_rt | 20_rs | 54_imm16;
@@ -717,28 +654,26 @@ SCENARIO( "A CPU object exists" )
     *$30 = -98'000;
     *$20 = -98'734;
 
-    auto const pc = PC();
+    PC() = pc;
 
     auto const res_jump = pc + 4 + ( 905 << 2 );
     auto const res_no_jump = pc + 4;
 
-    THEN( "It shall jump in the 1st case" )
+    SECTION( "It shall jump in the 1st case" )
     {
-      PC() = pc;
       $start = _blec_jump;
       cpu.single_step();
       REQUIRE( PC() == res_jump );
     }
-    AND_THEN( "It shall not jump in the 2nd case" )
+    SECTION( "It shall not jump in the 2nd case" )
     {
-      PC() = pc;
       $start = _blec_no_jump;
       cpu.single_step();
       REQUIRE( PC() == res_no_jump );
     }
   }
 
-  WHEN( "BGTZC $20, 1111 and BGTZC $6, 25'896 are executed" )
+  SECTION( "BGTZC $20, 1111 and BGTZC $6, 25'896 are executed" )
   {
     auto const _bgtzc_jump = "BGTZC"_cpu | 20_rt | 1111_imm16;
     auto const _bgtzc_no_jump = "BGTZC"_cpu | 6_rt | 25896_imm16;
@@ -751,27 +686,25 @@ SCENARIO( "A CPU object exists" )
 
     *$6 = 0;
 
-    auto const pc = PC();
+    PC() = pc;
 
     auto const res_jump = pc + 4 + ( 1111 << 2 );
     auto const res_no_jump = pc + 4;
 
-    THEN( "It shall jump in the 1st case" )
+    SECTION( "It shall jump in the 1st case" )
     {
-      PC() = pc;
       $start = _bgtzc_jump;
       cpu.single_step();
       REQUIRE( PC() == res_jump );
     }
-    AND_THEN( "It shall not jump in the 2nd case" )
+    SECTION( "It shall not jump in the 2nd case" )
     {
-      PC() = pc;
       $start = _bgtzc_no_jump;
       cpu.single_step();
       REQUIRE( PC() == res_no_jump );
     }
   }
-  WHEN( "BLTZC $20, 1111 and BLTZC $6, 25'896 are executed" )
+  SECTION( "BLTZC $20, 1111 and BLTZC $6, 25'896 are executed" )
   {
     auto const _bltzc_jump = "BLTZC"_cpu | 20_rs | 20_rt | 1111_imm16;
     auto const _bltzc_no_jump = "BLTZC"_cpu | 6_rs | 6_rt | 25896_imm16;
@@ -784,28 +717,26 @@ SCENARIO( "A CPU object exists" )
 
     *$6 = 0;
 
-    auto const pc = PC();
+    PC() = pc;
 
     auto const res_jump = pc + 4 + ( 1111 << 2 );
     auto const res_no_jump = pc + 4;
 
-    THEN( "It shall jump in the 1st case" )
+    SECTION( "It shall jump in the 1st case" )
     {
-      PC() = pc;
       $start = _bltzc_jump;
       cpu.single_step();
       REQUIRE( PC() == res_jump );
     }
-    AND_THEN( "It shall not jump in the 2nd case" )
+    SECTION( "It shall not jump in the 2nd case" )
     {
-      PC() = pc;
       $start = _bltzc_no_jump;
       cpu.single_step();
       REQUIRE( PC() == res_no_jump );
     }
   }
 
-  WHEN( "BLTC $20, $21, 1111 and BLTC $6, $7, 25'896 are executed" )
+  SECTION( "BLTC $20, $21, 1111 and BLTC $6, $7, 25'896 are executed" )
   {
     auto const _bltc_jump = "BLTC"_cpu | 20_rs | 21_rt | 1111_imm16;
     auto const _bltc_no_jump = "BLTC"_cpu | 6_rs | 7_rt | 25896_imm16;
@@ -822,28 +753,26 @@ SCENARIO( "A CPU object exists" )
     *$6 = -65;
     *$7 = -65;
 
-    auto const pc = PC();
+    PC() = pc;
 
     auto const res_jump = pc + 4 + ( 1111 << 2 );
     auto const res_no_jump = pc + 4;
 
-    THEN( "It shall jump in the 1st case" )
+    SECTION( "It shall jump in the 1st case" )
     {
-      PC() = pc;
       $start = _bltc_jump;
       cpu.single_step();
       REQUIRE( PC() == res_jump );
     }
-    AND_THEN( "It shall not jump in the 2nd case" )
+    SECTION( "It shall not jump in the 2nd case" )
     {
-      PC() = pc;
       $start = _bltc_no_jump;
       cpu.single_step();
       REQUIRE( PC() == res_no_jump );
     }
   }
 
-  WHEN( "BGTC $20, $21, 1111 and BGTC $6, $7, 25'896 are executed" )
+  SECTION( "BGTC $20, $21, 1111 and BGTC $6, $7, 25'896 are executed" )
   {
     auto const _bgtc_jump = "BGTC"_cpu | 20_rt | 21_rs | 1111_imm16;
     auto const _bgtc_no_jump = "BGTC"_cpu | 6_rt | 7_rs | 25896_imm16;
@@ -860,28 +789,26 @@ SCENARIO( "A CPU object exists" )
     *$6 = 11;
     *$7 = 12;
 
-    auto const pc = PC();
+    PC() = pc;
 
     auto const res_jump = pc + 4 + ( 1111 << 2 );
     auto const res_no_jump = pc + 4;
 
-    THEN( "It shall jump in the 1st case" )
+    SECTION( "It shall jump in the 1st case" )
     {
-      PC() = pc;
       $start = _bgtc_jump;
       cpu.single_step();
       REQUIRE( PC() == res_jump );
     }
-    AND_THEN( "It shall not jump in the 2nd case" )
+    SECTION( "It shall not jump in the 2nd case" )
     {
-      PC() = pc;
       $start = _bgtc_no_jump;
       cpu.single_step();
       REQUIRE( PC() == res_no_jump );
     }
   }
 
-  WHEN( "BGEUC $20, $21, 1111 and BGEUC $6, $7, 25'896 are executed" )
+  SECTION( "BGEUC $20, $21, 1111 and BGEUC $6, $7, 25'896 are executed" )
   {
     auto const _bgeuc_jump = "BGEUC"_cpu | 20_rs | 21_rt | 1111_imm16;
     auto const _bgeuc_no_jump = "BGEUC"_cpu | 6_rs | 7_rt | 25896_imm16;
@@ -898,28 +825,26 @@ SCENARIO( "A CPU object exists" )
     *$6 = 11;
     *$7 = 12;
 
-    auto const pc = PC();
+    PC() = pc;
 
     auto const res_jump = pc + 4 + ( 1111 << 2 );
     auto const res_no_jump = pc + 4;
 
-    THEN( "It shall jump in the 1st case" )
+    SECTION( "It shall jump in the 1st case" )
     {
-      PC() = pc;
       $start = _bgeuc_jump;
       cpu.single_step();
       REQUIRE( PC() == res_jump );
     }
-    AND_THEN( "It shall not jump in the 2nd case" )
+    SECTION( "It shall not jump in the 2nd case" )
     {
-      PC() = pc;
       $start = _bgeuc_no_jump;
       cpu.single_step();
       REQUIRE( PC() == res_no_jump );
     }
   }
 
-  WHEN( "BLEUC $20, $21, 1111 and BLEUC $6, $7, 25'896 are executed" )
+  SECTION( "BLEUC $20, $21, 1111 and BLEUC $6, $7, 25'896 are executed" )
   {
     auto const _bleuc_jump = "BLEUC"_cpu | 20_rt | 21_rs | 1111_imm16;
     auto const _bleuc_no_jump = "BLEUC"_cpu | 6_rt | 7_rs | 25896_imm16;
@@ -936,28 +861,26 @@ SCENARIO( "A CPU object exists" )
     *$6 = 1;
     *$7 = 0;
 
-    auto const pc = PC();
+    PC() = pc;
 
     auto const res_jump = pc + 4 + ( 1111 << 2 );
     auto const res_no_jump = pc + 4;
 
-    THEN( "It shall jump in the 1st case" )
+    SECTION( "It shall jump in the 1st case" )
     {
-      PC() = pc;
       $start = _bleuc_jump;
       cpu.single_step();
       REQUIRE( PC() == res_jump );
     }
-    AND_THEN( "It shall not jump in the 2nd case" )
+    SECTION( "It shall not jump in the 2nd case" )
     {
-      PC() = pc;
       $start = _bleuc_no_jump;
       cpu.single_step();
       REQUIRE( PC() == res_no_jump );
     }
   }
 
-  WHEN( "BLTUC $20, $21, 1111 and BLTUC $6, $7, 25'896 are executed" )
+  SECTION( "BLTUC $20, $21, 1111 and BLTUC $6, $7, 25'896 are executed" )
   {
     auto const _bltuc_jump = "BLTUC"_cpu | 20_rs | 21_rt | 1111_imm16;
     auto const _bltuc_no_jump = "BLTUC"_cpu | 6_rs | 7_rt | 25896_imm16;
@@ -974,28 +897,26 @@ SCENARIO( "A CPU object exists" )
     *$6 = 11;
     *$7 = 11;
 
-    auto const pc = PC();
+    PC() = pc;
 
     auto const res_jump = pc + 4 + ( 1111 << 2 );
     auto const res_no_jump = pc + 4;
 
-    THEN( "It shall jump in the 1st case" )
+    SECTION( "It shall jump in the 1st case" )
     {
-      PC() = pc;
       $start = _bltuc_jump;
       cpu.single_step();
       REQUIRE( PC() == res_jump );
     }
-    AND_THEN( "It shall not jump in the 2nd case" )
+    SECTION( "It shall not jump in the 2nd case" )
     {
-      PC() = pc;
       $start = _bltuc_no_jump;
       cpu.single_step();
       REQUIRE( PC() == res_no_jump );
     }
   }
 
-  WHEN( "BGTUC $20, $21, 1111 and BGTUC $6, $7, 25'896 are executed" )
+  SECTION( "BGTUC $20, $21, 1111 and BGTUC $6, $7, 25'896 are executed" )
   {
     auto const _bgtuc_jump = "BGTUC"_cpu | 20_rt | 21_rs | 1111_imm16;
     auto const _bgtuc_no_jump = "BGTUC"_cpu | 6_rt | 7_rs | 25896_imm16;
@@ -1012,28 +933,26 @@ SCENARIO( "A CPU object exists" )
     *$6 = 11;
     *$7 = 11;
 
-    auto const pc = PC();
+    PC() = pc;
 
     auto const res_jump = pc + 4 + ( 1111 << 2 );
     auto const res_no_jump = pc + 4;
 
-    THEN( "It shall jump in the 1st case" )
+    SECTION( "It shall jump in the 1st case" )
     {
-      PC() = pc;
       $start = _bgtuc_jump;
       cpu.single_step();
       REQUIRE( PC() == res_jump );
     }
-    AND_THEN( "It shall not jump in the 2nd case" )
+    SECTION( "It shall not jump in the 2nd case" )
     {
-      PC() = pc;
       $start = _bgtuc_no_jump;
       cpu.single_step();
       REQUIRE( PC() == res_no_jump );
     }
   }
 
-  WHEN( "BEQC $20, $21, 1111 and BEQC $6, $7, 25'896 are executed" )
+  SECTION( "BEQC $20, $21, 1111 and BEQC $6, $7, 25'896 are executed" )
   {
     auto const _beqc_jump = "BEQC"_cpu | 20_rs | 21_rt | 1111_imm16;
     auto const _beqc_no_jump = "BEQC"_cpu | 6_rs | 7_rt | 25896_imm16;
@@ -1050,28 +969,26 @@ SCENARIO( "A CPU object exists" )
     *$6 = 0;
     *$7 = 11;
 
-    auto const pc = PC();
+    PC() = pc;
 
     auto const res_jump = pc + 4 + ( 1111 << 2 );
     auto const res_no_jump = pc + 4;
 
-    THEN( "It shall jump in the 1st case" )
+    SECTION( "It shall jump in the 1st case" )
     {
-      PC() = pc;
       $start = _beqc_jump;
       cpu.single_step();
       REQUIRE( PC() == res_jump );
     }
-    AND_THEN( "It shall not jump in the 2nd case" )
+    SECTION( "It shall not jump in the 2nd case" )
     {
-      PC() = pc;
       $start = _beqc_no_jump;
       cpu.single_step();
       REQUIRE( PC() == res_no_jump );
     }
   }
 
-  WHEN( "BNEC $20, $21, 1111 and BNEC $6, $7, 25'896 are executed" )
+  SECTION( "BNEC $20, $21, 1111 and BNEC $6, $7, 25'896 are executed" )
   {
     auto const _bnec_jump = "BNEC"_cpu | 20_rs | 21_rt | 1111_imm16;
     auto const _bnec_no_jump = "BNEC"_cpu | 6_rs | 7_rt | 25896_imm16;
@@ -1088,28 +1005,26 @@ SCENARIO( "A CPU object exists" )
     *$6 = 4123;
     *$7 = 4123;
 
-    auto const pc = PC();
+    PC() = pc;
 
     auto const res_jump = pc + 4 + ( 1111 << 2 );
     auto const res_no_jump = pc + 4;
 
-    THEN( "It shall jump in the 1st case" )
+    SECTION( "It shall jump in the 1st case" )
     {
-      PC() = pc;
       $start = _bnec_jump;
       cpu.single_step();
       REQUIRE( PC() == res_jump );
     }
-    AND_THEN( "It shall not jump in the 2nd case" )
+    SECTION( "It shall not jump in the 2nd case" )
     {
-      PC() = pc;
       $start = _bnec_no_jump;
       cpu.single_step();
       REQUIRE( PC() == res_no_jump );
     }
   }
 
-  WHEN( "BEQZC $20, 0xF'FFFF and BEQZC $6, 0xA'BCDE are executed" )
+  SECTION( "BEQZC $20, 0xF'FFFF and BEQZC $6, 0xA'BCDE are executed" )
   {
     auto const _beqzc_jump = "BEQZC"_cpu | 20_rs | 0xF'FFFF;
     auto const _beqzc_no_jump = "BEQZC"_cpu | 6_rs | 0xA'BCDE;
@@ -1122,28 +1037,26 @@ SCENARIO( "A CPU object exists" )
 
     *$6 = -423;
 
-    auto const pc = PC();
+    PC() = pc;
 
     auto const res_jump = pc + 4 + ( 0xF'FFFF << 2 );
     auto const res_no_jump = pc + 4;
 
-    THEN( "It shall jump in the 1st case" )
+    SECTION( "It shall jump in the 1st case" )
     {
-      PC() = pc;
       $start = _beqzc_jump;
       cpu.single_step();
       REQUIRE( PC() == res_jump );
     }
-    AND_THEN( "It shall not jump in the 2nd case" )
+    SECTION( "It shall not jump in the 2nd case" )
     {
-      PC() = pc;
       $start = _beqzc_no_jump;
       cpu.single_step();
       REQUIRE( PC() == res_no_jump );
     }
   }
 
-  WHEN( "BNEZC $20, 0xA'BCDE and BNEZC $6, 21 are executed" )
+  SECTION( "BNEZC $20, 0xA'BCDE and BNEZC $6, 21 are executed" )
   {
     auto const _beqzc_jump = "BNEZC"_cpu | 20_rs | 0xA'BCDE;
     auto const _beqzc_no_jump = "BNEZC"_cpu | 6_rs | 21;
@@ -1156,28 +1069,26 @@ SCENARIO( "A CPU object exists" )
 
     *$6 = 0;
 
-    auto const pc = PC();
+    PC() = pc;
 
     auto const res_jump = pc + 4 + ( 0xA'BCDE << 2 );
     auto const res_no_jump = pc + 4;
 
-    THEN( "It shall jump in the 1st case" )
+    SECTION( "It shall jump in the 1st case" )
     {
-      PC() = pc;
       $start = _beqzc_jump;
       cpu.single_step();
       REQUIRE( PC() == res_jump );
     }
-    AND_THEN( "It shall not jump in the 2nd case" )
+    SECTION( "It shall not jump in the 2nd case" )
     {
-      PC() = pc;
       $start = _beqzc_no_jump;
       cpu.single_step();
       REQUIRE( PC() == res_no_jump );
     }
   }
 
-  WHEN( "BOVC $2, $1, 256 and BOVC $4, $3, 1024 are executed" )
+  SECTION( "BOVC $2, $1, 256 and BOVC $4, $3, 1024 are executed" )
   {
     auto const _bovc_jump = "BOVC"_cpu | 2_rs | 1_rt | 256;
     auto const _bovc_no_jump = "BOVC"_cpu | 4_rs | 3_rt | 1024;
@@ -1194,22 +1105,20 @@ SCENARIO( "A CPU object exists" )
     *$3 = 1;
     *$4 = 1;
 
-    auto const pc = PC();
+    PC() = pc;
 
     auto const pc_jump = pc + 4 + ( 256 << 2 );
     auto const pc_no_jump = pc + 4;
 
-    THEN( "It shall jump in the 1st case" )
+    SECTION( "It shall jump in the 1st case" )
     {
-      PC() = pc;
       $start = _bovc_jump;
       cpu.single_step();
 
       REQUIRE( PC() == pc_jump );
     }
-    AND_THEN( "It shall not jump in the 2nd case" )
+    SECTION( "It shall not jump in the 2nd case" )
     {
-      PC() = pc;
       $start = _bovc_no_jump;
       cpu.single_step();
 
@@ -1217,7 +1126,7 @@ SCENARIO( "A CPU object exists" )
     }
   }
 
-  WHEN( "BNVC $2, $1, 256 and BNVC $4, $3, 1024 are executed" )
+  SECTION( "BNVC $2, $1, 256 and BNVC $4, $3, 1024 are executed" )
   {
     auto const _bnvc_jump = "BNVC"_cpu | 2_rs | 1_rt | 256;
     auto const _bnvc_no_jump = "BNVC"_cpu | 4_rs | 3_rt | 1024;
@@ -1234,22 +1143,20 @@ SCENARIO( "A CPU object exists" )
     *$3 = 0x8000'0000;
     *$4 = 0x8000'0000;
 
-    auto const pc = PC();
+    PC() = pc;
 
     auto const pc_jump = pc + 4 + ( 256 << 2 );
     auto const pc_no_jump = pc + 4;
 
-    THEN( "It shall jump in the 1st case" )
+    SECTION( "It shall jump in the 1st case" )
     {
-      PC() = pc;
       $start = _bnvc_jump;
       cpu.single_step();
 
       REQUIRE( PC() == pc_jump );
     }
-    AND_THEN( "It shall not jump in the 2nd case" )
+    SECTION( "It shall not jump in the 2nd case" )
     {
-      PC() = pc;
       $start = _bnvc_no_jump;
       cpu.single_step();
 
@@ -1257,17 +1164,14 @@ SCENARIO( "A CPU object exists" )
     }
   }
 
-  WHEN( "BREAK is executed" )
+  SECTION( "BREAK is executed" )
   {
     $start = "BREAK"_cpu;
 
-    THEN( "It shall return 'breakpoint' as exception" )
-    {
-      REQUIRE( cpu.single_step() == 3 );
-    }
+    REQUIRE( cpu.single_step() == 3 );
   }
 
-  WHEN( "CLO $10, $15 and CLO $21, $0 are executed" )
+  SECTION( "CLO $10, $15 and CLO $21, $0 are executed" )
   {
     auto const _clo_15 = "CLO"_cpu | 10_rd | 15_rs;
     auto const _clo_0 = "CLO"_cpu | 21_rd | 0_rs;
@@ -1277,38 +1181,35 @@ SCENARIO( "A CPU object exists" )
 
     auto $21 = R( 21 );
 
-    auto const pc = PC();
+    PC() = pc;
 
     auto const res_EBF8_9D0A = 3;
     auto const res_FFFF_FFFF = 32;
     auto const res_0000_0000 = 0;
 
-    THEN( "0xEBF8'9D0A shall return 3" )
+    SECTION( "0xEBF8'9D0A shall return 3" )
     {
-      PC() = pc;
       $start = _clo_15;
       *$15 = 0xEBF8'9D0A;
       cpu.single_step();
       REQUIRE( *$10 == res_EBF8_9D0A );
     }
-    AND_THEN( "0xFFFF'FFFF shall return 32" )
+    SECTION( "0xFFFF'FFFF shall return 32" )
     {
-      PC() = pc;
       $start = _clo_15;
       *$15 = 0xFFFF'FFFF;
       cpu.single_step();
       REQUIRE( *$10 == res_FFFF_FFFF );
     }
-    AND_THEN( "0x0000'0000 shall return 0" )
+    SECTION( "0x0000'0000 shall return 0" )
     {
-      PC() = pc;
       $start = _clo_0;
       cpu.single_step();
       REQUIRE( *$21 == res_0000_0000 );
     }
   }
 
-  WHEN( "CLZ $10, $15 and CLZ $21, $0 are executed" )
+  SECTION( "CLZ $10, $15 and CLZ $21, $0 are executed" )
   {
     auto const _clo_15 = "CLZ"_cpu | 10_rd | 15_rs;
     auto const _clo_0 = "CLZ"_cpu | 21_rd | 0_rs;
@@ -1318,66 +1219,57 @@ SCENARIO( "A CPU object exists" )
 
     auto $21 = R( 21 );
 
-    auto const pc = PC();
+    PC() = pc;
 
     auto const res_0604_7FEB = 5;
     auto const res_FFFF_FFFF = 0;
     auto const res_0000_0000 = 32;
 
-    THEN( "0x0604'7FEB shall return 5" )
+    SECTION( "0x0604'7FEB shall return 5" )
     {
-      PC() = pc;
       $start = _clo_15;
       *$15 = 0x0604'7FEB;
       cpu.single_step();
       REQUIRE( *$10 == res_0604_7FEB );
     }
-    AND_THEN( "0xFFFF'FFFF shall return 0" )
+    SECTION( "0xFFFF'FFFF shall return 0" )
     {
-      PC() = pc;
       $start = _clo_15;
       *$15 = 0xFFFF'FFFF;
       cpu.single_step();
       REQUIRE( *$10 == res_FFFF_FFFF );
     }
-    AND_THEN( "0x0000'0000 shall return 32" )
+    SECTION( "0x0000'0000 shall return 32" )
     {
-      PC() = pc;
       $start = _clo_0;
       cpu.single_step();
       REQUIRE( *$21 == res_0000_0000 );
     }
   }
 
-  WHEN( "DI is executed" )
+  SECTION( "DI is executed" )
   {
-    inspector.CP0_status() |= 1;
+    inspector.access_cp0().status |= 1;
     $start = "DI"_cpu;
     cpu.single_step();
 
-    THEN( "Interrupts shall be disabled" )
-    {
-      auto const int_disabled = inspector.CP0_status() & 1;
-      REQUIRE( int_disabled == 0 );
-    }
+    auto const int_disabled = cp0.status & 1;
+    REQUIRE( int_disabled == 0 );
   }
 
-  WHEN( "EI is executed" )
+  SECTION( "EI is executed" )
   {
-    inspector.CP0_status() &= ~1;
+    cp0.status &= ~1;
 
     $start = "EI"_cpu;
 
     cpu.single_step();
 
-    THEN( "Interrupts shall be enabled" )
-    {
-      auto const int_enabled = inspector.CP0_status() & 1;
-      REQUIRE( int_enabled == 1 );
-    }
+    auto const int_enabled = cp0.status & 1;
+    REQUIRE( int_enabled == 1 );
   }
 
-  WHEN( "DIV $1, $2, $3 is executed" )
+  SECTION( "DIV $1, $2, $3 is executed" )
   {
     auto const _div = "DIV"_cpu | 1_rd | 2_rs | 3_rt;
 
@@ -1393,13 +1285,10 @@ SCENARIO( "A CPU object exists" )
     $start = _div;
     cpu.single_step();
 
-    THEN( "The result must be correct" )
-    {
-      REQUIRE( *$1 == res );
-    }
+    REQUIRE( *$1 == res );
   }
 
-  WHEN( "DIVU $1, $2, $3 is executed" )
+  SECTION( "DIVU $1, $2, $3 is executed" )
   {
     auto const _divu = "DIVU"_cpu | 1_rd | 2_rs | 3_rt;
 
@@ -1415,13 +1304,10 @@ SCENARIO( "A CPU object exists" )
     $start = _divu;
     cpu.single_step();
 
-    THEN( "The result must be correct" )
-    {
-      REQUIRE( *$1 == res );
-    }
+    REQUIRE( *$1 == res );
   }
 
-  WHEN( "MOD $1, $2, $3 is executed" )
+  SECTION( "MOD $1, $2, $3 is executed" )
   {
     auto const _mod = "MOD"_cpu | 1_rd | 2_rs | 3_rt;
 
@@ -1437,13 +1323,10 @@ SCENARIO( "A CPU object exists" )
     $start = _mod;
     cpu.single_step();
 
-    THEN( "The result must be correct" )
-    {
-      REQUIRE( *$1 == res );
-    }
+    REQUIRE( *$1 == res );
   }
 
-  WHEN( "MODU $1, $2, $3 is executed" )
+  SECTION( "MODU $1, $2, $3 is executed" )
   {
     auto const _mod = "MODU"_cpu | 1_rd | 2_rs | 3_rt;
 
@@ -1459,27 +1342,21 @@ SCENARIO( "A CPU object exists" )
     $start = _mod;
     cpu.single_step();
 
-    THEN( "The result must be correct" )
-    {
-      REQUIRE( *$1 == res );
-    }
+    REQUIRE( *$1 == res );
   }
 
-  WHEN( "ERET is executed to return from an interrupt/exception" )
+  SECTION( "ERET is executed to return from an interrupt/exception" )
   {
     $start = "SIGRIE"_cpu;
     ram[0x8000'0180] = "ERET"_cpu;
 
-    THEN( "Returning from an exception should set PC to EPC" )
-    {
-      cpu.single_step(); // sigrie
-      REQUIRE( PC() == 0x8000'0180 );
-      cpu.single_step(); // eret
-      REQUIRE( PC() == 0xBFC0'0000 );
-    }
+    cpu.single_step(); // sigrie
+    REQUIRE( PC() == 0x8000'0180 );
+    cpu.single_step(); // eret
+    REQUIRE( PC() == 0xBFC0'0000 );
   }
 
-  WHEN( "EXT $1, $2, 14, 8 is executed" )
+  SECTION( "EXT $1, $2, 14, 8 is executed" )
   {
     auto const _ext = "EXT"_cpu | 1_rt | 2_rs | 14_shamt | 7_rd;
 
@@ -1493,13 +1370,10 @@ SCENARIO( "A CPU object exists" )
     $start = _ext;
     cpu.single_step();
 
-    THEN( "The result shall be correct" )
-    {
-      REQUIRE( *$1 == res );
-    }
+    REQUIRE( *$1 == res );
   }
 
-  WHEN( "INS $1, $2, 19, 4 is executed" )
+  SECTION( "INS $1, $2, 19, 4 is executed" )
   {
     auto const _ins = "INS"_cpu | 1_rt | 2_rs | 19_shamt | 22_rd;
 
@@ -1514,13 +1388,10 @@ SCENARIO( "A CPU object exists" )
     $start = _ins;
     cpu.single_step();
 
-    THEN( "The result shall be correct" )
-    {
-      REQUIRE( *$1 == res );
-    }
+    REQUIRE( *$1 == res );
   }
 
-  WHEN( "J 0x0279'DB24 is executed" )
+  SECTION( "J 0x0279'DB24 is executed" )
   {
     auto const _j = "J"_cpu | 0x0279'DB24;
 
@@ -1530,33 +1401,27 @@ SCENARIO( "A CPU object exists" )
 
     cpu.single_step();
 
-    THEN( "The pc must hold the correct address" )
-    {
-      REQUIRE( PC() == res );
-    }
+    REQUIRE( PC() == res );
   }
 
-  WHEN( "JAL 2389 is executed" )
+  SECTION( "JAL 2389 is executed" )
   {
     auto const _jal = "JAL"_cpu | 2389;
 
     auto $31 = R( 31 );
 
-    auto const pc = PC();
+    PC() = pc;
     auto const res = pc & 0xF000'0000 | 2389 << 2;
 
     $start = _jal;
 
     cpu.single_step();
 
-    THEN( "The pc must hold the correct address and $31 the previous value" )
-    {
-      REQUIRE( PC() == res );
-      REQUIRE( *$31 == pc + 8 );
-    }
+    REQUIRE( PC() == res );
+    REQUIRE( *$31 == pc + 8 );
   }
 
-  WHEN( "JALR $1 and JALR $1, $2 are executed" )
+  SECTION( "JALR $1 and JALR $1, $2 are executed" )
   {
     auto const _jalr_31 = "JALR"_cpu | 1_rs | 31_rd;
     auto const _jalr_2 = "JALR"_cpu | 1_rs | 2_rd;
@@ -1567,21 +1432,19 @@ SCENARIO( "A CPU object exists" )
 
     *$1 = 0x8000'0000;
 
-    auto const pc = PC();
+    PC() = pc;
     auto const ret = pc + 8;
 
-    THEN( "It shall store pc into $31 in the 1st case" )
+    SECTION( "It shall store pc into $31 in the 1st case" )
     {
-      PC() = pc;
       $start = _jalr_31;
       cpu.single_step();
 
       REQUIRE( PC() == 0x8000'0000 );
       REQUIRE( *$31 == ret );
     }
-    AND_THEN( "It shall store pc into $2 in the 2nd case" )
+    SECTION( "It shall store pc into $2 in the 2nd case" )
     {
-      PC() = pc;
       $start = _jalr_2;
       cpu.single_step();
 
@@ -1590,7 +1453,7 @@ SCENARIO( "A CPU object exists" )
     }
   }
 
-  WHEN( "JIALC $4, 21 is executed" )
+  SECTION( "JIALC $4, 21 is executed" )
   {
     auto const _jialc = "JIALC"_cpu | 4_rt | 21;
 
@@ -1599,20 +1462,17 @@ SCENARIO( "A CPU object exists" )
 
     *$4 = 0x8000'0000;
 
-    auto const ret = PC() + 4;
+    auto const ret = pc + 4;
     auto const new_pc = 0x8000'0000 + 21;
 
     $start = _jialc;
     cpu.single_step();
 
-    THEN( "It shall jump correctly" )
-    {
-      REQUIRE( PC() == new_pc );
-      REQUIRE( *$31 == ret );
-    }
+    REQUIRE( PC() == new_pc );
+    REQUIRE( *$31 == ret );
   }
 
-  WHEN( "JIC $16, 9345 is executed" )
+  SECTION( "JIC $16, 9345 is executed" )
   {
     auto const _jialc = "JIALC"_cpu | 4_rt | 9345;
 
@@ -1621,20 +1481,17 @@ SCENARIO( "A CPU object exists" )
 
     *$4 = 0xABCD'0000;
 
-    auto const ret = PC() + 4;
+    auto const ret = pc + 4;
     auto const new_pc = 0xABCD'0000 + 9345;
 
     $start = _jialc;
     cpu.single_step();
 
-    THEN( "It shall jump correctly" )
-    {
-      REQUIRE( PC() == new_pc );
-      REQUIRE( *$31 == ret );
-    }
+    REQUIRE( PC() == new_pc );
+    REQUIRE( *$31 == ret );
   }
 
-  WHEN( "JIC $1, 51 is executed" )
+  SECTION( "JIC $1, 51 is executed" )
   {
     auto const _jic = "JIC"_cpu | 1_rt | 51;
 
@@ -1647,13 +1504,10 @@ SCENARIO( "A CPU object exists" )
     $start = _jic;
     cpu.single_step();
 
-    THEN( "The new PC shall be 0xAE00'0033" )
-    {
-      REQUIRE( PC() == 0xAE00'0033 );
-    }
+    REQUIRE( PC() == 0xAE00'0033 );
   }
 
-  WHEN( "JR $31 is executed" )
+  SECTION( "JR $31 is executed" )
   {
     auto const _jr = "JR"_cpu | 31_rs;
 
@@ -1664,15 +1518,12 @@ SCENARIO( "A CPU object exists" )
     $start = _jr;
     cpu.single_step();
 
-    THEN( "It shall jump correctly" )
-    {
-      REQUIRE( PC() == 0x0024'3798 );
-    }
+    REQUIRE( PC() == 0x0024'3798 );
   }
 
   //// Signed Load
 
-  WHEN( "LB $1, n($2) is executed with n = {0,1,2,3}" )
+  SECTION( "LB $1, n($2) is executed with n = {0,1,2,3}" )
   {
     auto const _lb_0 = "LB"_cpu | 1_rt | 0 | 2_rs;
     auto const _lb_1 = "LB"_cpu | 1_rt | 1 | 2_rs;
@@ -1682,44 +1533,40 @@ SCENARIO( "A CPU object exists" )
     auto $1 = R( 1 );
     auto $2 = R( 2 );
 
-    auto const pc = PC();
+    PC() = pc;
 
     *$2 = 0x8000'0000;
     ram[0x8000'0000] = 0xABCD'EF12;
 
     // Remember that LB sign extends before writing to rt
 
-    THEN( "0($2) should load 0x12" )
+    SECTION( "0($2) should load 0x12" )
     {
-      PC() = pc;
       $start = _lb_0;
       cpu.single_step();
       REQUIRE( *$1 == 0x12 );
     }
-    AND_THEN( "1($2) should load 0xEF" )
+    SECTION( "1($2) should load 0xEF" )
     {
-      PC() = pc;
       $start = _lb_1;
       cpu.single_step();
       REQUIRE( *$1 == 0xFF'FF'FF'EF );
     }
-    AND_THEN( "2($2) should load 0xCD" )
+    SECTION( "2($2) should load 0xCD" )
     {
-      PC() = pc;
       $start = _lb_2;
       cpu.single_step();
       REQUIRE( *$1 == 0xFF'FF'FF'CD );
     }
-    AND_THEN( "3($2) should load 0xAB" )
+    SECTION( "3($2) should load 0xAB" )
     {
-      PC() = pc;
       $start = _lb_3;
       cpu.single_step();
       REQUIRE( *$1 == 0xFF'FF'FF'AB );
     }
   }
 
-  WHEN( "LH $1, n($2) is executed with n = {0,1,2,3}" )
+  SECTION( "LH $1, n($2) is executed with n = {0,1,2,3}" )
   {
     auto const _lh_0 = "LH"_cpu | 1_rt | 0 | 2_rs;
     auto const _lh_1 = "LH"_cpu | 1_rt | 1 | 2_rs;
@@ -1729,7 +1576,7 @@ SCENARIO( "A CPU object exists" )
     auto $1 = R( 1 );
     auto $2 = R( 2 );
 
-    auto const pc = PC();
+    PC() = pc;
 
     *$2 = 0x8000'0000;
     ram[0x8000'0000] = 0xABCD'EF12;
@@ -1737,37 +1584,33 @@ SCENARIO( "A CPU object exists" )
 
     // Remember that LH sign extends before writing to rt
 
-    THEN( "0($2) should load 0xFFFF'EF12" )
+    SECTION( "0($2) should load 0xFFFF'EF12" )
     {
-      PC() = pc;
       $start = _lh_0;
       cpu.single_step();
       REQUIRE( *$1 == 0xFFFF'EF12 );
     }
-    AND_THEN( "1($2) should load 0xFFFF'CDEF" )
+    SECTION( "1($2) should load 0xFFFF'CDEF" )
     {
-      PC() = pc;
       $start = _lh_1;
       cpu.single_step();
       REQUIRE( *$1 == 0xFFFF'CDEF );
     }
-    AND_THEN( "2($2) should load 0xFFFF'ABCD" )
+    SECTION( "2($2) should load 0xFFFF'ABCD" )
     {
-      PC() = pc;
       $start = _lh_2;
       cpu.single_step();
       REQUIRE( *$1 == 0xFFFF'ABCD );
     }
-    AND_THEN( "3($2) should load 0xFFFF'90AB" )
+    SECTION( "3($2) should load 0xFFFF'90AB" )
     {
-      PC() = pc;
       $start = _lh_3;
       cpu.single_step();
       REQUIRE( *$1 == 0xFFFF'90AB );
     }
   }
 
-  WHEN( "LW $1, n($2) is executed with n = {0,1,2,3}" )
+  SECTION( "LW $1, n($2) is executed with n = {0,1,2,3}" )
   {
     auto const _lw_0 = "LW"_cpu | 1_rt | 0 | 2_rs;
     auto const _lw_1 = "LW"_cpu | 1_rt | 1 | 2_rs;
@@ -1777,43 +1620,39 @@ SCENARIO( "A CPU object exists" )
     auto $1 = R( 1 );
     auto $2 = R( 2 );
 
-    auto const pc = PC();
+    PC() = pc;
 
     *$2 = 0x8000'0000;
     ram[0x8000'0000] = 0xABCD'EF12;
     ram[0x8000'0004] = 0x3456'7890;
 
-    THEN( "0($2) should load 0xABCD'EF12" )
+    SECTION( "0($2) should load 0xABCD'EF12" )
     {
-      PC() = pc;
       $start = _lw_0;
       cpu.single_step();
       REQUIRE( *$1 == 0xABCD'EF12 );
     }
-    AND_THEN( "1($2) should load 0x90AB'CDEF" )
+    SECTION( "1($2) should load 0x90AB'CDEF" )
     {
-      PC() = pc;
       $start = _lw_1;
       cpu.single_step();
       REQUIRE( *$1 == 0x90AB'CDEF );
     }
-    AND_THEN( "2($2) should load 0x7890'ABCD" )
+    SECTION( "2($2) should load 0x7890'ABCD" )
     {
-      PC() = pc;
       $start = _lw_2;
       cpu.single_step();
       REQUIRE( *$1 == 0x7890'ABCD );
     }
-    AND_THEN( "3($2) should load 0x3456'7890" )
+    SECTION( "3($2) should load 0x3456'7890" )
     {
-      PC() = pc;
       $start = _lw_3;
       cpu.single_step();
       REQUIRE( *$1 == 0x5678'90AB );
     }
   }
 
-  WHEN( "LWC1 $f0, n($1) is executed with n = {0,1,2,3}" )
+  SECTION( "LWC1 $f0, n($1) is executed with n = {0,1,2,3}" )
   {
     auto const _lwc1_0 = "LWC1"_cpu | 0_rt | 1_rs | 0;
     auto const _lwc1_1 = "LWC1"_cpu | 0_rt | 1_rs | 1;
@@ -1828,35 +1667,31 @@ SCENARIO( "A CPU object exists" )
     ram[0x8000'0000] = 0xDDDD'EEEE;
     ram[0x8000'0004] = 0xAAAA'BBBB;
 
-    auto const pc = PC();
+    PC() = pc;
 
-    THEN( "0($1) should load 0xDDDD'EEEE" )
+    SECTION( "0($1) should load 0xDDDD'EEEE" )
     {
-      PC() = pc;
       $start = _lwc1_0;
       cpu.single_step();
 
       REQUIRE( $f0->i32 == 0xDDDD'EEEE );
     }
-    AND_THEN( "1($1) should load 0xBBDD'DDEE" )
+    SECTION( "1($1) should load 0xBBDD'DDEE" )
     {
-      PC() = pc;
       $start = _lwc1_1;
       cpu.single_step();
 
       REQUIRE( $f0->i32 == 0xBBDD'DDEE );
     }
-    AND_THEN( "2($1) should load 0xBBBB'DDDD" )
+    SECTION( "2($1) should load 0xBBBB'DDDD" )
     {
-      PC() = pc;
       $start = _lwc1_2;
       cpu.single_step();
 
       REQUIRE( $f0->i32 == 0xBBBB'DDDD );
     }
-    AND_THEN( "3($1) should load 0xAABB'BBDD" )
+    SECTION( "3($1) should load 0xAABB'BBDD" )
     {
-      PC() = pc;
       $start = _lwc1_3;
       cpu.single_step();
 
@@ -1864,7 +1699,7 @@ SCENARIO( "A CPU object exists" )
     }
   }
 
-  WHEN( "LWPC $1, 6000 is executed" )
+  SECTION( "LWPC $1, 6000 is executed" )
   {
     auto const _lwpc = "LWPC"_cpu | 1_rs | 6000;
 
@@ -1877,13 +1712,10 @@ SCENARIO( "A CPU object exists" )
     $start = _lwpc;
     cpu.single_step();
 
-    THEN( "$1 shall equal to 0xAAAA'BBBB" )
-    {
-      REQUIRE( *$1 == 0xAAAA'BBBB );
-    }
+    REQUIRE( *$1 == 0xAAAA'BBBB );
   }
 
-  WHEN( "LWUPC $1, 6000 is executed" )
+  SECTION( "LWUPC $1, 6000 is executed" )
   {
     auto const _lwupc = "LWUPC"_cpu | 1_rs | 6000;
 
@@ -1896,15 +1728,12 @@ SCENARIO( "A CPU object exists" )
     $start = _lwupc;
     cpu.single_step();
 
-    THEN( "$1 shall equal to 0xAAAA'BBBB" )
-    {
-      REQUIRE( *$1 == 0xAAAA'BBBB );
-    }
+    REQUIRE( *$1 == 0xAAAA'BBBB );
   }
 
   //// Unsigned Load
 
-  WHEN( "LBU $1, n($2) is executed with n = {0,1,2,3}" )
+  SECTION( "LBU $1, n($2) is executed with n = {0,1,2,3}" )
   {
     auto const _lbu_0 = "LBU"_cpu | 1_rt | 0 | 2_rs;
     auto const _lbu_1 = "LBU"_cpu | 1_rt | 1 | 2_rs;
@@ -1914,42 +1743,38 @@ SCENARIO( "A CPU object exists" )
     auto $1 = R( 1 );
     auto $2 = R( 2 );
 
-    auto const pc = PC();
+    PC() = pc;
 
     *$2 = 0x8000'0000;
     ram[0x8000'0000] = 0xAABB'DDEE;
 
-    THEN( "0($2) should load 0xEE" )
+    SECTION( "0($2) should load 0xEE" )
     {
-      PC() = pc;
       $start = _lbu_0;
       cpu.single_step();
       REQUIRE( *$1 == 0xEE );
     }
-    AND_THEN( "1($2) should load 0xDD" )
+    SECTION( "1($2) should load 0xDD" )
     {
-      PC() = pc;
       $start = _lbu_1;
       cpu.single_step();
       REQUIRE( *$1 == 0xDD );
     }
-    AND_THEN( "2($2) should load 0xBB" )
+    SECTION( "2($2) should load 0xBB" )
     {
-      PC() = pc;
       $start = _lbu_2;
       cpu.single_step();
       REQUIRE( *$1 == 0xBB );
     }
-    AND_THEN( "3($2) should load 0xAA" )
+    SECTION( "3($2) should load 0xAA" )
     {
-      PC() = pc;
       $start = _lbu_3;
       cpu.single_step();
       REQUIRE( *$1 == 0xAA );
     }
   }
 
-  WHEN( "LHU $1, n($2) is executed with n = {0,1,2,3}" )
+  SECTION( "LHU $1, n($2) is executed with n = {0,1,2,3}" )
   {
     auto const _lhu_0 = "LHU"_cpu | 1_rt | 0 | 2_rs;
     auto const _lhu_1 = "LHU"_cpu | 1_rt | 1 | 2_rs;
@@ -1959,7 +1784,7 @@ SCENARIO( "A CPU object exists" )
     auto $1 = R( 1 );
     auto $2 = R( 2 );
 
-    auto const pc = PC();
+    PC() = pc;
 
     *$2 = 0x8000'0000;
     ram[0x8000'0000] = 0xDDDD'EEEE;
@@ -1967,37 +1792,33 @@ SCENARIO( "A CPU object exists" )
 
     // Remember that LH sign extends before writing to rt
 
-    THEN( "0($2) should load 0xEEEE" )
+    SECTION( "0($2) should load 0xEEEE" )
     {
-      PC() = pc;
       $start = _lhu_0;
       cpu.single_step();
       REQUIRE( *$1 == 0xEEEE );
     }
-    AND_THEN( "1($2) should load 0xDDEE" )
+    SECTION( "1($2) should load 0xDDEE" )
     {
-      PC() = pc;
       $start = _lhu_1;
       cpu.single_step();
       REQUIRE( *$1 == 0xDDEE );
     }
-    AND_THEN( "2($2) should load 0xDDDD" )
+    SECTION( "2($2) should load 0xDDDD" )
     {
-      PC() = pc;
       $start = _lhu_2;
       cpu.single_step();
       REQUIRE( *$1 == 0xDDDD );
     }
-    AND_THEN( "3($2) should load 0xBBDD" )
+    SECTION( "3($2) should load 0xBBDD" )
     {
-      PC() = pc;
       $start = _lhu_3;
       cpu.single_step();
       REQUIRE( *$1 == 0xBBDD );
     }
   }
 
-  WHEN( "LDC1 $f0, n($1) is executed with n = {0,1,2,3}" )
+  SECTION( "LDC1 $f0, n($1) is executed with n = {0,1,2,3}" )
   {
     auto const _ldc1_0 = "LDC1"_cpu | 0_rt | 0 | 1_rs;
     auto const _ldc1_1 = "LDC1"_cpu | 0_rt | 1 | 1_rs;
@@ -2007,7 +1828,7 @@ SCENARIO( "A CPU object exists" )
     auto $f0 = FP( 0 );
     auto $1 = R( 1 );
 
-    auto const pc = PC();
+    PC() = pc;
 
     $f0->i64 = -1;
 
@@ -2017,37 +1838,33 @@ SCENARIO( "A CPU object exists" )
     ram[0x8000'0004] = 0xBBBB'BBBB;
     ram[0x8000'0008] = 0xDDDD'DDDD;
 
-    THEN( "0($1) should load 0xBBBB'BBBB'AAAA'AAAA" )
+    SECTION( "0($1) should load 0xBBBB'BBBB'AAAA'AAAA" )
     {
-      PC() = pc;
       $start = _ldc1_0;
       cpu.single_step();
       REQUIRE( $f0->i64 == 0xBBBB'BBBB'AAAA'AAAAull );
     }
-    AND_THEN( "1($1) should load 0xDDBB'BBBB'BBAA'AAAA" )
+    SECTION( "1($1) should load 0xDDBB'BBBB'BBAA'AAAA" )
     {
-      PC() = pc;
       $start = _ldc1_1;
       cpu.single_step();
       REQUIRE( $f0->i64 == 0xDDBB'BBBB'BBAA'AAAAull );
     }
-    AND_THEN( "2($1) should load 0xDDDD'BBBB'BBBB'AAAA" )
+    SECTION( "2($1) should load 0xDDDD'BBBB'BBBB'AAAA" )
     {
-      PC() = pc;
       $start = _ldc1_2;
       cpu.single_step();
       REQUIRE( $f0->i64 == 0xDDDD'BBBB'BBBB'AAAAull );
     }
-    AND_THEN( "3($1) should load 0xDDDD'DDBB'BBBB'BBAA" )
+    SECTION( "3($1) should load 0xDDDD'DDBB'BBBB'BBAA" )
     {
-      PC() = pc;
       $start = _ldc1_3;
       cpu.single_step();
       REQUIRE( $f0->i64 == 0xDDDD'DDBB'BBBB'BBAAull );
     }
   }
 
-  WHEN( "SB $1, n($2) is executed with n = {0,1,2,3}" )
+  SECTION( "SB $1, n($2) is executed with n = {0,1,2,3}" )
   {
     auto const _sb_0 = "SB"_cpu | 1_rt | 0 | 2_rs;
     auto const _sb_1 = "SB"_cpu | 1_rt | 1 | 2_rs;
@@ -2057,46 +1874,40 @@ SCENARIO( "A CPU object exists" )
     auto $1 = R( 1 );
     auto $2 = R( 2 );
 
-    auto const pc = PC();
+    PC() = pc;
 
     *$1 = 0x33; // data
     *$2 = 0x8000'0000; // address
 
-    THEN( "0($2) should store 0xCCCC'CC33" )
+    ram[0x8000'0000] = 0xCCCC'CCCC;
+
+    SECTION( "0($2) should store 0xCCCC'CC33" )
     {
-      PC() = pc;
       $start = _sb_0;
-      ram[0x8000'0000] = 0xCCCC'CCCC;
       cpu.single_step();
       REQUIRE( ram[0x8000'0000] == 0xCCCC'CC33 );
     }
-    AND_THEN( "1($2) should store 0xCCCC'33CC" )
+    SECTION( "1($2) should store 0xCCCC'33CC" )
     {
-      PC() = pc;
       $start = _sb_1;
-      ram[0x8000'0000] = 0xCCCC'CCCC;
       cpu.single_step();
       REQUIRE( ram[0x8000'0000] == 0xCCCC'33CC );
     }
-    AND_THEN( "2($2) should store 0xCC33'CCCC" )
+    SECTION( "2($2) should store 0xCC33'CCCC" )
     {
-      PC() = pc;
       $start = _sb_2;
-      ram[0x8000'0000] = 0xCCCC'CCCC;
       cpu.single_step();
       REQUIRE( ram[0x8000'0000] == 0xCC33'CCCC );
     }
-    AND_THEN( "3($2) should store 0x33CC'CCCC" )
+    SECTION( "3($2) should store 0x33CC'CCCC" )
     {
-      PC() = pc;
       $start = _sb_3;
-      ram[0x8000'0000] = 0xCCCC'CCCC;
       cpu.single_step();
       REQUIRE( ram[0x8000'0000] == 0x33CC'CCCC );
     }
   }
 
-  WHEN( "SH $1, n($2) is executed with n = {0,1,2,3}" )
+  SECTION( "SH $1, n($2) is executed with n = {0,1,2,3}" )
   {
     auto const _sh_0 = "SH"_cpu | 1_rt | 0 | 2_rs;
     auto const _sh_1 = "SH"_cpu | 1_rt | 1 | 2_rs;
@@ -2106,54 +1917,45 @@ SCENARIO( "A CPU object exists" )
     auto $1 = R( 1 );
     auto $2 = R( 2 );
 
-    auto const pc = PC();
+    PC() = pc;
 
     *$1 = 0x3333; // data
     *$2 = 0x8000'0000; // address
 
-    THEN( "0($2) should store 0xCCCC'3333" )
+    ram[0x8000'0000] = 0xCCCC'CCCC;
+    ram[0x8000'0004] = 0xCCCC'CCCC;
+
+    SECTION( "0($2) should store 0xCCCC'3333" )
     {
-      PC() = pc;
       $start = _sh_0;
-      ram[0x8000'0000] = 0xCCCC'CCCC;
-      ram[0x8000'0004] = 0xCCCC'CCCC;
       cpu.single_step();
       REQUIRE( ram[0x8000'0000] == 0xCCCC'3333 );
       REQUIRE( ram[0x8000'0004] == 0xCCCC'CCCC );
     }
-    AND_THEN( "1($2) should store 0xCC33'33CC" )
+    SECTION( "1($2) should store 0xCC33'33CC" )
     {
-      PC() = pc;
       $start = _sh_1;
-      ram[0x8000'0000] = 0xCCCC'CCCC;
-      ram[0x8000'0004] = 0xCCCC'CCCC;
       cpu.single_step();
       REQUIRE( ram[0x8000'0000] == 0xCC33'33CC );
       REQUIRE( ram[0x8000'0004] == 0xCCCC'CCCC );
     }
-    AND_THEN( "2($2) should store 0x3333'CCCC" )
+    SECTION( "2($2) should store 0x3333'CCCC" )
     {
-      PC() = pc;
       $start = _sh_2;
-      ram[0x8000'0000] = 0xCCCC'CCCC;
-      ram[0x8000'0004] = 0xCCCC'CCCC;
       cpu.single_step();
       REQUIRE( ram[0x8000'0000] == 0x3333'CCCC );
       REQUIRE( ram[0x8000'0004] == 0xCCCC'CCCC );
     }
-    AND_THEN( "3($2) should store 0x33CC'CCCC and 0xCCCC'CC33" )
+    SECTION( "3($2) should store 0x33CC'CCCC and 0xCCCC'CC33" )
     {
-      PC() = pc;
       $start = _sh_3;
-      ram[0x8000'0000] = 0xCCCC'CCCC;
-      ram[0x8000'0004] = 0xCCCC'CCCC;
       cpu.single_step();
       REQUIRE( ram[0x8000'0000] == 0x33CC'CCCC );
       REQUIRE( ram[0x8000'0004] == 0xCCCC'CC33 );
     }
   }
 
-  WHEN( "SW $1, n($2) is executed with n = {0,1,2,3}" )
+  SECTION( "SW $1, n($2) is executed with n = {0,1,2,3}" )
   {
     auto const _sw_0 = "SW"_cpu | 1_rt | 0 | 2_rs;
     auto const _sw_1 = "SW"_cpu | 1_rt | 1 | 2_rs;
@@ -2163,54 +1965,45 @@ SCENARIO( "A CPU object exists" )
     auto $1 = R( 1 );
     auto $2 = R( 2 );
 
-    auto const pc = PC();
+    PC() = pc;
 
     *$1 = 0x3333'3333; // data
     *$2 = 0x8000'0000; // address
 
-    THEN( "0($2) should store 0x3333'3333" )
+    ram[0x8000'0000] = 0xCCCC'CCCC;
+    ram[0x8000'0004] = 0xCCCC'CCCC;
+
+    SECTION( "0($2) should store 0x3333'3333" )
     {
-      PC() = pc;
       $start = _sw_0;
-      ram[0x8000'0000] = 0xCCCC'CCCC;
-      ram[0x8000'0004] = 0xCCCC'CCCC;
       cpu.single_step();
       REQUIRE( ram[0x8000'0000] == 0x3333'3333 );
       REQUIRE( ram[0x8000'0004] == 0xCCCC'CCCC );
     }
-    AND_THEN( "1($2) should store 0x3333'33CC and 0xCCCC'CC33" )
+    SECTION( "1($2) should store 0x3333'33CC and 0xCCCC'CC33" )
     {
-      PC() = pc;
       $start = _sw_1;
-      ram[0x8000'0000] = 0xCCCC'CCCC;
-      ram[0x8000'0004] = 0xCCCC'CCCC;
       cpu.single_step();
       REQUIRE( ram[0x8000'0000] == 0x3333'33CC );
       REQUIRE( ram[0x8000'0004] == 0xCCCC'CC33 );
     }
-    AND_THEN( "2($2) should store 0x3333'CCCC and 0xCCCC'3333" )
+    SECTION( "2($2) should store 0x3333'CCCC and 0xCCCC'3333" )
     {
-      PC() = pc;
       $start = _sw_2;
-      ram[0x8000'0000] = 0xCCCC'CCCC;
-      ram[0x8000'0004] = 0xCCCC'CCCC;
       cpu.single_step();
       REQUIRE( ram[0x8000'0000] == 0x3333'CCCC );
       REQUIRE( ram[0x8000'0004] == 0xCCCC'3333 );
     }
-    AND_THEN( "3($2) should store 0x33CC'CCCC and 0xCC33'3333" )
+    SECTION( "3($2) should store 0x33CC'CCCC and 0xCC33'3333" )
     {
-      PC() = pc;
       $start = _sw_3;
-      ram[0x8000'0000] = 0xCCCC'CCCC;
-      ram[0x8000'0004] = 0xCCCC'CCCC;
       cpu.single_step();
       REQUIRE( ram[0x8000'0000] == 0x33CC'CCCC );
       REQUIRE( ram[0x8000'0004] == 0xCC33'3333 );
     }
   }
 
-  WHEN( "SWC1 $f0, n($1) is executed with n = {0,1,2,3}" )
+  SECTION( "SWC1 $f0, n($1) is executed with n = {0,1,2,3}" )
   {
     auto const _swc1_0 = "SWC1"_cpu | 0_rt | 1_rs | 0;
     auto const _swc1_1 = "SWC1"_cpu | 0_rt | 1_rs | 1;
@@ -2226,47 +2019,35 @@ SCENARIO( "A CPU object exists" )
     ram[0x8000'0000] = 0xCCCC'CCCC;
     ram[0x8000'0004] = 0xCCCC'CCCC;
 
-    auto const pc = PC();
+    PC() = pc;
 
-    THEN( "0($1) should store 0xAAAA'BBBB" )
+    SECTION( "0($1) should store 0xAAAA'BBBB" )
     {
-      PC() = pc;
       $start = _swc1_0;
-      ram[0x8000'0000] = 0xCCCC'CCCC;
-      ram[0x8000'0004] = 0xCCCC'CCCC;
       cpu.single_step();
 
       REQUIRE( ram[0x8000'0000] == 0xAAAA'BBBB );
       REQUIRE( ram[0x8000'0004] == 0xCCCC'CCCC );
     }
-    AND_THEN( "1($1) should load 0xAABB'BBCC and 0xCCCC'CCAA" )
+    SECTION( "1($1) should load 0xAABB'BBCC and 0xCCCC'CCAA" )
     {
-      PC() = pc;
       $start = _swc1_1;
-      ram[0x8000'0000] = 0xCCCC'CCCC;
-      ram[0x8000'0004] = 0xCCCC'CCCC;
       cpu.single_step();
 
       REQUIRE( ram[0x8000'0000] == 0xAABB'BBCC );
       REQUIRE( ram[0x8000'0004] == 0xCCCC'CCAA );
     }
-    AND_THEN( "2($1) should load 0xBBBB'CCCC and 0xCCCC'AAAA" )
+    SECTION( "2($1) should load 0xBBBB'CCCC and 0xCCCC'AAAA" )
     {
-      PC() = pc;
       $start = _swc1_2;
-      ram[0x8000'0000] = 0xCCCC'CCCC;
-      ram[0x8000'0004] = 0xCCCC'CCCC;
       cpu.single_step();
 
       REQUIRE( ram[0x8000'0000] == 0xBBBB'CCCC );
       REQUIRE( ram[0x8000'0004] == 0xCCCC'AAAA );
     }
-    AND_THEN( "3($1) should load 0xBBCC'CCCC and 0xCCAA'AABB" )
+    SECTION( "3($1) should load 0xBBCC'CCCC and 0xCCAA'AABB" )
     {
-      PC() = pc;
       $start = _swc1_3;
-      ram[0x8000'0000] = 0xCCCC'CCCC;
-      ram[0x8000'0004] = 0xCCCC'CCCC;
       cpu.single_step();
 
       REQUIRE( ram[0x8000'0000] == 0xBBCC'CCCC );
@@ -2274,7 +2055,7 @@ SCENARIO( "A CPU object exists" )
     }
   }
 
-  WHEN( "SDC1 $f0, n($1) is executed with n = {0,1,2,3}" )
+  SECTION( "SDC1 $f0, n($1) is executed with n = {0,1,2,3}" )
   {
     auto const _sdc1_0 = "SDC1"_cpu | 0_rt | 0 | 1_rs;
     auto const _sdc1_1 = "SDC1"_cpu | 0_rt | 1 | 1_rs;
@@ -2284,7 +2065,7 @@ SCENARIO( "A CPU object exists" )
     auto $f0 = FP( 0 );
     auto $1 = R( 1 );
 
-    auto const pc = PC();
+    PC() = pc;
 
     $f0->i64 = 0xAAAA'BBBB'DDDD'EEEEull;
 
@@ -2294,49 +2075,33 @@ SCENARIO( "A CPU object exists" )
     ram[0x8000'0004] = 0xCCCC'CCCC;
     ram[0x8000'0008] = 0xCCCC'CCCC;
 
-    THEN( "0($1) should store 0xDDDD'EEEE and 0xAAAA'BBBB" )
+    SECTION( "0($1) should store 0xDDDD'EEEE and 0xAAAA'BBBB" )
     {
-      PC() = pc;
       $start = _sdc1_0;
-      ram[0x8000'0000] = 0xCCCC'CCCC;
-      ram[0x8000'0004] = 0xCCCC'CCCC;
-      ram[0x8000'0008] = 0xCCCC'CCCC;
       cpu.single_step();
       REQUIRE( ram[0x8000'0000] == 0xDDDD'EEEE );
       REQUIRE( ram[0x8000'0004] == 0xAAAA'BBBB );
       REQUIRE( ram[0x8000'0008] == 0xCCCC'CCCC );
     }
-    AND_THEN( "1($1) should store 0xDDEE'EECC and 0xAABB'BBDD and 0xCCCC'CCAA" )
+    SECTION( "1($1) should store 0xDDEE'EECC and 0xAABB'BBDD and 0xCCCC'CCAA" )
     {
-      PC() = pc;
       $start = _sdc1_1;
-      ram[0x8000'0000] = 0xCCCC'CCCC;
-      ram[0x8000'0004] = 0xCCCC'CCCC;
-      ram[0x8000'0008] = 0xCCCC'CCCC;
       cpu.single_step();
       REQUIRE( ram[0x8000'0000] == 0xDDEE'EECC );
       REQUIRE( ram[0x8000'0004] == 0xAABB'BBDD );
       REQUIRE( ram[0x8000'0008] == 0xCCCC'CCAA );
     }
-    AND_THEN( "2($1) should store 0xEEEE'CCCC and 0xBBBB'DDDD and 0xCCCC'AAAA" )
+    SECTION( "2($1) should store 0xEEEE'CCCC and 0xBBBB'DDDD and 0xCCCC'AAAA" )
     {
-      PC() = pc;
       $start = _sdc1_2;
-      ram[0x8000'0000] = 0xCCCC'CCCC;
-      ram[0x8000'0004] = 0xCCCC'CCCC;
-      ram[0x8000'0008] = 0xCCCC'CCCC;
       cpu.single_step();
       REQUIRE( ram[0x8000'0000] == 0xEEEE'CCCC );
       REQUIRE( ram[0x8000'0004] == 0xBBBB'DDDD );
       REQUIRE( ram[0x8000'0008] == 0xCCCC'AAAA );
     }
-    AND_THEN( "3($1) should store 0xEECC'CCCC and 0xBBDD'DDEE and 0xCCAA'AABB" )
+    SECTION( "3($1) should store 0xEECC'CCCC and 0xBBDD'DDEE and 0xCCAA'AABB" )
     {
-      PC() = pc;
       $start = _sdc1_3;
-      ram[0x8000'0000] = 0xCCCC'CCCC;
-      ram[0x8000'0004] = 0xCCCC'CCCC;
-      ram[0x8000'0008] = 0xCCCC'CCCC;
       cpu.single_step();
       REQUIRE( ram[0x8000'0000] == 0xEECC'CCCC );
       REQUIRE( ram[0x8000'0004] == 0xBBDD'DDEE );
@@ -2344,7 +2109,7 @@ SCENARIO( "A CPU object exists" )
     }
   }
 
-  WHEN( "LSA $1, $2, $3, n is executed with n = {0,1,2,3}" )
+  SECTION( "LSA $1, $2, $3, n is executed with n = {0,1,2,3}" )
   {
     auto const _lsa_0 = "LSA"_cpu | 1_rd | 2_rs | 3_rt | 0_shamt;
     auto const _lsa_1 = "LSA"_cpu | 1_rd | 2_rs | 3_rt | 1_shamt;
@@ -2355,41 +2120,37 @@ SCENARIO( "A CPU object exists" )
     auto $2 = R( 2 );
     auto $3 = R( 3 );
 
-    auto const pc = PC();
+    PC() = pc;
 
     *$2 = 0x8000;
     *$3 = 512;
 
-    THEN( "The result shall be correct in the 1st case" )
+    SECTION( "The result shall be correct in the 1st case" )
     {
-      PC() = pc;
       $start = _lsa_0;
       cpu.single_step();
 
       auto const res = ( 0x8000 << 1 ) + 512;
       REQUIRE( *$1 == res );
     }
-    AND_THEN( "The result shall be correct in the 2nd case" )
+    SECTION( "The result shall be correct in the 2nd case" )
     {
-      PC() = pc;
       $start = _lsa_1;
       cpu.single_step();
 
       auto const res = ( 0x8000 << 2 ) + 512;
       REQUIRE( *$1 == res );
     }
-    AND_THEN( "The result shall be correct in the 3rd case" )
+    SECTION( "The result shall be correct in the 3rd case" )
     {
-      PC() = pc;
       $start = _lsa_2;
       cpu.single_step();
 
       auto const res = ( 0x8000 << 3 ) + 512;
       REQUIRE( *$1 == res );
     }
-    AND_THEN( "The result shall be correct in the 4th case" )
+    SECTION( "The result shall be correct in the 4th case" )
     {
-      PC() = pc;
       $start = _lsa_3;
       cpu.single_step();
 
@@ -2398,7 +2159,7 @@ SCENARIO( "A CPU object exists" )
     }
   }
 
-  WHEN( "LUI $29, 0xABCD is executed" )
+  SECTION( "LUI $29, 0xABCD is executed" )
   {
     auto const _lui = "LUI"_cpu | 29_rt | 0xABCD;
 
@@ -2407,13 +2168,10 @@ SCENARIO( "A CPU object exists" )
     $start = _lui;
     cpu.single_step();
 
-    THEN( "The result must be correct" )
-    {
-      REQUIRE( *$29 == 0xABCD'0000 );
-    }
+    REQUIRE( *$29 == 0xABCD'0000 );
   }
 
-  WHEN( "MUL $1, $2, $3 is executed" )
+  SECTION( "MUL $1, $2, $3 is executed" )
   {
     auto const _mul = "MUL"_cpu | 1_rd | 2_rs | 3_rt;
 
@@ -2429,13 +2187,10 @@ SCENARIO( "A CPU object exists" )
     $start = _mul;
     cpu.single_step();
 
-    THEN( "The result must be correct" )
-    {
-      REQUIRE( *$1 == res );
-    }
+    REQUIRE( *$1 == res );
   }
 
-  WHEN( "MUH $4, $5, $6 is executed" )
+  SECTION( "MUH $4, $5, $6 is executed" )
   {
     auto const _mul = "MUH"_cpu | 4_rd | 5_rs | 6_rt;
 
@@ -2451,13 +2206,10 @@ SCENARIO( "A CPU object exists" )
     $start = _mul;
     cpu.single_step();
 
-    THEN( "The result must be correct" )
-    {
-      REQUIRE( *$4 == res );
-    }
+    REQUIRE( *$4 == res );
   }
 
-  WHEN( "MULU $1, $2, $3 is executed" )
+  SECTION( "MULU $1, $2, $3 is executed" )
   {
     auto const _mul = "MULU"_cpu | 1_rd | 2_rs | 3_rt;
 
@@ -2473,13 +2225,10 @@ SCENARIO( "A CPU object exists" )
     $start = _mul;
     cpu.single_step();
 
-    THEN( "The result must be correct" )
-    {
-      REQUIRE( *$1 == res );
-    }
+    REQUIRE( *$1 == res );
   }
 
-  WHEN( "MUHU $4, $5, $6 is executed" )
+  SECTION( "MUHU $4, $5, $6 is executed" )
   {
     auto const _mul = "MUHU"_cpu | 4_rd | 5_rs | 6_rt;
 
@@ -2495,13 +2244,10 @@ SCENARIO( "A CPU object exists" )
     $start = _mul;
     cpu.single_step();
 
-    THEN( "The result must be correct" )
-    {
-      REQUIRE( *$4 == res );
-    }
+    REQUIRE( *$4 == res );
   }
 
-  WHEN( "NAL is executed" )
+  SECTION( "NAL is executed" )
   {
     auto $31 = R( 31 );
 
@@ -2510,16 +2256,13 @@ SCENARIO( "A CPU object exists" )
     $start = "NAL"_cpu;
     cpu.single_step();
 
-    THEN( "The result must be correct" )
-    {
-      REQUIRE( *$31 == res );
-    }
+    REQUIRE( *$31 == res );
   }
 
-  WHEN( "NOP is executed" )
+  SECTION( "NOP is executed" )
   {
     auto begin = inspector.CPU_gpr_begin();
-    auto end = inspector.CPU_gpr_end();
+    auto const end = inspector.CPU_gpr_end();
 
     while ( begin != end )
       *begin++ = 0;
@@ -2529,19 +2272,15 @@ SCENARIO( "A CPU object exists" )
     $start = "NOP"_cpu;
     cpu.single_step();
 
-    THEN( "Nothing should happen" )
-    {
-      auto begin = inspector.CPU_gpr_begin();
-      auto end = inspector.CPU_gpr_end();
+    begin = inspector.CPU_gpr_begin();
 
-      REQUIRE( pc == PC() );
+    REQUIRE( pc == PC() );
 
-      while ( begin != end )
-        REQUIRE( *begin++ == 0 );
-    }
+    while ( begin != end )
+      REQUIRE( *begin++ == 0 );
   }
 
-  WHEN( "NOR $1, $2, $3 is executed" )
+  SECTION( "NOR $1, $2, $3 is executed" )
   {
     auto const _nor = "NOR"_cpu | 1_rd | 2_rs | 3_rt;
 
@@ -2557,13 +2296,10 @@ SCENARIO( "A CPU object exists" )
     $start = _nor;
     cpu.single_step();
 
-    THEN( "The result must be correct" )
-    {
-      REQUIRE( *$1 == res );
-    }
+    REQUIRE( *$1 == res );
   }
 
-  WHEN( "OR $1, $2, $3 is executed" )
+  SECTION( "OR $1, $2, $3 is executed" )
   {
     auto const _nor = "OR"_cpu | 1_rd | 2_rs | 3_rt;
 
@@ -2579,13 +2315,10 @@ SCENARIO( "A CPU object exists" )
     $start = _nor;
     cpu.single_step();
 
-    THEN( "The result must be correct" )
-    {
-      REQUIRE( *$1 == res );
-    }
+    REQUIRE( *$1 == res );
   }
 
-  WHEN( "ORI $1, $2, 0x1234 is executed" )
+  SECTION( "ORI $1, $2, 0x1234 is executed" )
   {
     auto const _nor = "ORI"_cpu | 1_rt | 2_rs | 0x1234;
 
@@ -2599,13 +2332,10 @@ SCENARIO( "A CPU object exists" )
     $start = _nor;
     cpu.single_step();
 
-    THEN( "The result must be correct" )
-    {
-      REQUIRE( *$1 == res );
-    }
+    REQUIRE( *$1 == res );
   }
 
-  WHEN( "ROTR $1, $2, 5 is executed" )
+  SECTION( "ROTR $1, $2, 5 is executed" )
   {
     auto const _rotr = "ROTR"_cpu | 1_rd | 2_rt | 8_shamt;
 
@@ -2619,13 +2349,10 @@ SCENARIO( "A CPU object exists" )
     $start = _rotr;
     cpu.single_step();
 
-    THEN( "The result must be correct" )
-    {
-      REQUIRE( *$1 == res );
-    }
+    REQUIRE( *$1 == res );
   }
 
-  WHEN( "ROTRV $1, $2, $3 is executed" )
+  SECTION( "ROTRV $1, $2, $3 is executed" )
   {
     auto const _rotrv = "ROTRV"_cpu | 1_rd | 2_rt | 3_rs;
 
@@ -2641,13 +2368,10 @@ SCENARIO( "A CPU object exists" )
     $start = _rotrv;
     cpu.single_step();
 
-    THEN( "The result must be correct" )
-    {
-      REQUIRE( *$1 == res );
-    }
+    REQUIRE( *$1 == res );
   }
 
-  WHEN( "SELEQZ $1, $2, $3 and SELEQZ $4, $5, $6 are executed" )
+  SECTION( "SELEQZ $1, $2, $3 and SELEQZ $4, $5, $6 are executed" )
   {
     auto const _seleqz_select = "SELEQZ"_cpu | 1_rd | 2_rs | 3_rt;
     auto const _seleqz_no_select = "SELEQZ"_cpu | 4_rd | 5_rs | 6_rt;
@@ -2668,19 +2392,15 @@ SCENARIO( "A CPU object exists" )
     *$6 = 1;
     *$5 = 9;
 
-    auto const pc = PC();
-
-    THEN( "It shall change $1 to $2 in the 1st case" )
+    SECTION( "It shall change $1 to $2 in the 1st case" )
     {
-      PC() = pc;
       $start = _seleqz_select;
       cpu.single_step();
 
       REQUIRE( *$1 == *$2 );
     }
-    THEN( "It shall change $4 to 0 in the 2nd case" )
+    SECTION( "It shall change $4 to 0 in the 2nd case" )
     {
-      PC() = pc;
       $start = _seleqz_no_select;
       cpu.single_step();
 
@@ -2688,7 +2408,7 @@ SCENARIO( "A CPU object exists" )
     }
   }
 
-  WHEN( "SELNEZ $1, $2, $3 and SELNEZ $4, $5, $6 are executed" )
+  SECTION( "SELNEZ $1, $2, $3 and SELNEZ $4, $5, $6 are executed" )
   {
     auto const _selnez_select = "SELNEZ"_cpu | 1_rd | 2_rs | 3_rt;
     auto const _selnez_no_select = "SELNEZ"_cpu | 4_rd | 5_rs | 6_rt;
@@ -2709,19 +2429,15 @@ SCENARIO( "A CPU object exists" )
     *$6 = 0;
     *$5 = 9;
 
-    auto const pc = PC();
-
-    THEN( "It shall change $1 to $2 in the 1st case" )
+    SECTION( "It shall change $1 to $2 in the 1st case" )
     {
-      PC() = pc;
       $start = _selnez_select;
       cpu.single_step();
 
       REQUIRE( *$1 == *$2 );
     }
-    THEN( "It shall change $4 to 0 in the 2nd case" )
+    SECTION( "It shall change $4 to 0 in the 2nd case" )
     {
-      PC() = pc;
       $start = _selnez_no_select;
       cpu.single_step();
 
@@ -2729,7 +2445,7 @@ SCENARIO( "A CPU object exists" )
     }
   }
 
-  WHEN( "SLL $1, $2, 18 is executed" )
+  SECTION( "SLL $1, $2, 18 is executed" )
   {
     auto const _sll = "SLL"_cpu | 1_rd | 2_rt | 18_shamt;
 
@@ -2743,13 +2459,10 @@ SCENARIO( "A CPU object exists" )
     $start = _sll;
     cpu.single_step();
 
-    THEN( "The result must be correct" )
-    {
-      REQUIRE( *$1 == res );
-    }
+    REQUIRE( *$1 == res );
   }
 
-  WHEN( "SLLV $1, $2, $3 is executed" )
+  SECTION( "SLLV $1, $2, $3 is executed" )
   {
     auto const _sllv = "SLLV"_cpu | 1_rd | 2_rt | 3_rs;
 
@@ -2765,13 +2478,10 @@ SCENARIO( "A CPU object exists" )
     $start = _sllv;
     cpu.single_step();
 
-    THEN( "The result must be correct" )
-    {
-      REQUIRE( *$1 == res );
-    }
+    REQUIRE( *$1 == res );
   }
 
-  WHEN( "SLT $1, $2, $3 and SLT $4, $5, $6 are executed" )
+  SECTION( "SLT $1, $2, $3 and SLT $4, $5, $6 are executed" )
   {
     auto const _slt_set = "SLT"_cpu | 1_rd | 2_rs | 3_rt;
     auto const _slt_clear = "SLT"_cpu | 4_rd | 5_rs | 6_rt;
@@ -2790,19 +2500,15 @@ SCENARIO( "A CPU object exists" )
     *$5 = 523;
     *$6 = 235;
 
-    auto const pc = PC();
-
-    THEN( "It should be set in the 1st case" )
+    SECTION( "It should be set in the 1st case" )
     {
-      PC() = pc;
       $start = _slt_set;
       cpu.single_step();
 
       REQUIRE( *$1 == 1 );
     }
-    AND_THEN( "It should be clear in the 2nd case" )
+    SECTION( "It should be clear in the 2nd case" )
     {
-      PC() = pc;
       $start = _slt_clear;
       cpu.single_step();
 
@@ -2810,7 +2516,7 @@ SCENARIO( "A CPU object exists" )
     }
   }
 
-  WHEN( "SLTI $2, $3, 29 and SLTI $5, $6, 68 are executed" )
+  SECTION( "SLTI $2, $3, 29 and SLTI $5, $6, 68 are executed" )
   {
     auto const _slti_set = "SLTI"_cpu | 2_rt | 3_rs | 29;
     auto const _slti_clear = "SLTI"_cpu | 5_rt | 6_rs | 68;
@@ -2825,19 +2531,15 @@ SCENARIO( "A CPU object exists" )
 
     *$6 = 235;
 
-    auto const pc = PC();
-
-    THEN( "It should be set in the 1st case" )
+    SECTION( "It should be set in the 1st case" )
     {
-      PC() = pc;
       $start = _slti_set;
       cpu.single_step();
 
       REQUIRE( *$2 == 1 );
     }
-    AND_THEN( "It should be clear in the 2nd case" )
+    SECTION( "It should be clear in the 2nd case" )
     {
-      PC() = pc;
       $start = _slti_clear;
       cpu.single_step();
 
@@ -2845,7 +2547,7 @@ SCENARIO( "A CPU object exists" )
     }
   }
 
-  WHEN( "SLTU $1, $2, $3 and SLTU $4, $5, $6 are executed" )
+  SECTION( "SLTU $1, $2, $3 and SLTU $4, $5, $6 are executed" )
   {
     auto const _sltu_set = "SLTU"_cpu | 1_rd | 2_rs | 3_rt;
     auto const _sltu_clear = "SLTU"_cpu | 4_rd | 5_rs | 6_rt;
@@ -2864,19 +2566,15 @@ SCENARIO( "A CPU object exists" )
     *$5 = -523;
     *$6 = 235;
 
-    auto const pc = PC();
-
-    THEN( "It should be set in the 1st case" )
+    SECTION( "It should be set in the 1st case" )
     {
-      PC() = pc;
       $start = _sltu_set;
       cpu.single_step();
 
       REQUIRE( *$1 == 1 );
     }
-    AND_THEN( "It should be clear in the 2nd case" )
+    SECTION( "It should be clear in the 2nd case" )
     {
-      PC() = pc;
       $start = _sltu_clear;
       cpu.single_step();
 
@@ -2884,7 +2582,7 @@ SCENARIO( "A CPU object exists" )
     }
   }
 
-  WHEN( "SLTIU $2, $3, 29 and SLTIU $5, $6, 68 are executed" )
+  SECTION( "SLTIU $2, $3, 29 and SLTIU $5, $6, 68 are executed" )
   {
     auto const _sltiu_set = "SLTIU"_cpu | 2_rt | 3_rs | 29;
     auto const _sltiu_clear = "SLTIU"_cpu | 5_rt | 6_rs | 68;
@@ -2899,19 +2597,15 @@ SCENARIO( "A CPU object exists" )
 
     *$6 = 235;
 
-    auto const pc = PC();
-
-    THEN( "It should be set in the 1st case" )
+    SECTION( "It should be set in the 1st case" )
     {
-      PC() = pc;
       $start = _sltiu_set;
       cpu.single_step();
 
       REQUIRE( *$2 == 1 );
     }
-    AND_THEN( "It should be clear in the 2nd case" )
+    SECTION( "It should be clear in the 2nd case" )
     {
-      PC() = pc;
       $start = _sltiu_clear;
       cpu.single_step();
 
@@ -2919,7 +2613,7 @@ SCENARIO( "A CPU object exists" )
     }
   }
 
-  WHEN( "SRA $1, $2, 17 is executed" )
+  SECTION( "SRA $1, $2, 17 is executed" )
   {
     auto const _sra = "SRA"_cpu | 1_rd | 2_rt | 17_shamt;
 
@@ -2933,13 +2627,10 @@ SCENARIO( "A CPU object exists" )
     $start = _sra;
     cpu.single_step();
 
-    THEN( "The result must be correct" )
-    {
-      REQUIRE( *$1 == res );
-    }
+    REQUIRE( *$1 == res );
   }
 
-  WHEN( "SRAV $1, $2, $3 is executed" )
+  SECTION( "SRAV $1, $2, $3 is executed" )
   {
     auto const _srav = "SRAV"_cpu | 1_rd | 2_rt | 3_rs;
 
@@ -2955,13 +2646,10 @@ SCENARIO( "A CPU object exists" )
     $start = _srav;
     cpu.single_step();
 
-    THEN( "The result must be correct" )
-    {
-      REQUIRE( *$1 == res );
-    }
+    REQUIRE( *$1 == res );
   }
 
-  WHEN( "SRL $1, $2, 18 is executed" )
+  SECTION( "SRL $1, $2, 18 is executed" )
   {
     auto const _srl = "SRL"_cpu | 1_rd | 2_rt | 18_shamt;
 
@@ -2975,13 +2663,10 @@ SCENARIO( "A CPU object exists" )
     $start = _srl;
     cpu.single_step();
 
-    THEN( "The result must be correct" )
-    {
-      REQUIRE( *$1 == res );
-    }
+    REQUIRE( *$1 == res );
   }
 
-  WHEN( "SRLV $1, $2, $3 is executed" )
+  SECTION( "SRLV $1, $2, $3 is executed" )
   {
     auto const _srlv = "SRLV"_cpu | 1_rd | 2_rt | 3_rs;
 
@@ -2997,13 +2682,10 @@ SCENARIO( "A CPU object exists" )
     $start = _srlv;
     cpu.single_step();
 
-    THEN( "The result must be correct" )
-    {
-      REQUIRE( *$1 == res );
-    }
+    REQUIRE( *$1 == res );
   }
 
-  WHEN( "SUB $1, $2, $3 is executed" )
+  SECTION( "SUB $1, $2, $3 is executed" )
   {
     auto const _sub = "SUB"_cpu | 1_rd | 2_rs | 3_rt;
 
@@ -3019,13 +2701,10 @@ SCENARIO( "A CPU object exists" )
     $start = _sub;
     cpu.single_step();
 
-    THEN( "The result must be correct" )
-    {
-      REQUIRE( *$1 == res );
-    }
+    REQUIRE( *$1 == res );
   }
 
-  WHEN( "SUBU $1, $2, $3 is executed" )
+  SECTION( "SUBU $1, $2, $3 is executed" )
   {
     auto const _subu = "SUBU"_cpu | 1_rd | 2_rs | 3_rt;
 
@@ -3041,13 +2720,10 @@ SCENARIO( "A CPU object exists" )
     $start = _subu;
     cpu.single_step();
 
-    THEN( "The result must be correct" )
-    {
-      REQUIRE( *$1 == res );
-    }
+    REQUIRE( *$1 == res );
   }
 
-  WHEN( "TEQ $1, $2 and TEQ $3, $4 are executed" )
+  SECTION( "TEQ $1, $2 and TEQ $3, $4 are executed" )
   {
     auto const _teq_trap = "TEQ"_cpu | 1_rs | 2_rt;
     auto const _teq_no_trap = "TEQ"_cpu | 3_rs | 4_rt;
@@ -3062,23 +2738,15 @@ SCENARIO( "A CPU object exists" )
 
     *$3 = *$4 + 20;
 
-    auto const pc = PC();
-
-    THEN( "It shall trap in the 1st case" )
+    SECTION( "It shall trap in the 1st case" )
     {
-      PC() = pc;
-      ClearExCause();
-
       $start = _teq_trap;
       cpu.single_step();
 
       REQUIRE( HasTrapped() );
     }
-    AND_THEN( "It shall not trap in the 2nd case" )
+    SECTION( "It shall not trap in the 2nd case" )
     {
-      PC() = pc;
-      ClearExCause();
-
       $start = _teq_no_trap;
       cpu.single_step();
 
@@ -3086,7 +2754,7 @@ SCENARIO( "A CPU object exists" )
     }
   }
 
-  WHEN( "TGE $1, $2 and TGE $3, $4 are executed" )
+  SECTION( "TGE $1, $2 and TGE $3, $4 are executed" )
   {
     auto const _tge_trap = "TGE"_cpu | 1_rs | 2_rt;
     auto const _tge_no_trap = "TGE"_cpu | 3_rs | 4_rt;
@@ -3101,23 +2769,15 @@ SCENARIO( "A CPU object exists" )
 
     *$3 = *$4 - 20;
 
-    auto const pc = PC();
-
-    THEN( "It shall trap in the 1st case" )
+    SECTION( "It shall trap in the 1st case" )
     {
-      PC() = pc;
-      ClearExCause();
-
       $start = _tge_trap;
       cpu.single_step();
 
       REQUIRE( HasTrapped() );
     }
-    AND_THEN( "It shall not trap in the 2nd case" )
+    SECTION( "It shall not trap in the 2nd case" )
     {
-      PC() = pc;
-      ClearExCause();
-
       $start = _tge_no_trap;
       cpu.single_step();
 
@@ -3125,7 +2785,7 @@ SCENARIO( "A CPU object exists" )
     }
   }
 
-  WHEN( "TGEU $1, $2 and TGEU $3, $4 are executed" )
+  SECTION( "TGEU $1, $2 and TGEU $3, $4 are executed" )
   {
     auto const _tgeu_trap = "TGEU"_cpu | 1_rs | 2_rt;
     auto const _tgeu_no_trap = "TGEU"_cpu | 3_rs | 4_rt;
@@ -3142,23 +2802,15 @@ SCENARIO( "A CPU object exists" )
     *$3 = 0;
     *$4 = -1;
 
-    auto const pc = PC();
-
-    THEN( "It shall trap in the 1st case" )
+    SECTION( "It shall trap in the 1st case" )
     {
-      PC() = pc;
-      ClearExCause();
-
       $start = _tgeu_trap;
       cpu.single_step();
 
       REQUIRE( HasTrapped() );
     }
-    AND_THEN( "It shall not trap in the 2nd case" )
+    SECTION( "It shall not trap in the 2nd case" )
     {
-      PC() = pc;
-      ClearExCause();
-
       $start = _tgeu_no_trap;
       cpu.single_step();
 
@@ -3166,7 +2818,7 @@ SCENARIO( "A CPU object exists" )
     }
   }
 
-  WHEN( "TLT $1, $2 and TLT $3, $4 are executed" )
+  SECTION( "TLT $1, $2 and TLT $3, $4 are executed" )
   {
     auto const _tlt_trap = "TLT"_cpu | 1_rs | 2_rt;
     auto const _tlt_no_trap = "TLT"_cpu | 3_rs | 4_rt;
@@ -3183,23 +2835,15 @@ SCENARIO( "A CPU object exists" )
     *$3 = 0;
     *$4 = -1;
 
-    auto const pc = PC();
-
-    THEN( "It shall trap in the 1st case" )
+    SECTION( "It shall trap in the 1st case" )
     {
-      PC() = pc;
-      ClearExCause();
-
       $start = _tlt_trap;
       cpu.single_step();
 
       REQUIRE( HasTrapped() );
     }
-    AND_THEN( "It shall not trap in the 2nd case" )
+    SECTION( "It shall not trap in the 2nd case" )
     {
-      PC() = pc;
-      ClearExCause();
-
       $start = _tlt_no_trap;
       cpu.single_step();
 
@@ -3207,7 +2851,7 @@ SCENARIO( "A CPU object exists" )
     }
   }
 
-  WHEN( "TLTU $1, $2 and TLTU $3, $4 are executed" )
+  SECTION( "TLTU $1, $2 and TLTU $3, $4 are executed" )
   {
     auto const _tltu_trap = "TLTU"_cpu | 1_rs | 2_rt;
     auto const _tltu_no_trap = "TLTU"_cpu | 3_rs | 4_rt;
@@ -3224,23 +2868,15 @@ SCENARIO( "A CPU object exists" )
     *$3 = 412;
     *$4 = 23;
 
-    auto const pc = PC();
-
-    THEN( "It shall trap in the 1st case" )
+    SECTION( "It shall trap in the 1st case" )
     {
-      PC() = pc;
-      ClearExCause();
-
       $start = _tltu_trap;
       cpu.single_step();
 
       REQUIRE( HasTrapped() );
     }
-    AND_THEN( "It shall not trap in the 2nd case" )
+    SECTION( "It shall not trap in the 2nd case" )
     {
-      PC() = pc;
-      ClearExCause();
-
       $start = _tltu_no_trap;
       cpu.single_step();
 
@@ -3248,7 +2884,7 @@ SCENARIO( "A CPU object exists" )
     }
   }
 
-  WHEN( "TNE $1, $2 and TNE $3, $4 are executed" )
+  SECTION( "TNE $1, $2 and TNE $3, $4 are executed" )
   {
     auto const _tne_trap = "TNE"_cpu | 1_rs | 2_rt;
     auto const _tne_no_trap = "TNE"_cpu | 3_rs | 4_rt;
@@ -3265,23 +2901,15 @@ SCENARIO( "A CPU object exists" )
     *$3 = 0;
     *$4 = 0;
 
-    auto const pc = PC();
-
-    THEN( "It shall trap in the 1st case" )
+    SECTION( "It shall trap in the 1st case" )
     {
-      PC() = pc;
-      ClearExCause();
-
       $start = _tne_trap;
       cpu.single_step();
 
       REQUIRE( HasTrapped() );
     }
-    AND_THEN( "It shall not trap in the 2nd case" )
+    SECTION( "It shall not trap in the 2nd case" )
     {
-      PC() = pc;
-      ClearExCause();
-
       $start = _tne_no_trap;
       cpu.single_step();
 
@@ -3289,7 +2917,7 @@ SCENARIO( "A CPU object exists" )
     }
   }
 
-  WHEN( "XOR $1, $2, $3 is executed" )
+  SECTION( "XOR $1, $2, $3 is executed" )
   {
     auto const _xor = "XOR"_cpu | 1_rd | 2_rs | 3_rt;
 
@@ -3305,13 +2933,10 @@ SCENARIO( "A CPU object exists" )
     $start = _xor;
     cpu.single_step();
 
-    THEN( "The result must be correct" )
-    {
-      REQUIRE( *$1 == res );
-    }
+    REQUIRE( *$1 == res );
   }
 
-  WHEN( "XORI $1, $2, 0xABC is executed" )
+  SECTION( "XORI $1, $2, 0xABC is executed" )
   {
     auto const _xori = "XORI"_cpu | 1_rt | 2_rs | 0xABC;
 
@@ -3325,10 +2950,7 @@ SCENARIO( "A CPU object exists" )
     $start = _xori;
     cpu.single_step();
 
-    THEN( "The result must be correct" )
-    {
-      REQUIRE( *$1 == res );
-    }
+    REQUIRE( *$1 == res );
   }
 
   /* * * * * * * * * *
@@ -3337,7 +2959,7 @@ SCENARIO( "A CPU object exists" )
    *                 *
    * * * * * * * * * */
 
-  WHEN( "[MFC0] is executed with multiple selections (all of them write to $1)" )
+  SECTION( "[MFC0] is executed with multiple selections (all of them write to $1)" )
   {
     auto const _user_local = "MFC0"_cpu | 1_rt | 4_rd | 2;
     auto const _hwrena = "MFC0"_cpu | 1_rt | 7_rd | 0;
@@ -3368,99 +2990,86 @@ SCENARIO( "A CPU object exists" )
       "MFC0"_cpu | 1_rt | 31_rd | 7,
     };
 
-    auto const pc = PC();
-
     auto $1 = R( 1 );
 
-    THEN( "I shall able to read user_local" )
+    SECTION( "I shall able to read user_local" )
     {
-      PC() = pc;
       $start = _user_local;
       cpu.single_step();
 
-      REQUIRE( *$1 == inspector.CP0_user_local() );
+      REQUIRE( *$1 == cp0.user_local );
     }
-    AND_THEN( "I shall able to read HWREna" )
+    SECTION( "I shall able to read HWREna" )
     {
-      PC() = pc;
       $start = _hwrena;
       cpu.single_step();
 
-      REQUIRE( *$1 == inspector.CP0_hwr_ena() );
+      REQUIRE( *$1 == cp0.hwr_ena );
     }
-    AND_THEN( "I shall able to read BadVAddr" )
+    SECTION( "I shall able to read BadVAddr" )
     {
-      PC() = pc;
       $start = _badvaddr;
       cpu.single_step();
 
-      REQUIRE( *$1 == inspector.CP0_bad_vaddr() );
+      REQUIRE( *$1 == cp0.bad_vaddr );
     }
-    AND_THEN( "I shall able to read BadInstr" )
+    SECTION( "I shall able to read BadInstr" )
     {
-      PC() = pc;
       $start = _badinstr;
       cpu.single_step();
 
-      REQUIRE( *$1 == inspector.CP0_bad_instr() );
+      REQUIRE( *$1 == cp0.bad_instr );
     }
-    AND_THEN( "I shall able to read Status" )
+    SECTION( "I shall able to read Status" )
     {
-      PC() = pc;
       $start = _status;
       cpu.single_step();
 
-      REQUIRE( *$1 == inspector.CP0_status() );
+      REQUIRE( *$1 == cp0.status );
     }
-    AND_THEN( "I shall able to read IntCtl" )
+    SECTION( "I shall able to read IntCtl" )
     {
-      PC() = pc;
       $start = _intctl;
       cpu.single_step();
 
-      REQUIRE( *$1 == inspector.CP0_int_ctl() );
+      REQUIRE( *$1 == cp0.int_ctl );
     }
-    AND_THEN( "I shall able to read SRSCtl" )
+    SECTION( "I shall able to read SRSCtl" )
     {
-      PC() = pc;
       $start = _srsctl;
       cpu.single_step();
 
-      REQUIRE( *$1 == inspector.CP0_srs_ctl() );
+      REQUIRE( *$1 == cp0.srs_ctl );
     }
-    AND_THEN( "I shall able to read Cause" )
+    SECTION( "I shall able to read Cause" )
     {
-      PC() = pc;
       $start = _cause;
       cpu.single_step();
 
-      REQUIRE( *$1 == inspector.CP0_cause() );
+      REQUIRE( *$1 == cp0.cause );
     }
-    AND_THEN( "I shall able to read EPC" )
+    SECTION( "I shall able to read EPC" )
     {
-      PC() = pc;
       $start = _epc;
       cpu.single_step();
 
-      REQUIRE( *$1 == inspector.CP0_epc() );
+      REQUIRE( *$1 == cp0.epc );
     }
-    AND_THEN( "I shall able to read PRId" )
+    SECTION( "I shall able to read PRId" )
     {
-      PC() = pc;
       $start = _prid;
       cpu.single_step();
 
-      REQUIRE( *$1 == inspector.CP0_pr_id() );
+      REQUIRE( *$1 == cp0.pr_id );
     }
-    AND_THEN( "I shall able to read EBase" )
+    SECTION( "I shall able to read EBase" )
     {
-      PC() = pc;
       $start = _ebase;
       cpu.single_step();
 
-      REQUIRE( *$1 == inspector.CP0_e_base() );
+      REQUIRE( *$1 == cp0.e_base );
     }
-    AND_THEN( "I shall able to read Config registers" )
+    SECTION( "I shall able to read Config registers" )
     {
       for ( int i = 0; i < 6; ++i )
       {
@@ -3468,18 +3077,17 @@ SCENARIO( "A CPU object exists" )
         $start = _config[i];
         cpu.single_step();
 
-        REQUIRE( *$1 == inspector.CP0_config( i ) );
+        REQUIRE( *$1 == cp0.config[i] );
       }
     }
-    AND_THEN( "I shall able to read ErrorEPC" )
+    SECTION( "I shall able to read ErrorEPC" )
     {
-      PC() = pc;
       $start = _errorepc;
       cpu.single_step();
 
-      REQUIRE( *$1 == inspector.CP0_error_epc() );
+      REQUIRE( *$1 == cp0.error_epc );
     }
-    AND_THEN( "I shall able to read KScratch registers" )
+    SECTION( "I shall able to read KScratch registers" )
     {
       for ( int i = 0; i < 6; ++i )
       {
@@ -3487,12 +3095,12 @@ SCENARIO( "A CPU object exists" )
         $start = _kscratch[i];
         cpu.single_step();
 
-        REQUIRE( *$1 == inspector.CP0_k_scratch( i + 2 ) );
+        REQUIRE( *$1 == cp0.k_scratch[i + 2] );
       }
     }
   }
 
-  WHEN( "MFHC0 is executed" )
+  SECTION( "MFHC0 is executed" )
   {
     auto $1 = R( 1 );
 
@@ -3502,13 +3110,10 @@ SCENARIO( "A CPU object exists" )
 
     cpu.single_step();
 
-    THEN( "MFHC0 is implemented to always write 0" )
-    {
-      REQUIRE( *$1 == 0 );
-    }
+    REQUIRE( *$1 == 0 );
   }
 
-  WHEN( "[MTC0] is executed with multiple selections (all of them read from $1)" )
+  SECTION( "[MTC0] is executed with multiple selections (all of them read from $1)" )
   {
     auto const _user_local = "MTC0"_cpu | 1_rt | 4_rd | 2;
     auto const _hwrena = "MTC0"_cpu | 1_rt | 7_rd | 0;
@@ -3539,152 +3144,137 @@ SCENARIO( "A CPU object exists" )
       "MTC0"_cpu | 1_rt | 31_rd | 7,
     };
 
-    auto const pc = PC();
-
     auto $1 = R( 1 );
 
     *$1 = 0xFFFF'FFFF;
 
-    THEN( "I shall able to write user_local" )
+    SECTION( "I shall able to write user_local" )
     {
-      PC() = pc;
       $start = _user_local;
       cpu.single_step();
 
-      REQUIRE( *$1 == inspector.CP0_user_local() );
+      REQUIRE( *$1 == cp0.user_local );
     }
-    AND_THEN( "I shall not able to write HWREna" )
+    SECTION( "I shall not able to write HWREna" )
     {
-      auto const _prev_hwr_ena = inspector.CP0_hwr_ena();
+      auto const _prev_hwr_ena = cp0.hwr_ena;
 
-      PC() = pc;
       $start = _hwrena;
       cpu.single_step();
 
-      REQUIRE( _prev_hwr_ena == inspector.CP0_hwr_ena() );
+      REQUIRE( _prev_hwr_ena == cp0.hwr_ena );
     }
-    AND_THEN( "I shall not able to write BadVAddr" )
+    SECTION( "I shall not able to write BadVAddr" )
     {
-      auto const _prev_bad_vaddr = inspector.CP0_bad_vaddr();
+      auto const _prev_bad_vaddr = cp0.bad_vaddr;
 
-      PC() = pc;
       $start = _badvaddr;
       cpu.single_step();
 
-      REQUIRE( _prev_bad_vaddr == inspector.CP0_bad_vaddr() );
+      REQUIRE( _prev_bad_vaddr == cp0.bad_vaddr );
     }
-    AND_THEN( "I shall not able to write BadInstr" )
+    SECTION( "I shall not able to write BadInstr" )
     {
-      auto const _prev_bad_instr = inspector.CP0_bad_instr();
+      auto const _prev_bad_instr = cp0.bad_instr;
 
-      PC() = pc;
       $start = _badinstr;
       cpu.single_step();
 
-      REQUIRE( _prev_bad_instr == inspector.CP0_bad_instr() );
+      REQUIRE( _prev_bad_instr == cp0.bad_instr );
     }
-    AND_THEN( "I shall able to write Status" )
+    SECTION( "I shall able to write Status" )
     {
-      ui32 const expected_status = 0xFFFF'FFFF & 0x1000'FF13 | inspector.CP0_status();
+      ui32 const expected_status = 0xFFFF'FFFF & 0x1000'FF13 | cp0.status;
 
-      PC() = pc;
       $start = _status;
       cpu.single_step();
 
-      REQUIRE( expected_status == inspector.CP0_status() );
+      REQUIRE( expected_status == cp0.status );
     }
-    AND_THEN( "I shall not able to write IntCtl" )
+    SECTION( "I shall not able to write IntCtl" )
     {
-      auto const _prev_int_ctl = inspector.CP0_int_ctl();
+      auto const _prev_int_ctl = cp0.int_ctl;
 
-      PC() = pc;
       $start = _intctl;
       cpu.single_step();
 
-      REQUIRE( _prev_int_ctl == inspector.CP0_int_ctl() );
+      REQUIRE( _prev_int_ctl == cp0.int_ctl );
     }
-    AND_THEN( "I shall not able to write SRSCtl" )
+    SECTION( "I shall not able to write SRSCtl" )
     {
-      auto const _prev_srs_ctl = inspector.CP0_srs_ctl();
+      auto const _prev_srs_ctl = cp0.srs_ctl;
 
-      PC() = pc;
       $start = _srsctl;
       cpu.single_step();
 
-      REQUIRE( _prev_srs_ctl == inspector.CP0_srs_ctl() );
+      REQUIRE( _prev_srs_ctl == cp0.srs_ctl );
     }
-    AND_THEN( "I shall not able to write Cause" )
+    SECTION( "I shall not able to write Cause" )
     {
-      auto const _prev_cause = inspector.CP0_cause();
+      auto const _prev_cause = cp0.cause;
 
-      PC() = pc;
       $start = _cause;
       cpu.single_step();
 
-      REQUIRE( _prev_cause == inspector.CP0_cause() );
+      REQUIRE( _prev_cause == cp0.cause );
     }
-    AND_THEN( "I shall able to write EPC" )
+    SECTION( "I shall able to write EPC" )
     {
-      PC() = pc;
       $start = _epc;
       cpu.single_step();
 
-      REQUIRE( *$1 == inspector.CP0_epc() );
+      REQUIRE( *$1 == cp0.epc );
     }
-    AND_THEN( "I shall not able to write PRId" )
+    SECTION( "I shall not able to write PRId" )
     {
-      auto const _prev_pr_id = inspector.CP0_pr_id();
+      auto const _prev_pr_id = cp0.pr_id;
 
-      PC() = pc;
       $start = _prid;
       cpu.single_step();
 
-      REQUIRE( _prev_pr_id == inspector.CP0_pr_id() );
+      REQUIRE( _prev_pr_id == cp0.pr_id );
     }
-    AND_THEN( "I shall able to write EBase (WG disabled)" )
+    SECTION( "I shall able to write EBase (WG disabled)" )
     {
       *$1 &= ~( 1 << 11 ); // otherwise we could enable the WG
-      
-      PC() = pc;
+
       $start = _ebase;
       cpu.single_step();
 
       *$1 = 0xFFFF'FFFF;
 
-      REQUIRE( 0x3FFF'F000 == inspector.CP0_e_base() );
+      REQUIRE( 0x3FFF'F000 == cp0.e_base );
     }
-    AND_THEN( "I shall able to write EBase (WG enabled)" )
+    SECTION( "I shall able to write EBase (WG enabled)" )
     {
-      inspector.CP0_e_base() |= 1 << 11; // enable WG
+      cp0.e_base |= 1 << 11; // enable WG
 
-      PC() = pc;
       $start = _ebase;
       cpu.single_step();
 
-      REQUIRE( 0xFFFF'F800 == inspector.CP0_e_base() ); // 31..30 and WG are set
+      REQUIRE( 0xFFFF'F800 == cp0.e_base ); // 31..30 and WG are set
     }
-    AND_THEN( "I shall not able to write Config registers" )
+    SECTION( "I shall not able to write Config registers" )
     {
       for ( int i = 0; i < 6; ++i )
       {
-        auto const _prev_config = inspector.CP0_config( i );
+        auto const _prev_config = cp0.config[i];
 
         PC() = pc;
         $start = _config[i];
         cpu.single_step();
 
-        REQUIRE( _prev_config == inspector.CP0_config( i ) );
+        REQUIRE( _prev_config == cp0.config[i] );
       }
     }
-    AND_THEN( "I shall able to write ErrorEPC" )
+    SECTION( "I shall able to write ErrorEPC" )
     {
-      PC() = pc;
       $start = _errorepc;
       cpu.single_step();
 
-      REQUIRE( *$1 == inspector.CP0_error_epc() );
+      REQUIRE( *$1 == cp0.error_epc );
     }
-    AND_THEN( "I shall able to write KScratch registers" )
+    SECTION( "I shall able to write KScratch registers" )
     {
       for ( int i = 0; i < 6; ++i )
       {
@@ -3692,19 +3282,19 @@ SCENARIO( "A CPU object exists" )
         $start = _kscratch[i];
         cpu.single_step();
 
-        REQUIRE( *$1 == inspector.CP0_k_scratch( i + 2 ) );
+        REQUIRE( *$1 == cp0.k_scratch[i + 2] );
       }
     }
   }
 
   // This test is used just to increase the coverage, MTHC0 behave like a NOP
-  WHEN( "MTHC0 is executed" )
+  SECTION( "MTHC0 is executed" )
   {
     $start = "MTHC0"_cpu;
     cpu.single_step();
   }
 
-  WHEN( "MFC1 $1, $f0 is executed" )
+  SECTION( "MFC1 $1, $f0 is executed" )
   {
     auto const _mfc1 = "MFC1"_cpu | 1_rt | 0_rd;
 
@@ -3716,13 +3306,10 @@ SCENARIO( "A CPU object exists" )
     $start = _mfc1;
     cpu.single_step();
 
-    THEN( "$1 shall contain 0xDDDD'EEEE" )
-    {
-      REQUIRE( *$1 == 0xDDDD'EEEE );
-    }
+    REQUIRE( *$1 == 0xDDDD'EEEE );
   }
 
-  WHEN( "MFHC1 $1, $f0 is executed" )
+  SECTION( "MFHC1 $1, $f0 is executed" )
   {
     auto const _mfhc1 = "MFHC1"_cpu | 1_rt | 0_rd;
 
@@ -3734,13 +3321,10 @@ SCENARIO( "A CPU object exists" )
     $start = _mfhc1;
     cpu.single_step();
 
-    THEN( "$1 shall contain 0xAAAA'BBBB" )
-    {
-      REQUIRE( *$1 == 0xAAAA'BBBB );
-    }
+    REQUIRE( *$1 == 0xAAAA'BBBB );
   }
 
-  WHEN( "MTC1 $1, $f0 is executed" )
+  SECTION( "MTC1 $1, $f0 is executed" )
   {
     auto const _mtc1 = "MTC1"_cpu | 1_rt | 0_rd;
 
@@ -3753,13 +3337,10 @@ SCENARIO( "A CPU object exists" )
     $start = _mtc1;
     cpu.single_step();
 
-    THEN( "$f0 shall contain 0xCCCC'CCCC'AAAA'BBBB" )
-    {
-      REQUIRE( $f0->i64 == 0xCCCC'CCCC'AAAA'BBBBull );
-    }
+    REQUIRE( $f0->i64 == 0xCCCC'CCCC'AAAA'BBBBull );
   }
 
-  WHEN( "MTHC1 $1, $f0 is executed" )
+  SECTION( "MTHC1 $1, $f0 is executed" )
   {
     auto const _mthc1 = "MTHC1"_cpu | 1_rt | 0_rd;
 
@@ -3772,13 +3353,10 @@ SCENARIO( "A CPU object exists" )
     $start = _mthc1;
     cpu.single_step();
 
-    THEN( "$f0 shall contain 0xDDDD'EEEE'CCCC'CCCC" )
-    {
-      REQUIRE( $f0->i64 == 0xDDDD'EEEE'CCCC'CCCCull );
-    }
+    REQUIRE( $f0->i64 == 0xDDDD'EEEE'CCCC'CCCCull );
   }
 
-  WHEN( "Swapping 2 FPRs registers using GPRS" )
+  SECTION( "Swapping 2 FPRs registers using GPRS" )
   {
     // $f0 into $1, $2
     auto const _mfc1_0 = "MFC1"_cpu | 1_rt | 0_rd;
@@ -3826,11 +3404,8 @@ SCENARIO( "A CPU object exists" )
 
     cpu.start();
 
-    THEN( "$f0 and $f1 shall be swapped" )
-    {
-      REQUIRE( $f0->i64 == 0xEEEE'EEEE'DDDD'DDDDull );
-      REQUIRE( $f1->i64 == 0XBBBB'BBBB'AAAA'AAAAull );
-    }
+    REQUIRE( $f0->i64 == 0xEEEE'EEEE'DDDD'DDDDull );
+    REQUIRE( $f1->i64 == 0XBBBB'BBBB'AAAA'AAAAull );
   }
 
   /* * * * * * * *
@@ -3841,7 +3416,7 @@ SCENARIO( "A CPU object exists" )
 
   //// Integer Overflow
 
-  WHEN( "ADD $1, $2, $3 is executed" )
+  SECTION( "ADD $1, $2, $3 is executed" )
   {
     auto const _add = "ADD"_cpu | 1_rd | 2_rs | 3_rt;
 
@@ -3856,14 +3431,11 @@ SCENARIO( "A CPU object exists" )
     $start = _add;
     cpu.single_step();
 
-    THEN( "$1 shall be 0 and ExCause is Overflow" )
-    {
-      REQUIRE( *$1 == 0 );
-      REQUIRE( HasOverflowed() );
-    }
+    REQUIRE( *$1 == 0 );
+    REQUIRE( HasOverflowed() );
   }
 
-  WHEN( "SUB $1, $2, $3 is executed" )
+  SECTION( "SUB $1, $2, $3 is executed" )
   {
     auto const _sub = "SUB"_cpu | 1_rd | 2_rs | 3_rt;
 
@@ -3878,23 +3450,18 @@ SCENARIO( "A CPU object exists" )
     $start = _sub;
     cpu.single_step();
 
-    THEN( "$1 shall be 0 and ExCause is Overflow" )
-    {
-      REQUIRE( *$1 == 0 );
-      REQUIRE( HasOverflowed() );
-    }
+    REQUIRE( *$1 == 0 );
+    REQUIRE( HasOverflowed() );
   }
 
   //// Instruction Fetch
 
-  WHEN( "An instruction is fetched with a misaligned PC" )
+  SECTION( "An instruction is fetched with a misaligned PC" )
   {
     PC() |= 1;
     cpu.single_step();
-    THEN( "Address error exception shall be set" )
-    {
-      REQUIRE( ExCause() == 4 );
-    }
+
+    REQUIRE( ExCause() == 4 );
   }
 
   /* * * * * *
@@ -3903,7 +3470,7 @@ SCENARIO( "A CPU object exists" )
    *         *
    * * * * * */
 
-  WHEN( "[SYSCALL] print_int is executed" )
+  SECTION( "[SYSCALL] print_int is executed" )
   {
     auto $v0 = R( _v0 );
     auto $a0 = R( _a0 );
@@ -3914,13 +3481,10 @@ SCENARIO( "A CPU object exists" )
     $start = "SYSCALL"_cpu;
     cpu.single_step();
 
-    THEN( "An int shall be printed" )
-    {
-      REQUIRE( terminal->out_int == 19940915 );
-    }
+    REQUIRE( terminal->out_int == 19940915 );
   }
 
-  WHEN( "[SYSCALL] print_float is executed" )
+  SECTION( "[SYSCALL] print_float is executed" )
   {
     auto $v0 = R( _v0 );
     auto $f12 = FP( 12 );
@@ -3931,13 +3495,10 @@ SCENARIO( "A CPU object exists" )
     $start = "SYSCALL"_cpu;
     cpu.single_step();
 
-    THEN( "A float shall be printed" )
-    {
-      REQUIRE( terminal->out_float == 1200.53f );
-    }
+    REQUIRE( terminal->out_float == 1200.53f );
   }
 
-  WHEN( "[SYSCALL] print_double is executed" )
+  SECTION( "[SYSCALL] print_double is executed" )
   {
     auto $v0 = R( _v0 );
     auto $f12 = FP( 12 );
@@ -3948,13 +3509,10 @@ SCENARIO( "A CPU object exists" )
     $start = "SYSCALL"_cpu;
     cpu.single_step();
 
-    THEN( "A double shall be printed" )
-    {
-      REQUIRE( terminal->out_double == 987654.23 );
-    }
+    REQUIRE( terminal->out_double == 987654.23 );
   }
 
-  WHEN( "[SYSCALL] print_string is executed" )
+  SECTION( "[SYSCALL] print_string is executed" )
   {
     auto $v0 = R( _v0 );
     auto $a0 = R( _a0 );
@@ -3965,21 +3523,18 @@ SCENARIO( "A CPU object exists" )
 
     char const _data[] = "[SYSCALL] print_string";
 
-    auto * str = (char*)std::addressof( ram[0x8000'0000] );
-    
+    auto * str = ( char* )std::addressof( ram[0x8000'0000] );
+
     for ( int i = 0; i < 23; ++i )
       str[i] = _data[i];
 
     $start = "SYSCALL"_cpu;
     cpu.single_step();
 
-    THEN( "_data should be printed" )
-    {
-      REQUIRE( terminal->out_string == "[SYSCALL] print_string" );
-    }
+    REQUIRE( terminal->out_string == "[SYSCALL] print_string" );
   }
 
-  WHEN( "[SYSCALL] read_int is executed" )
+  SECTION( "[SYSCALL] read_int is executed" )
   {
     auto $v0 = R( _v0 );
 
@@ -3988,13 +3543,10 @@ SCENARIO( "A CPU object exists" )
     $start = "SYSCALL"_cpu;
     cpu.single_step();
 
-    THEN( "An int shall be read" )
-    {
-      REQUIRE( *$v0 == ( std::uint32_t )terminal->in_int );
-    }
+    REQUIRE( *$v0 == ( std::uint32_t )terminal->in_int );
   }
 
-  WHEN( "[SYSCALL] read_float is executed" )
+  SECTION( "[SYSCALL] read_float is executed" )
   {
     auto $v0 = R( _v0 );
     auto $f0 = FP( 0 );
@@ -4004,13 +3556,10 @@ SCENARIO( "A CPU object exists" )
     $start = "SYSCALL"_cpu;
     cpu.single_step();
 
-    THEN( "A float shall be read" )
-    {
-      REQUIRE( $f0->f == terminal->in_float );
-    }
+    REQUIRE( $f0->f == terminal->in_float );
   }
 
-  WHEN( "[SYSCALL] read_double is executed" )
+  SECTION( "[SYSCALL] read_double is executed" )
   {
     auto $v0 = R( _v0 );
     auto $f0 = FP( 0 );
@@ -4020,13 +3569,10 @@ SCENARIO( "A CPU object exists" )
     $start = "SYSCALL"_cpu;
     cpu.single_step();
 
-    THEN( "A float shall be read" )
-    {
-      REQUIRE( $f0->d == terminal->in_double );
-    }
+    REQUIRE( $f0->d == terminal->in_double );
   }
 
-  WHEN( "[SYSCALL] read_string is executed (with string buffer between bounds)" )
+  SECTION( "[SYSCALL] read_string is executed (with string buffer between bounds)" )
   {
     auto $v0 = R( _v0 );
     auto $a0 = R( _a0 );
@@ -4039,17 +3585,14 @@ SCENARIO( "A CPU object exists" )
     $start = "SYSCALL"_cpu;
     cpu.single_step();
 
-    THEN( "Every character shall equal to terminal->in_char" )
+    auto const * _str = ( char* )std::addressof( ram[0x8000'0000] );
+    for ( int i = 0; i < 80; ++i )
     {
-      auto const * _str = ( char* )std::addressof( ram[0x8000'0000] );
-      for ( int i = 0; i < 80; ++i )
-      {
-        REQUIRE( _str[i] == terminal->in_char );
-      }
+      REQUIRE( _str[i] == terminal->in_char );
     }
   }
 
-  WHEN( "[SYSCALL] sbrk is executed" )
+  SECTION( "[SYSCALL] sbrk is executed" )
   {
     auto $v0 = R( _v0 );
     auto $a0 = R( _a0 );
@@ -4062,13 +3605,10 @@ SCENARIO( "A CPU object exists" )
     cpu.single_step();
     cpu.single_step();
 
-    THEN( "The CPU shall jump to the interrupt handler" )
-    {
-      REQUIRE( PC() == 0x8000'0180 );
-    }
+    REQUIRE( PC() == 0x8000'0180 );
   }
 
-  WHEN( "[SYSCALL] exit is executed" )
+  SECTION( "[SYSCALL] exit is executed" )
   {
     auto $v0 = R( _v0 );
     auto $a0 = R( _a0 );
@@ -4078,14 +3618,11 @@ SCENARIO( "A CPU object exists" )
 
     $start = "SYSCALL"_cpu;
 
-    THEN( "'EXIT' shall be returned and $a0 left untouched" )
-    {
-      REQUIRE( cpu.single_step() == 4 );
-      REQUIRE( *$a0 == 0 );
-    }
+    REQUIRE( cpu.single_step() == 4 );
+    REQUIRE( *$a0 == 0 );
   }
 
-  WHEN( "[SYSCALL] print_char is executed" )
+  SECTION( "[SYSCALL] print_char is executed" )
   {
     auto $v0 = R( _v0 );
     auto $a0 = R( _a0 );
@@ -4096,13 +3633,10 @@ SCENARIO( "A CPU object exists" )
     $start = "SYSCALL"_cpu;
     cpu.single_step();
 
-    THEN( "A char shall be printed" )
-    {
-      REQUIRE( terminal->out_string == "n" );
-    }
+    REQUIRE( terminal->out_string == "n" );
   }
 
-  WHEN( "[SYSCALL] read_char is executed" )
+  SECTION( "[SYSCALL] read_char is executed" )
   {
     auto $v0 = R( _v0 );
 
@@ -4111,13 +3645,10 @@ SCENARIO( "A CPU object exists" )
     $start = "SYSCALL"_cpu;
     cpu.single_step();
 
-    THEN( "A char shall be printed" )
-    {
-      REQUIRE( *$v0 == ( std::uint32_t )terminal->in_char );
-    }
+    REQUIRE( *$v0 == ( std::uint32_t )terminal->in_char );
   }
 
-  WHEN( "[SYSCALL] open is executed" )
+  SECTION( "[SYSCALL] open is executed" )
   {
     auto $v0 = R( _v0 );
     auto $a0 = R( _a0 );
@@ -4137,18 +3668,15 @@ SCENARIO( "A CPU object exists" )
     $start = "SYSCALL"_cpu;
     cpu.single_step();
 
-    THEN( "The file handler shall receive the correct parameters" )
-    {
-      REQUIRE( filehandler->param.name == _name );
-      REQUIRE( filehandler->param.flags == "r+b" );
-      REQUIRE( *$v0 == filehandler->fd_value );
-    }
+    REQUIRE( filehandler->param.name == _name );
+    REQUIRE( filehandler->param.flags == "r+b" );
+    REQUIRE( *$v0 == filehandler->fd_value );
   }
 
-  WHEN( "[SYSCALL] read is executed" )
+  SECTION( "[SYSCALL] read is executed" )
   {
     auto $v0 = R( _v0 );
-    
+
     auto $a0 = R( _a0 );
     auto $a1 = R( _a1 );
     auto $a2 = R( _a2 );
@@ -4158,20 +3686,17 @@ SCENARIO( "A CPU object exists" )
     *$a0 = 0xDDDD'EEEE;
     *$a1 = 0x8877'6655;
     *$a2 = 235;
-    
+
     $start = "SYSCALL"_cpu;
     cpu.single_step();
 
-    THEN( "The file handler shall receive the correct parameters" )
-    {
-      REQUIRE( filehandler->param.fd == 0xDDDD'EEEE );
-      REQUIRE( filehandler->param.dst != nullptr );
-      REQUIRE( filehandler->param.count == 235 );
-      REQUIRE( *$v0 == filehandler->read_count );
-    }
+    REQUIRE( filehandler->param.fd == 0xDDDD'EEEE );
+    REQUIRE( filehandler->param.dst != nullptr );
+    REQUIRE( filehandler->param.count == 235 );
+    REQUIRE( *$v0 == filehandler->read_count );
   }
 
-  WHEN( "[SYSCALL] write is executed" )
+  SECTION( "[SYSCALL] write is executed" )
   {
     auto $v0 = R( _v0 );
 
@@ -4188,16 +3713,13 @@ SCENARIO( "A CPU object exists" )
     $start = "SYSCALL"_cpu;
     cpu.single_step();
 
-    THEN( "The file handler shall receive the correct parameters" )
-    {
-      REQUIRE( filehandler->param.fd == 0xAABB'EEDD );
-      REQUIRE( filehandler->param.src != nullptr );
-      REQUIRE( filehandler->param.count == 897 );
-      REQUIRE( *$v0 == filehandler->write_count );
-    }
+    REQUIRE( filehandler->param.fd == 0xAABB'EEDD );
+    REQUIRE( filehandler->param.src != nullptr );
+    REQUIRE( filehandler->param.count == 897 );
+    REQUIRE( *$v0 == filehandler->write_count );
   }
 
-  WHEN( "[SYSCALL] close is executed" )
+  SECTION( "[SYSCALL] close is executed" )
   {
     auto $v0 = R( _v0 );
 
@@ -4210,13 +3732,10 @@ SCENARIO( "A CPU object exists" )
     $start = "SYSCALL"_cpu;
     cpu.single_step();
 
-    THEN( "The file handler shall receive the correct parameters" )
-    {
-      REQUIRE( filehandler->param.fd == 0xDDDD'EEEE );
-    }
+    REQUIRE( filehandler->param.fd == 0xDDDD'EEEE );
   }
 
-  WHEN( "[SYSCALL] exit2 is executed" )
+  SECTION( "[SYSCALL] exit2 is executed" )
   {
     auto $v0 = R( _v0 );
     auto $a0 = R( _a0 );
@@ -4226,14 +3745,11 @@ SCENARIO( "A CPU object exists" )
 
     $start = "SYSCALL"_cpu;
 
-    THEN( "'EXIT' shall be returned and $a0 left untouched" )
-    {
-      REQUIRE( cpu.single_step() == 4 );
-      REQUIRE( *$a0 == 2537 );
-    }
+    REQUIRE( cpu.single_step() == 4 );
+    REQUIRE( *$a0 == 2537 );
   }
 
-  WHEN( "SYSCALL is executed with an incorrect value in $v0" )
+  SECTION( "SYSCALL is executed with an incorrect value in $v0" )
   {
     auto $v0 = R( _v0 );
 
@@ -4242,27 +3758,28 @@ SCENARIO( "A CPU object exists" )
     $start = "SYSCALL"_cpu;
     cpu.single_step();
 
-    THEN( "The CPU should raise an exception" )
-    {
-      REQUIRE( ExCause() == 8 );
-    }
+    REQUIRE( ExCause() == 8 );
   }
 
-  WHEN( "The CPU fetches an instruction from an address that doesn't have access to" )
+  SECTION( "The CPU fetches an instruction from an address that doesn't have access to" )
   {
      // forcing User Mode
-    inspector.CP0_status() &= ~0x1E;
-    inspector.CP0_status() |= 0x10;
+    cp0.status &= ~0x1E;
+    cp0.status |= 0x10;
 
     $start = "SIGRIE"_cpu; // this will never be executed
 
     cpu.single_step();
 
-    THEN( "The cpu shall raise an Address Error Exception on fetch" )
-    {
-      REQUIRE( ExCause() == 4 );
-      REQUIRE( PC() == 0x8000'0180 );
-    }
+    REQUIRE( ExCause() == 4 );
+    REQUIRE( PC() == 0x8000'0180 );
+  }
+
+  SECTION( "I read or write to the exit code" )
+  {
+    inspector.CPU_write_exit_code( -5423 );
+
+    REQUIRE( ui32( -5423 ) == inspector.CPU_read_exit_code() );
   }
 }
 

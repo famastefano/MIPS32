@@ -13,12 +13,12 @@ void addr_to_string( char *buf, std::uint32_t addr )
   std::sprintf( buf, "0x%08X.block", addr );
 }
 
-RAM::RAM( std::uint32_t alloc_limit ) : alloc_limit( alloc_limit / sizeof( std::uint32_t ) )
+RAM::RAM( std::uint32_t alloc_limit ) : alloc_limit( alloc_limit / sizeof( std::uint32_t ) / block_size )
 {
   assert( alloc_limit && "The allocation limit can't be 0 (zero)." );
   assert( alloc_limit % block_size == 0 && "The allocation limit must be a multiple of RAM::block_size." );
 
-  blocks.reserve( alloc_limit / block_size );
+  blocks.reserve( this->alloc_limit );
 }
 
 RAM::Block &RAM::least_accessed() noexcept
@@ -98,7 +98,7 @@ std::uint32_t &RAM::operator[]( std::uint32_t address ) noexcept
   }
 
   // Case 3.1
-  if ( blocks.size() * ( block_size + 1 ) <= alloc_limit )
+  if ( blocks.size() < alloc_limit )
   {
     Block new_block;
 
@@ -154,7 +154,7 @@ RAM::Block &RAM::Block::allocate() noexcept
 
 RAM::Block &RAM::Block::deallocate() noexcept
 {
-  if ( data ) data.reset( nullptr );
+  data.reset( nullptr );
   return *this;
 }
 

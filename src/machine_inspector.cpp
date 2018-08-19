@@ -6,6 +6,10 @@
 
 #include <mips32/machine_inspector.hpp>
 
+#include <cstring>
+#include <cstdio>
+#include <string>
+
 namespace mips32
 {
 MachineInspector &MachineInspector::inspect( RAM &ram ) noexcept
@@ -45,14 +49,71 @@ MachineInspector &MachineInspector::inspect( CPU &cpu, bool sub_components ) noe
  *       *
  * * * * */
 
-void MachineInspector::save_state( char const * name ) const noexcept
-{}
+bool MachineInspector::save_state( Component c, char const *name ) noexcept
+{
+  cpu->stop();
 
-void MachineInspector::restore_state( char const * name ) noexcept
-{}
+  bool error = true;
 
-void MachineInspector::save_state( Component, char const * ) const noexcept {}
-void MachineInspector::restore_state( Component, char const * ) noexcept {}
+  if ( c == Component::ALL )
+  {
+    error = save_state_cp0( name );
+    error |= save_state_cp1( name );
+    error |= save_state_cpu( name );
+    error |= save_state_ram( name );
+  }
+  else if ( c == Component::CP0 )
+  {
+    error = save_state_cp0( name );
+  }
+  else if ( c == Component::CP1 )
+  {
+    error = save_state_cp1( name );
+  }
+  else if ( c == Component::CPU )
+  {
+    error = save_state_cpu( name );
+  }
+  else if ( c == Component::RAM )
+  {
+    error = save_state_ram( name );
+  }
+
+  return error;
+}
+
+bool MachineInspector::restore_state( Component c, char const *name ) noexcept
+{
+  cpu->stop();
+
+  bool error = true;
+
+  if ( c == Component::ALL )
+  {
+    error = restore_state_cp0( name );
+    error |= restore_state_cp1( name );
+    error |= restore_state_cpu( name );
+    error |= restore_state_ram( name );
+  }
+  else if ( c == Component::CP0 )
+  {
+    error = restore_state_cp0( name );
+  }
+  else if ( c == Component::CP1 )
+  {
+    error = restore_state_cp1( name );
+  }
+  else if ( c == Component::CPU )
+  {
+    error = restore_state_cpu( name );
+  }
+  else if ( c == Component::RAM )
+  {
+    error = restore_state_ram( name );
+  }
+
+  return error;
+}
 
 /* * * *
  *     *
@@ -69,7 +130,7 @@ MachineInspector::RAMInfo MachineInspector::RAM_info() const noexcept
 
 std::uint32_t MachineInspector::RAM_alloc_limit() const noexcept
 {
-  return ram->alloc_limit * sizeof( std::uint32_t );
+  return ram->alloc_limit * RAM::block_size * sizeof( std::uint32_t );
 }
 
 std::uint32_t MachineInspector::RAM_block_size() const noexcept
@@ -202,74 +263,333 @@ void MachineInspector::CPU_write_exit_code( std::uint32_t value ) noexcept
   cpu->exit_code.store( value, std::memory_order_release );
 }
 
-std::uint32_t & MachineInspector::CP0_user_local() noexcept
+CP0 & MachineInspector::access_cp0() noexcept
 {
-  return cp0->user_local;
+  return *cp0;
 }
 
-std::uint32_t & MachineInspector::CP0_hwr_ena() noexcept
+/* * * * * * * * *
+ *               *
+ * FILE FORMATS  *
+ *               *
+ * * * * * * * * */
+
+////
+//// RAM
+////
+/**
+ * uint32_t -> alloc_limit -|
+ * uint32_t -> blocks_no    |- data
+ * uint32_t -> swap_no     -|
+ * (uint32_t, uint32_t, uint32_t * RAM::block_size) * blocks_no -> base_address, access_count, data
+ * uint32_t * swap_no -> base_address
+ **/
+bool MachineInspector::save_state_ram( char const * name ) const noexcept
 {
-  return cp0->hwr_ena;
+  std::string ram_file_name{ name };
+  ram_file_name += ".ram";
+
+  auto * file = std::fopen( ram_file_name.c_str(), "wb" );
+  if ( !file )
+    return true;
+
+  // Data
+  std::uint32_t const _alloc_limit = ram->alloc_limit;
+  std::uint32_t const _blocks_no = ram->blocks.size();
+  std::uint32_t const _swap_no = ram->swapped.size();
+
+  std::fwrite( &_alloc_limit, sizeof( _alloc_limit ), 1, file );
+  std::fwrite( &_blocks_no, sizeof( _blocks_no ), 1, file );
+  std::fwrite( &_swap_no, sizeof( _swap_no ), 1, file );
+
+  // Allocated blocks
+  for ( auto const & block : ram->blocks )
+  {
+    std::uint32_t const _base_address = block.base_address;
+    std::uint32_t const _access_count = block.access_count;
+
+    std::fwrite( &_base_address, sizeof( _base_address ), 1, file );
+    std::fwrite( &_access_count, sizeof( _access_count ), 1, file );
+    std::fwrite( block.data.get(), sizeof( block.data[0] ), RAM::block_size, file );
+  }
+
+  // Swapped blocks
+  std::fwrite( ram->swapped.data(), sizeof( ram->swapped[0] ), _swap_no, file );
+
+  std::fflush( file );
+  bool error = std::ferror( file );
+  std::fclose( file );
+  return error;
 }
 
-std::uint32_t & MachineInspector::CP0_bad_vaddr() noexcept
+////
+//// CP0
+////
+/**
+ * Trivially copyable
+ **/
+bool MachineInspector::save_state_cp0( char const * name ) const noexcept
 {
-  return cp0->bad_vaddr;
+  std::string cp0_file_name{ name };
+  cp0_file_name += ".cp0";
+
+  auto * file = std::fopen( cp0_file_name.c_str(), "wb" );
+  if ( !file )
+    return true;
+
+  // CP0
+  std::fwrite( cp0, sizeof( CP0 ), 1, file );
+
+  std::fflush( file );
+  bool error = std::ferror( file );
+  std::fclose( file );
+  return error;
 }
 
-std::uint32_t & MachineInspector::CP0_bad_instr() noexcept
+////
+//// CP1
+////
+/**
+ * uint32_t * 32, fprs
+ * uint32_t, fir
+ * uint32_t, fcsr
+ * fenv_t, env
+ **/
+bool MachineInspector::save_state_cp1( char const * name ) const noexcept
 {
-  return cp0->bad_instr;
+  std::string cp1_file_name{ name };
+  cp1_file_name += ".cp1";
+
+  auto * file = std::fopen( cp1_file_name.c_str(), "wb" );
+  if ( !file )
+    return true;
+
+  // CP1
+  std::fwrite( cp1->fpr.data(), sizeof( cp1->fpr[0] ), 32, file );
+  std::fwrite( &cp1->fir, sizeof( cp1->fir ), 1, file );
+  std::fwrite( &cp1->fcsr, sizeof( cp1->fcsr ), 1, file );
+  std::fwrite( &cp1->env, sizeof( cp1->env ), 1, file );
+
+  std::fflush( file );
+  bool error = std::ferror( file );
+  std::fclose( file );
+  return error;
 }
 
-std::uint32_t & MachineInspector::CP0_status() noexcept
+////
+//// CPU
+////
+/**
+ * -- CP0 --
+ * see `save_state_cp0`
+ *
+ * -- CP1 --
+ * see `save_state_cp0`
+ *
+ * -- MMU --
+ * uint32_t, segment_no
+ * Segment * segment_no, segments
+ *
+ * uint32_t, pc
+ * uint32_t * 32, gprs
+ * exit_code is always restored as `NONE`
+ **/
+bool MachineInspector::save_state_cpu( char const * name ) const noexcept
 {
-  return cp0->status;
+  if ( save_state_cp0( name ) )
+    return true;
+
+  if ( save_state_cp1( name ) )
+    return true;
+
+  std::string cpu_file_name{ name };
+  cpu_file_name += ".cpu";
+
+  auto * file = std::fopen( cpu_file_name.c_str(), "wb" );
+  if ( !file )
+    return true;
+
+  // MMU
+  std::uint32_t const _segment_no = cpu->mmu.segments.size();
+  std::fwrite( &_segment_no, sizeof( _segment_no ), 1, file );
+  std::fwrite( cpu->mmu.segments.data(), sizeof( cpu->mmu.segments[0] ), _segment_no, file );
+
+  // CPU
+  std::fwrite( &cpu->pc, sizeof( cpu->pc ), 1, file );
+  std::fwrite( cpu->gpr.data(), sizeof( cpu->gpr[0] ), cpu->gpr.size(), file );
+
+  std::fflush( file );
+  bool error = std::ferror( file );
+  std::fclose( file );
+  return error;
 }
 
-std::uint32_t & MachineInspector::CP0_int_ctl() noexcept
+////
+//// RAM
+////
+/**
+ * uint32_t -> alloc_limit -|
+ * uint32_t -> blocks_no    |- data
+ * uint32_t -> swap_no     -|
+ * (uint32_t, uint32_t, uint32_t * RAM::block_size) * blocks_no -> base_address, access_count, data
+ * uint32_t * swap_no -> base_address
+ *
+ * 1. Load the data from disk
+ * 2. Load allocated blocks from disk
+ * 3. Resize and overwrite swapped blocks data
+ **/
+bool MachineInspector::restore_state_ram( char const * name ) noexcept
 {
-  return cp0->int_ctl;
+  std::string ram_file_name{ name };
+  ram_file_name += ".ram";
+
+  auto * file = std::fopen( ram_file_name.c_str(), "rb" );
+  if ( !file )
+    return true;
+
+  bool error = false;
+
+  // 1
+  std::uint32_t _alloc_limit = 0;
+  std::uint32_t _blocks_no = 0;
+  std::uint32_t _swap_no = 0;
+
+  std::fread( &_alloc_limit, sizeof( _alloc_limit ), 1, file );
+  std::fread( &_blocks_no, sizeof( _blocks_no ), 1, file );
+  std::fread( &_swap_no, sizeof( _swap_no ), 1, file );
+
+  ram->alloc_limit = _alloc_limit;
+
+  // 2
+  ram->blocks.resize( _blocks_no );
+
+  for ( auto & block : ram->blocks )
+  {
+    std::fread( &block.base_address, sizeof( block.base_address ), 1, file );
+    std::fread( &block.access_count, sizeof( block.access_count ), 1, file );
+
+    if ( !block.data )
+      block.allocate();
+
+    if ( !block.data )
+    {
+      error = true;
+      break;
+    }
+
+    std::fread( block.data.get(), sizeof( *block.data.get() ), RAM::block_size, file );
+  }
+
+  // 3
+  ram->swapped.resize( _swap_no );
+  std::fread( ram->swapped.data(), sizeof( ram->swapped[0] ), _swap_no, file );
+
+  error = error || std::ferror( file );
+  std::fclose( file );
+  return error;
 }
 
-std::uint32_t & MachineInspector::CP0_srs_ctl() noexcept
+//// 
+//// CP0
+//// 
+/**
+ * Trivially copyable
+ **/
+bool MachineInspector::restore_state_cp0( char const * name ) noexcept
 {
-  return cp0->srs_ctl;
+  std::string cp0_file_name{ name };
+  cp0_file_name += ".cp0";
+
+  auto * file = std::fopen( cp0_file_name.c_str(), "rb" );
+  if ( !file )
+    return true;
+
+  // CP0
+  std::fread( cp0, sizeof( CP0 ), 1, file );
+
+  bool error = std::ferror( file );
+  std::fclose( file );
+  return error;
 }
 
-std::uint32_t & MachineInspector::CP0_cause() noexcept
+//// 
+//// CP1
+//// 
+/**
+ * After reading back the data we need to:
+ * 1. set the FP Environment,
+ * 2. set the rounding mode,
+ * 3. set flushing mode for denormalized numbers
+ **/
+bool MachineInspector::restore_state_cp1( char const * name ) noexcept
 {
-  return cp0->cause;
+  std::string cp1_file_name{ name };
+  cp1_file_name += ".cp1";
+
+  auto * file = std::fopen( cp1_file_name.c_str(), "rb" );
+  if ( !file )
+    return true;
+
+  std::fread( cp1->fpr.data(), sizeof( FPR ), cp1->fpr.size(), file );
+  std::fread( &cp1->fir, sizeof( cp1->fir ), 1, file );
+  std::fread( &cp1->fcsr, sizeof( cp1->fcsr ), 1, file );
+  std::fread( &cp1->env, sizeof( cp1->env ), 1, file );
+
+  std::fesetenv( &cp1->env );
+  cp1->set_round_mode();
+  cp1->set_denormal_flush();
+
+  bool error = std::ferror( file );
+  std::fclose( file );
+  return error;
 }
 
-std::uint32_t & MachineInspector::CP0_epc() noexcept
+////
+//// CPU
+////
+/**
+ * -- CP0 --
+ * see `restore_state_cp0`
+ *
+ * -- CP1 --
+ * see `restore_state_cp0`
+ *
+ * -- MMU --
+ * uint32_t, segment_no
+ * Segment * segment_no, segments
+ *
+ * uint32_t, pc
+ * uint32_t * 32, gprs
+ * exit_code is always NONE
+ **/
+bool MachineInspector::restore_state_cpu( char const * name ) noexcept
 {
-  return cp0->epc;
-}
+  if ( restore_state_cp0( name ) )
+    return true;
 
-std::uint32_t & MachineInspector::CP0_pr_id() noexcept
-{
-  return cp0->pr_id;
-}
+  if ( restore_state_cp1( name ) )
+    return true;
 
-std::uint32_t & MachineInspector::CP0_e_base() noexcept
-{
-  return cp0->e_base;
-}
+  std::string cpu_file_name{ name };
+  cpu_file_name += ".cpu";
 
-std::uint32_t & MachineInspector::CP0_config( std::uint32_t n ) noexcept
-{
-  return cp0->config[n];
-}
+  auto * file = std::fopen( cpu_file_name.c_str(), "rb" );
 
-std::uint32_t & MachineInspector::CP0_error_epc() noexcept
-{
-  return cp0->error_epc;
-}
+  // MMU
+  std::uint32_t _segment_no = 0;
+  std::fread( &_segment_no, sizeof( _segment_no ), 1, file );
 
-std::uint32_t & MachineInspector::CP0_k_scratch( std::uint32_t n ) noexcept
-{
-  return cp0->k_scratch[n];
+  cpu->mmu.segments.resize( _segment_no );
+  std::fread( cpu->mmu.segments.data(), sizeof( MMU::Segment ), _segment_no, file );
+
+  // CPU
+  std::fread( &cpu->pc, sizeof( cpu->pc ), 1, file );
+  std::fread( cpu->gpr.data(), sizeof( cpu->gpr[0] ), cpu->gpr.size(), file );
+  cpu->exit_code.store( 0, std::memory_order_release );
+
+  bool error = std::ferror( file );
+  std::fclose( file );
+  return error;
 }
 
 } // namespace mips32

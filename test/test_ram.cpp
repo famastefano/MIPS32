@@ -6,110 +6,86 @@
 using namespace mips32;
 using namespace mips32::literals;
 
-SCENARIO( "A RAM Object exists" )
+TEST_CASE( "A RAM Object exists with 256 MB of allocation limit" )
 {
-  GIVEN( "A RAM with 256MB of allocation limit" )
+  MachineInspector inspector;
+
+  RAM ram{ 256_MB };
+  inspector.inspect( ram );
+
+  SECTION( "I ask for RAM's infos" )
   {
-    MachineInspector inspector;
+    auto info = inspector.RAM_info();
 
-    RAM ram{ 256_MB };
-    inspector.inspect( ram );
-
-    WHEN( "I ask for RAM's infos" )
-    {
-      auto info = inspector.RAM_info();
-
-      THEN( "The inspector returns the correct informations." )
-      {
-        REQUIRE( info.alloc_limit == 256_MB );
-        REQUIRE( info.block_size == RAM::block_size );
-        REQUIRE( info.allocated_blocks_no == 0 );
-        REQUIRE( info.swapped_blocks_no == 0 );
-        REQUIRE( info.allocated_addresses.size() == 0 );
-        REQUIRE( info.swapped_addresses.size() == 0 );
-      }
-    }
-
-    WHEN( "I access a word" )
-    {
-      ram[0];
-
-      THEN( "It's block shall be allocated" )
-      {
-        REQUIRE( inspector.RAM_allocated_blocks_no() == std::uint32_t( 1 ) );
-        REQUIRE( inspector.RAM_swapped_blocks_no() == std::uint32_t( 0 ) );
-      }
-    }
-
-    WHEN( "I write to a word" )
-    {
-      ram[0] = 0xABCD'0123;
-
-      THEN( "Its value shall be stored" )
-      {
-        REQUIRE( ram[0] == 0xABCD'0123 );
-      }
-    }
-
-    WHEN( "I write to a sequence of words in the same block" )
-    {
-      for ( std::uint32_t i = 0; i < 256 * 4; i += 4 )
-        ram[i] = i;
-
-      THEN( "I shall retrieve those values by reading them back" )
-      {
-        for ( std::uint32_t i = 0; i < 256 * 4; i += 4 )
-          REQUIRE( ram[i] == i );
-      }
-    }
+    REQUIRE( info.alloc_limit == 256_MB );
+    REQUIRE( info.block_size == RAM::block_size );
+    REQUIRE( info.allocated_blocks_no == 0 );
+    REQUIRE( info.swapped_blocks_no == 0 );
+    REQUIRE( info.allocated_addresses.size() == 0 );
+    REQUIRE( info.swapped_addresses.size() == 0 );
   }
 
-  GIVEN( "A little RAM that can allocate 1 block only" )
+  SECTION( "I access a word" )
   {
-    MachineInspector inspector;
+    ram[0];
 
-    RAM ram{ RAM::block_size };
+    REQUIRE( inspector.RAM_allocated_blocks_no() == std::uint32_t( 1 ) );
+    REQUIRE( inspector.RAM_swapped_blocks_no() == std::uint32_t( 0 ) );
+  }
 
-    inspector.inspect( ram );
+  SECTION( "I write to a word" )
+  {
+    ram[0] = 0xABCD'0123;
 
-    WHEN( "I access 2 blocks" )
-    {
-      ram[0];
-      ram[RAM::block_size];
+    REQUIRE( ram[0] == 0xABCD'0123 );
+  }
 
-      THEN( "Only 1 block shall be allocated and 1 swapped" )
-      {
-        REQUIRE( inspector.RAM_allocated_blocks_no() == std::uint32_t( 1 ) );
-        REQUIRE( inspector.RAM_swapped_blocks_no() == std::uint32_t( 1 ) );
-      }
-    }
+  SECTION( "I write to a sequence of words in the same block" )
+  {
+    for ( std::uint32_t i = 0; i < 256 * 4; i += 4 )
+      ram[i] = i;
 
-    WHEN( "I access more blocks after the first allocation" )
-    {
-      for ( std::uint32_t i = 0; i < RAM::block_size * 10; i += RAM::block_size )
-        ram[i];
+    for ( std::uint32_t i = 0; i < 256 * 4; i += 4 )
+      REQUIRE( ram[i] == i );
+  }
+}
 
-      THEN( "Only 1 block shall be allocated and the rest are swapped" )
-      {
-        REQUIRE( inspector.RAM_allocated_blocks_no() == std::uint32_t( 1 ) );
-        REQUIRE( inspector.RAM_swapped_blocks_no() == std::uint32_t( 9 ) );
-      }
-    }
+TEST_CASE( "A RAM object exists and can allocate 1 block only" )
+{
+  MachineInspector inspector;
 
-    WHEN( "I access a swapped block" )
-    {
-      ram[0];
-      ram[RAM::block_size];
+  RAM ram{ 64_KB };
 
-      REQUIRE( inspector.RAM_swapped_addresses().back() == std::uint32_t( 0 ) );
+  inspector.inspect( ram );
 
-      ram[0];
+  SECTION( "I access 2 blocks" )
+  {
+    ram[0];
+    ram[RAM::block_size];
 
-      THEN( "That block shall be present in memory" )
-      {
-        REQUIRE( inspector.RAM_swapped_addresses()[0] == RAM::block_size );
-        REQUIRE( inspector.RAM_allocated_addresses()[0] == std::uint32_t( 0 ) );
-      }
-    }
+    REQUIRE( inspector.RAM_allocated_blocks_no() == std::uint32_t( 1 ) );
+    REQUIRE( inspector.RAM_swapped_blocks_no() == std::uint32_t( 1 ) );
+  }
+
+  SECTION( "I access more blocks after the first allocation" )
+  {
+    for ( std::uint32_t i = 0; i < RAM::block_size * 10; i += RAM::block_size )
+      ram[i];
+
+    REQUIRE( inspector.RAM_allocated_blocks_no() == std::uint32_t( 1 ) );
+    REQUIRE( inspector.RAM_swapped_blocks_no() == std::uint32_t( 9 ) );
+  }
+
+  SECTION( "I access a swapped block" )
+  {
+    ram[0];
+    ram[RAM::block_size];
+
+    REQUIRE( inspector.RAM_swapped_addresses().back() == std::uint32_t( 0 ) );
+
+    ram[0];
+
+    REQUIRE( inspector.RAM_swapped_addresses()[0] == RAM::block_size );
+    REQUIRE( inspector.RAM_allocated_addresses()[0] == std::uint32_t( 0 ) );
   }
 }

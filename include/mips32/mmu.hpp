@@ -12,6 +12,8 @@ class Cache;
 
 class MMU
 {
+  friend class MachineInspector;
+
 public:
   struct Segment
   {

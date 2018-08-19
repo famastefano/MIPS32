@@ -231,7 +231,7 @@ void RAMString::write( std::uint32_t address, char const *src, std::uint32_t cou
       std::memcpy( ( char * )( block.data.get() + begin ) + ( address & 0b11 ), src + char_written, size );
 
       // If we can push the new block directly into memory, we add it to the allocated blocks
-      if ( ram.swapped.empty() && ( ram.blocks.size() * RAM::block_size < ram.alloc_limit ) )
+      if ( ram.swapped.empty() && ( ram.blocks.size() < ram.alloc_limit ) )
       {
         ram.blocks.emplace_back( std::move( block ) );
       }

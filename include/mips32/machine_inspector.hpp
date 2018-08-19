@@ -28,7 +28,7 @@ public:
   // MachineInspector& inspect( Cache &cache ) noexcept;
   MachineInspector &inspect( CP0 &cp0 ) noexcept;
   MachineInspector &inspect( CP1 &cp1 ) noexcept;
-  MachineInspector &inspect( CPU &cpu, bool sub_components = true) noexcept;
+  MachineInspector &inspect( CPU &cpu, bool sub_components = true ) noexcept;
 
   /* * * * *
    *       *
@@ -37,12 +37,14 @@ public:
    * * * * */
 
   /**
-   * The Machine's state is created by composing all the
-   * component's states togheter.
+   * The Machine's state is created by composing all the component's states togheter.
    * Each state has its own binary representation.
    * **Do not** modify it manually nor try to recreate it.
    * The representation can change at any time and it is
    * *not* guaranteed to be compatible with previous versions of this library.
+   *
+   * It is also required to have an already constructed machine with
+   * all its components inspected, both for saving and restoring their state.
    **/
 
   enum class Component
@@ -51,18 +53,24 @@ public:
     //CACHE,
     CP0,
     CP1,
-    CPU
+    CPU,
+    ALL // saves all components
   };
 
-  // Save and restore the entire Machine state to a file.
+  // Save the state of the given component into the filename `name`.
+  // All the components are left untouched *excepts* the CPU that will be stopped.
+  //! This function is free to *add* a custom extension to the filename.
+  // Returns:
+  // `true`  - in case of *failure*
+  // `false` - in case of success
+  bool save_state( Component c, char const *name ) noexcept;
 
-  void save_state( char const *name ) const noexcept;
-  void restore_state( char const *name ) noexcept;
-
-  // Save and restore the state of the specified component to a file.
-
-  void save_state( Component c, char const *name ) const noexcept;
-  void restore_state( Component c, char const *name ) noexcept;
+  // Restore the state of the given component from the filename `name`.
+  //! This function is free to *add* a custom extension to the filename.
+  // Returns:
+  // `true`  - in case of *failure*. !!! it is not guaranteed to have a valid component in this case !!!
+  // `false` - in case of success
+  bool restore_state( Component c, char const *name ) noexcept;
 
   /* * * *
    *     *
@@ -111,26 +119,13 @@ public:
    *       *
    * * * * */
 
-  std::uint32_t& CP0_user_local() noexcept;
-  std::uint32_t& CP0_hwr_ena() noexcept;
-  std::uint32_t& CP0_bad_vaddr() noexcept;
-  std::uint32_t& CP0_bad_instr() noexcept;
-  std::uint32_t& CP0_status() noexcept;
-  std::uint32_t& CP0_int_ctl() noexcept;
-  std::uint32_t& CP0_srs_ctl() noexcept;
-  std::uint32_t& CP0_cause() noexcept;
-  std::uint32_t& CP0_epc() noexcept;
-  std::uint32_t& CP0_pr_id() noexcept;
-  std::uint32_t& CP0_e_base() noexcept;
-  std::uint32_t& CP0_config( std::uint32_t n ) noexcept;
-  std::uint32_t& CP0_error_epc() noexcept;
-  std::uint32_t& CP0_k_scratch( std::uint32_t n ) noexcept;
+  CP0& access_cp0() noexcept;
 
- /* * * * *
-  *       *
-  * COP 1 *
-  *       *
-  * * * * */
+  /* * * * *
+   *       *
+   * COP 1 *
+   *       *
+   * * * * */
 
   using CP1_FPR_iterator = typename std::array<FPR, 32>::iterator;
 
@@ -162,8 +157,19 @@ private:
   CP0 *cp0;
   CP1 *cp1;
   CPU *cpu;
+
+  bool save_state_ram( char const*name ) const noexcept;
+  bool save_state_cp0( char const*name ) const noexcept;
+  bool save_state_cp1( char const*name ) const noexcept;
+  bool save_state_cpu( char const*name ) const noexcept;
+
+  bool restore_state_ram( char const*name ) noexcept;
+  bool restore_state_cp0( char const*name ) noexcept;
+  bool restore_state_cp1( char const*name ) noexcept;
+  bool restore_state_cpu( char const*name ) noexcept;
 };
 
 //#include <mips32/inspector_iterators/cache_iterator.hpp>
 
 } // namespace mips32
+

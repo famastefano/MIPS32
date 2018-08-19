@@ -114,7 +114,7 @@ private:
    **/
   Block &least_accessed() noexcept;
 
-  std::uint32_t             alloc_limit; // Maximum number of allocable bytes.
+  std::uint32_t             alloc_limit; // Maximum number of allocable blocks.
   std::vector<Block>        blocks;      // Block list.
   std::vector<SwappedBlock> swapped;     // Swapped block list.
 };

@@ -23,8 +23,7 @@ class CP1
   friend class MachineInspector;
 
 public:
-  CP1()
-    noexcept;
+  CP1() noexcept;
 
   ~CP1() noexcept;
 

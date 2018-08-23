@@ -15,8 +15,13 @@ if [[ -v COVERAGE ]]; then
     lcov --list coverage_total.info
 else
     mkdir build-debug && mkdir build-release
-    cmake . -Bbuild-debug -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Debug -DARCH=$ARCH
-    cmake . -Bbuild-release -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release -DARCH=$ARCH
+	if [[ -v SANITIZER ]]; then
+		cmake . -Bbuild-debug -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Debug -DARCH=$ARCH -DSANITIZER=ON
+	else
+		cmake . -Bbuild-debug -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Debug -DARCH=$ARCH
+		cmake . -Bbuild-release -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release -DARCH=$ARCH
+	fi
+    
     cd build-debug && make && file Tests && ctest -C Debug --output-on-failure
     cd ..
     cd build-release && make && file Tests && ctest -C Release --output-on-failure

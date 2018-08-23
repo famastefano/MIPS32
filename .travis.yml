@@ -75,7 +75,22 @@ matrix:
       env:
         - MATRIX_EVAL="CC=clang-6.0 && CXX=clang++-6.0"
         - ARCH=x64
-  
+
+  # Linux - clang 6 - Sanitizer
+    - os: linux
+      addons:
+        apt:
+          sources:
+            - llvm-toolchain-trusty-6.0
+            - ubuntu-toolchain-r-test
+          packages:
+            - clang-6.0
+            - g++-7
+      env:
+        - MATRIX_EVAL="CC=clang-6.0 && CXX=clang++-6.0"
+        - ARCH=x64
+        - SANITIZER=ON
+
   # # # # # # # #
   # x86  builds #
   # # # # # # # #
@@ -140,6 +155,22 @@ matrix:
         - MATRIX_EVAL="CC=clang-6.0 && CXX=clang++-6.0"
         - ARCH=x86
 
+  # Linux - clang 6 - Sanitizer
+    - os: linux
+      addons:
+        apt:
+          sources:
+            - llvm-toolchain-trusty-6.0
+            - ubuntu-toolchain-r-test
+          packages:
+            - clang-6.0
+            - g++-7-multilib
+            - libc6-dev:i386
+            - linux-libc-dev:i386
+      env:
+        - MATRIX_EVAL="CC=clang-6.0 && CXX=clang++-6.0"
+        - ARCH=x86
+        - SANITIZER=ON
 
 before_install:
   - eval "${MATRIX_EVAL}"

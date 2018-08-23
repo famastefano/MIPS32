@@ -65,6 +65,16 @@ if (NOT (CMAKE_BUILD_TYPE STREQUAL "Coverage"))
 				-Wno-implicit-fallthrough
 				-Wno-dollar-in-identifier-extension
 			)
+			
+			if(${SANITIZER})
+				target_compile_options(Tests PRIVATE
+					-g
+					-O1
+					-fno-optimize-sibling-calls
+					-Wthread-safety
+					-fsanitize=address,thread,undefined,memory
+				)
+			endif()
             
         else() # GCC
 
@@ -91,6 +101,7 @@ if (NOT (CMAKE_BUILD_TYPE STREQUAL "Coverage"))
 			-Wno-missing-braces
 			-Wno-unused-variable
 			-Wno-sign-compare
+			-fno-omit-frame-pointer
 		)
 
     endif() # GCC - Clang

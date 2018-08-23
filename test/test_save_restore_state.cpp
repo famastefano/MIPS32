@@ -7,6 +7,7 @@
 #include <cstring>
 
 using namespace mips32;
+using namespace mips32::literals;
 
 constexpr char const state_name[] = { "test_save_restore_state" };
 

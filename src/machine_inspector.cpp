@@ -505,7 +505,8 @@ bool MachineInspector::restore_state_ram( char const * name ) noexcept
 
   // 3
   ram->swapped.resize( _swap_no );
-  std::fread( ram->swapped.data(), sizeof( ram->swapped[0] ), _swap_no, file );
+  [[maybe_unused]] auto swapdata_read_count = std::fread( ram->swapped.data(), sizeof( ram->swapped[0] ), _swap_no, file );
+  assert( swapdata_read_count == _swap_no && "Coudln't read the swapped block's data from file!" );
 
   error = error || std::ferror( file );
   std::fclose( file );

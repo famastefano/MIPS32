@@ -7,6 +7,7 @@
 #include "helpers/Terminal.hpp"
 #include "helpers/FileManager.hpp"
 
+#include <cstring>
 #include <memory>
 
 // TODO: test for reserved(word) path
@@ -16,6 +17,7 @@
 // TODO: test for multiple code path in RAMString
 
 using namespace mips32;
+using namespace mips32::literals;
 
 using ui32 = std::uint32_t;
 
@@ -66,7 +68,7 @@ TEST_CASE( "A CPU object exists" )
 {
   MachineInspector inspector;
 
-  RAM ram{ 1_MB }; // 1 MB
+  RAM ram{ 192_KB }; // 3 Blocks
   CPU cpu{ ram };
 
   inspector
@@ -3512,26 +3514,201 @@ TEST_CASE( "A CPU object exists" )
     REQUIRE( terminal->out_double == 987654.23 );
   }
 
-  SECTION( "[SYSCALL] print_string is executed" )
+  SECTION( "[SYSCALL] print_string is executed (same block in memory)" )
+  {
+    auto is_in_memory = [] ( std::vector<std::uint32_t> const& addresses, std::uint32_t address ) -> bool
+    {
+      for ( auto const & val : addresses )
+        if ( address == val )
+          return true;
+
+      return false;
+    };
+
+    auto $v0 = R( _v0 );
+    auto $a0 = R( _a0 );
+    auto $a1 = R( _a1 );
+
+    *$a0 = 0x0000'0000;
+
+    terminal->in_string = "[SYSCALL] print_string";
+    terminal->in_string += '\0'; // we must add it manually
+
+    // We place the string into RAM through a syscall
+    *$v0 = READ_STRING;
+    *$a1 = terminal->in_string.size();
+
+    $start = "SYSCALL"_cpu;
+    cpu.single_step();
+
+    // We then perform the print
+    *$v0 = PRINT_STRING;
+
+    $start = "SYSCALL"_cpu;
+
+    // Check that the block is in memory
+    REQUIRE( is_in_memory( inspector.RAM_allocated_addresses(), 0 ) );
+
+    PC() = pc;
+    cpu.single_step();
+
+    REQUIRE( terminal->out_string == "[SYSCALL] print_string" );
+  }
+
+  SECTION( "[SYSCALL] print_string is executed (different blocks in memory)" )
+  {
+    auto is_in_memory = [] ( std::vector<std::uint32_t> const& addresses, std::uint32_t address ) -> bool
+    {
+      for ( auto const & val : addresses )
+        if ( address == val )
+          return true;
+
+      return false;
+    };
+
+    auto $v0 = R( _v0 );
+    auto $a0 = R( _a0 );
+    auto $a1 = R( _a1 );
+
+    *$a0 = 0x0000'3FF7;
+
+    terminal->in_string = "[SYSCALL] print_string";
+    terminal->in_string += '\0'; // we must add it manually
+
+    // We place the string into RAM through a syscall
+    *$v0 = READ_STRING;
+    *$a1 = terminal->in_string.size();
+
+    $start = "SYSCALL"_cpu;
+    cpu.single_step();
+
+    // We then perform the print
+    *$v0 = PRINT_STRING;
+
+    $start = "SYSCALL"_cpu;
+
+    // Check that the blocks are in memory
+    REQUIRE( is_in_memory( inspector.RAM_allocated_addresses(), 0x0000 ) );
+    REQUIRE( is_in_memory( inspector.RAM_allocated_addresses(), 0x4000 ) );
+
+    PC() = pc;
+    cpu.single_step();
+
+    REQUIRE( terminal->out_string == "[SYSCALL] print_string" );
+  }
+
+  SECTION( "[SYSCALL] print_string is executed (same block swapped)" )
+  {
+    auto is_swapped = [] ( std::vector<std::uint32_t> const& addresses, std::uint32_t address ) -> bool
+    {
+      for ( auto const & val : addresses )
+        if ( address == val )
+          return true;
+
+      return false;
+    };
+
+    auto $v0 = R( _v0 );
+    auto $a0 = R( _a0 );
+    auto $a1 = R( _a1 );
+
+    *$a0 = 0x1000'0000;
+
+    terminal->in_string = "[SYSCALL] print_string";
+    terminal->in_string += '\0'; // we must add it manually
+
+    // We place the string into RAM through a syscall
+    *$v0 = READ_STRING;
+    *$a1 = terminal->in_string.size();
+
+    $start = "SYSCALL"_cpu;
+    cpu.single_step();
+
+    // We need to force a swap of the block at address 0x1000'0000
+    for ( int i = 0; i < 10; ++i )
+    {
+      std::uint32_t volatile _dummy;
+      _dummy = ram[0x2000'0000];
+      _dummy = ram[0x3000'0000];
+    }
+
+    // We then perform the print
+    *$v0 = PRINT_STRING;
+
+    $start = "SYSCALL"_cpu;
+
+    // Check that the block is swapped
+    REQUIRE( is_swapped( inspector.RAM_swapped_addresses(), 0x1000'0000 ) );
+
+    PC() = pc;
+    cpu.single_step();
+
+    REQUIRE( terminal->out_string == "[SYSCALL] print_string" );
+  }
+
+  SECTION( "[SYSCALL] print_string is executed (different blocks swapped)" )
+  {
+    auto is_swapped = [] ( std::vector<std::uint32_t> const& addresses, std::uint32_t address ) -> bool
+    {
+      for ( auto const & val : addresses )
+        if ( address == val )
+          return true;
+
+      return false;
+    };
+
+    auto $v0 = R( _v0 );
+    auto $a0 = R( _a0 );
+    auto $a1 = R( _a1 );
+
+    *$a0 = 0x3000'3FEA;
+
+    terminal->in_string = "[SYSCALL] print_string";
+    terminal->in_string += '\0'; // we must add it manually
+
+    // We place the string into RAM through a syscall
+    *$v0 = READ_STRING;
+    *$a1 = terminal->in_string.size();
+
+    $start = "SYSCALL"_cpu;
+    cpu.single_step();
+
+    // We then perform the print
+    *$v0 = PRINT_STRING;
+
+    // We need to force a swap of the blocks at address 0x3000'0000 and 0x3000'4000
+    for ( int i = 0; i < 10; ++i )
+    {
+      std::uint32_t volatile _dummy;
+      _dummy = ram[0x1000'0000];
+      _dummy = ram[0x2000'0000];
+    }
+
+    $start = "SYSCALL"_cpu;
+
+    // Check that the blocks are in memory
+    REQUIRE( is_swapped( inspector.RAM_swapped_addresses(), 0x3000'0000 ) );
+    REQUIRE( is_swapped( inspector.RAM_swapped_addresses(), 0x3000'4000 ) );
+
+    PC() = pc;
+    cpu.single_step();
+
+    REQUIRE( terminal->out_string == "[SYSCALL] print_string" );
+  }
+
+  SECTION( "[SYSCALL] print_string is executed (block doesn't exist)" )
   {
     auto $v0 = R( _v0 );
     auto $a0 = R( _a0 );
 
     *$v0 = PRINT_STRING;
-
-    *$a0 = 0x8000'0000;
-
-    char const _data[] = "[SYSCALL] print_string";
-
-    auto * str = ( char* )std::addressof( ram[0x8000'0000] );
-
-    for ( int i = 0; i < 23; ++i )
-      str[i] = _data[i];
+    *$a0 = 0x1000'0000;
 
     $start = "SYSCALL"_cpu;
+    PC() = pc;
     cpu.single_step();
 
-    REQUIRE( terminal->out_string == "[SYSCALL] print_string" );
+    REQUIRE( terminal->out_string.empty() );
   }
 
   SECTION( "[SYSCALL] read_int is executed" )
@@ -3572,24 +3749,169 @@ TEST_CASE( "A CPU object exists" )
     REQUIRE( $f0->d == terminal->in_double );
   }
 
-  SECTION( "[SYSCALL] read_string is executed (with string buffer between bounds)" )
+  SECTION( "[SYSCALL] read_string is executed (same block in memory)" )
   {
     auto $v0 = R( _v0 );
     auto $a0 = R( _a0 );
     auto $a1 = R( _a1 );
 
+    terminal->in_string = "[SYSCALL] read_string";
+
     *$v0 = READ_STRING;
-    *$a0 = 0x8000'0000;
-    *$a1 = 80;
+    *$a0 = 0x0000'0000;
+    *$a1 = terminal->in_string.size();
 
     $start = "SYSCALL"_cpu;
     cpu.single_step();
 
-    auto const * _str = ( char* )std::addressof( ram[0x8000'0000] );
-    for ( int i = 0; i < 80; ++i )
+    auto const * str = ( char const* )( &ram[0x0000'0000] );
+
+    REQUIRE( std::memcmp( terminal->in_string.data(), str, *$a1 ) == 0 );
+  }
+
+  SECTION( "[SYSCALL] read_string is executed (different blocks in memory)" )
+  {
+    auto $v0 = R( _v0 );
+    auto $a0 = R( _a0 );
+    auto $a1 = R( _a1 );
+
+    terminal->in_string = "[SYSCALL] read_string";
+
+    auto volatile _dummy_0 = ram[0x0000'3FF6];
+    auto volatile _dummy_1 = ram[0x0000'4000];
+
+    *$v0 = READ_STRING;
+    *$a0 = 0x0000'3FF6;
+    *$a1 = terminal->in_string.size();
+
+    $start = "SYSCALL"_cpu;
+    cpu.single_step();
+
+    auto const * str_0 = ( char const* )( &ram[0x0000'3FF4] ) + ( 0x3FF6 & 0b11 );
+
+    REQUIRE( std::memcmp( terminal->in_string.data(),
+                          str_0,
+                          10 ) == 0 );
+
+    auto const * str_1 = ( char const* )( &ram[0x0000'4000] );
+
+    REQUIRE( std::memcmp( terminal->in_string.data() + 10,
+                          str_1,
+                          terminal->in_string.size() - 10 ) == 0 );
+  }
+
+  SECTION( "[SYSCALL] read_string is executed (same block swapped)" )
+  {
+    auto $v0 = R( _v0 );
+    auto $a0 = R( _a0 );
+    auto $a1 = R( _a1 );
+
+    auto volatile _dummy_0 = ram[0x0000'0400];
+
+    // We increase the access_count of 2 blocks, so the swapped one will be the one we need
+    for ( int i = 0; i < 10; ++i )
     {
-      REQUIRE( _str[i] == terminal->in_char );
+      std::uint32_t volatile _dummy_0;
+      _dummy_0 = ram[RAM::block_size];
+      _dummy_0 = ram[RAM::block_size * 2];
     }
+
+    auto volatile _dummy_1 = ram[RAM::block_size * 3];
+
+    // Check that is swapped
+    REQUIRE( inspector.RAM_swapped_blocks_no() == 1 );
+    REQUIRE( inspector.RAM_swapped_addresses()[0] == 0x0000'0000 );
+
+    terminal->in_string = "[SYSCALL] read_string";
+
+    *$v0 = READ_STRING;
+    *$a0 = 0x0000'0400;
+    *$a1 = terminal->in_string.size();
+
+    $start = "SYSCALL"_cpu;
+    cpu.single_step();
+
+    auto const * str = ( char const* )( &ram[0x0000'0400] );
+
+    REQUIRE( std::memcmp( terminal->in_string.data(),
+                          str,
+                          terminal->in_string.size() ) == 0 );
+  }
+
+  SECTION( "[SYSCALL] read_string is executed (same non existent block)" )
+  {
+    auto $v0 = R( _v0 );
+    auto $a0 = R( _a0 );
+    auto $a1 = R( _a1 );
+
+    terminal->in_string = "[SYSCALL] read_string";
+
+    *$v0 = READ_STRING;
+    *$a0 = 0x1000'0000;
+    *$a1 = terminal->in_string.size();
+
+    // Check that the block doesn't exist
+    auto const info = inspector.RAM_info();
+
+    for ( auto const & addr : info.allocated_addresses )
+      REQUIRE( addr != 0x1000'0000 );
+
+    for ( auto const & addr : info.swapped_addresses )
+      REQUIRE( addr != 0x1000'0000 );
+
+    $start = "SYSCALL"_cpu;
+    cpu.single_step();
+
+    auto const * str = ( char const* )( &ram[0x1000'0000] );
+
+    REQUIRE( std::memcmp( terminal->in_string.data(),
+                          str,
+                          terminal->in_string.size() ) == 0 );
+  }
+
+  SECTION( "[SYSCALL] read_string is executed (different non existent block)" )
+  {
+    auto $v0 = R( _v0 );
+    auto $a0 = R( _a0 );
+    auto $a1 = R( _a1 );
+
+    terminal->in_string = "[SYSCALL] read_string";
+
+    auto const offset = 0x4000 - 0x3FF8;
+
+    *$v0 = READ_STRING;
+    *$a0 = 0x1000'3FF8;
+    *$a1 = terminal->in_string.size();
+
+    // Check that the block doesn't exist
+    auto const info = inspector.RAM_info();
+
+    for ( auto const & addr : info.allocated_addresses )
+    {
+      REQUIRE( addr != 0x1000'0000 );
+      REQUIRE( addr != 0x1000'4000 );
+    }
+
+    for ( auto const & addr : info.swapped_addresses )
+    {
+      REQUIRE( addr != 0x1000'0000 );
+      REQUIRE( addr != 0x1000'4000 );
+    }
+
+    $start = "SYSCALL"_cpu;
+    cpu.single_step();
+
+    auto const * str_0 = ( char const* )( &ram[0x1000'3FF8] );
+
+    REQUIRE( std::memcmp( terminal->in_string.data(),
+                          str_0,
+                          offset ) == 0 );
+
+    auto const * str_1 = ( char const* )( &ram[0x1000'4000] );
+
+    REQUIRE( std::memcmp( terminal->in_string.data() + offset,
+                          str_1,
+                          terminal->in_string.size() - offset ) == 0 );
   }
 
   SECTION( "[SYSCALL] sbrk is executed" )
@@ -3642,10 +3964,12 @@ TEST_CASE( "A CPU object exists" )
 
     *$v0 = READ_CHAR;
 
+    terminal->in_string = "_ABC";
+
     $start = "SYSCALL"_cpu;
     cpu.single_step();
 
-    REQUIRE( *$v0 == ( std::uint32_t )terminal->in_char );
+    REQUIRE( ( char )*$v0 == '_' );
   }
 
   SECTION( "[SYSCALL] open is executed" )

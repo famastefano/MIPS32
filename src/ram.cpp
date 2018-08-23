@@ -8,6 +8,16 @@
 namespace mips32
 {
 
+constexpr std::uint32_t calculate_base_address( std::uint32_t address ) noexcept
+{
+  std::uint32_t base_address = 0;
+
+  while ( base_address + RAM::block_size <= address )
+    base_address += RAM::block_size;
+
+  return base_address;
+}
+
 void addr_to_string( char *buf, std::uint32_t addr )
 {
   std::sprintf( buf, "0x%08X.block", addr );
@@ -68,7 +78,7 @@ std::uint32_t &RAM::operator[]( std::uint32_t address ) noexcept
   {
     if ( contains( block.base_address, address, block_size ) )
     {
-// Return the word
+      // Return the word
       return block[( address & ~0b11 ) - block.base_address];
     }
   }
@@ -104,11 +114,7 @@ std::uint32_t &RAM::operator[]( std::uint32_t address ) noexcept
 
     // Allocate block
     new_block.allocate();
-    new_block.base_address = 0;
-
-    // Calculate the base address
-    while ( new_block.base_address + block_size <= address )
-      new_block.base_address += block_size;
+    new_block.base_address = calculate_base_address( address );
 
     blocks.push_back( std::move( new_block ) );
 
@@ -128,9 +134,7 @@ std::uint32_t &RAM::operator[]( std::uint32_t address ) noexcept
     allocated_block.serialize();
 
     // Calculate the base address
-    allocated_block.base_address = 0;
-    while ( allocated_block.base_address + block_size <= address )
-      allocated_block.base_address += block_size;
+    allocated_block.base_address = calculate_base_address( address );
 
     // Return the word
     return allocated_block[( address & ~0b11 ) - allocated_block.base_address];

@@ -1,8 +1,12 @@
 #include <mips32/ram_string.hpp>
 
+#include <algorithm>
 #include <cassert>
 #include <cstdio>
 #include <cstring>
+
+// TODO: resolve warnings
+// TODO: use nothrow new
 
 namespace mips32
 {
@@ -71,33 +75,26 @@ std::unique_ptr<char[]> RAMString::read( std::uint32_t address, std::uint32_t co
 
     std::uint32_t char_read = 0;
 
-    auto const begin = address - block->base_address;
-    auto const end = count < RAM::block_size - begin ? count : RAM::block_size - begin;
+    std::uint32_t const begin = address - block->base_address;
+    std::uint32_t const limit = RAM::block_size - begin;
+    auto size = std::min( count, limit );
 
-    for ( auto i = begin; i < end; ++i )
+    auto const * word_offset = ( char* )( block->data.get() + ( begin & ~0b11 ) );
+    auto const byte_offset = ( begin & 0b11 );
+
+    auto const * start = word_offset + byte_offset;
+    auto const * end = start + size;
+
+    while ( start != end )
     {
-      auto const word = block->data[i];
-
-      std::uint32_t const byte[] = {
-          word & 0xFF,
-          word >> 8 & 0xFF,
-          word >> 16 & 0xFF,
-          word >> 24,
-      };
-
-      // [Aligned] | [Unaligned]
-      for ( int i = address & 0b11; i < 4; ++i )
+      if ( *start++ == '\0' )
       {
-        if ( !byte[i] )
-        {
-          eof = true;
-          goto _CopyString;
-        }
-        ++char_read;
+        eof = true;
+        break;
       }
-    } // for ( i < end )
+      ++char_read;
+    }
 
-  _CopyString:
     if ( char_read )
     {
       std::unique_ptr<char[]> buf( new char[char_read + length + 1] );
@@ -105,15 +102,19 @@ std::unique_ptr<char[]> RAMString::read( std::uint32_t address, std::uint32_t co
       if ( str_buf )
         std::memcpy( buf.get(), str_buf.get(), length );
 
-      std::memcpy( buf.get() + length, ( char * )( block->data.get() + begin ) + ( address & 0b11 ), char_read );
+      auto const * src = word_offset + byte_offset;
+
+      std::memcpy( buf.get() + length, src, char_read );
 
       length += char_read;
 
       str_buf = std::move( buf );
     } // if ( char_read )
 
-    if ( !eof )
-      address += char_read;
+    if ( eof )
+      break;
+
+    address += char_read;
 
     // Corner case where the address overflows
     if ( address < address - char_read )
@@ -165,26 +166,34 @@ std::unique_ptr<char[]> RAMString::read( std::uint32_t address, std::uint32_t co
  **/
 void RAMString::write( std::uint32_t address, char const *src, std::uint32_t count ) noexcept
 {
+  if ( count == 0 )
+    return;
+
   if ( address + count < address ) // overflows
-    count = 0xFFFF'FFFF - address; // we write up to the last byte
+    count = 0xFFFF'FFFF - address; // we write up to the last byte in RAM
 
   std::uint32_t char_written = 0;
 
   bool eof = false;
 
-  auto[index, in_memory] = get_block( address );
-
-  while ( !eof && count )
+  do
   {
+    auto[index, in_memory] = get_block( address );
+
     if ( in_memory ) // [1]
     {
       auto &block = ram.blocks[index];
 
-      auto const begin = address - block.base_address;
-      auto const limit = ( RAM::block_size - begin ) * sizeof( std::uint32_t );
-      auto const size = count < limit ? count : limit;
+      std::uint32_t const begin = address - block.base_address;
+      std::uint32_t const limit = RAM::block_size - begin;
+      auto const size = std::min( count, limit );
 
-      std::memcpy( ( char * )( block.data.get() + begin ) + ( address & 0b11 ), src + char_written, size );
+      auto * word_offset = ( char* )( block.data.get() + ( begin & ~0b11 ) );
+      auto const byte_offset = ( begin & 0b11 );
+
+      auto * dst = word_offset + byte_offset;
+
+      std::memcpy( dst, src + char_written, size );
 
       char_written += size;
       count -= size;
@@ -201,19 +210,22 @@ void RAMString::write( std::uint32_t address, char const *src, std::uint32_t cou
       assert( block_file && "Coudln't open file!" );
 
       auto const begin = address - block.base_address;
-      auto const limit = ( RAM::block_size - begin ) * sizeof( std::uint32_t );
+      auto const limit = RAM::block_size - begin;
       auto const size = count < limit ? count : limit;
 
-      std::fseek( block_file, sizeof( std::uint32_t ) * begin + char_written + address & 0b11, SEEK_SET );
+      auto const word_offset = sizeof( std::uint32_t ) * ( begin & ~0b11 );
+      auto const byte_offset = ( address & 0b11 ) + char_written;
 
-      std::fwrite( src, sizeof( char ), size, block_file );
+      std::fseek( block_file, word_offset + byte_offset, SEEK_SET );
+
+      std::fwrite( src + char_written, sizeof( char ), size, block_file );
 
       std::fclose( block_file );
 
       char_written += size;
       count -= size;
     }
-    else // [3]
+    else // [3], once the block is created, we can reuse [1] and [2] by adding the block to the RAM and iterate again
     {
       RAM::Block block;
 
@@ -223,12 +235,6 @@ void RAMString::write( std::uint32_t address, char const *src, std::uint32_t cou
 
       block.allocate();
       assert( block.data && "Couldn't allocate block!" );
-
-      auto const begin = address - block.base_address;
-      auto const limit = ( RAM::block_size - begin ) * sizeof( std::uint32_t );
-      auto const size = count < limit ? count : limit;
-
-      std::memcpy( ( char * )( block.data.get() + begin ) + ( address & 0b11 ), src + char_written, size );
 
       // If we can push the new block directly into memory, we add it to the allocated blocks
       if ( ram.swapped.empty() && ( ram.blocks.size() < ram.alloc_limit ) )
@@ -241,8 +247,7 @@ void RAMString::write( std::uint32_t address, char const *src, std::uint32_t cou
         ram.swapped.push_back( { block.base_address } );
       }
 
-      char_written += size;
-      count -= size;
+      continue;
     }
 
     address += char_written;
@@ -251,13 +256,7 @@ void RAMString::write( std::uint32_t address, char const *src, std::uint32_t cou
     if ( address < address - char_written )
       return;
 
-    { // [B]
-      auto[_index, _in_memory] = get_block( address );
-
-      index = _index;
-      in_memory = _in_memory;
-    }
-  } // while ( !eof && count )
+  } while ( !eof && count );
 }
 
 std::pair<std::uint32_t, bool> RAMString::get_block( std::uint32_t address ) const noexcept

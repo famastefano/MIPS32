@@ -27,7 +27,7 @@ public:
   std::uint32_t in_int = 0xAAAA'BBBB;
   float in_float = 3.1415f;
   double in_double = 1994.0915;
-  char in_char = '_';
+  std::string in_string = "_";
 
   std::int32_t out_int = 0;
   float out_float = 0;

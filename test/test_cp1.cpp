@@ -1997,3 +1997,5 @@ TEST_CASE( "A Coprocessor 1 object exists and is resetted" )
     inspector.CP1_fcsr();
   }
 }
+
+#undef FP

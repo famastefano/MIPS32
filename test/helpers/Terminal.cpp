@@ -37,8 +37,12 @@ void Terminal::read_double( double * value ) noexcept
 
 void Terminal::read_string( char * string, std::uint32_t max_count ) noexcept
 {
-  for ( std::uint32_t i = 0; i < max_count; ++i )
-    string[i] = in_char;
+  if ( max_count <= in_string.size() )
+    for ( std::uint32_t i = 0; i < max_count; ++i )
+      string[i] = in_string[i];
+  else
+    for ( std::uint32_t i = 0; i < max_count; ++i )
+      string[i] = '_';
 }
 
 Terminal::~Terminal()

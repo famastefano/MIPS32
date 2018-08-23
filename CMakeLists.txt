@@ -72,7 +72,8 @@ if (NOT (CMAKE_BUILD_TYPE STREQUAL "Coverage"))
 					-O1
 					-fno-optimize-sibling-calls
 					-Wthread-safety
-					-fsanitize=address,thread,undefined,memory
+					-fsanitize=${SANITIZE}
+					--analyze -Xanalyzer -analyzer-output=text
 				)
 			endif()
             

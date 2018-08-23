@@ -14,15 +14,44 @@ if [[ -v COVERAGE ]]; then
     lcov -a coverage_base.info -a coverage_test.info -o coverage_total.info
     lcov --list coverage_total.info
 else
-    mkdir build-debug && mkdir build-release
-	if [[ -v SANITIZER ]]; then
-		cmake . -Bbuild-debug -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Debug -DARCH=$ARCH -DSANITIZER=ON
+    if [[ -v SANITIZER ]]; then
+		mkdir build-address
+		mkdir build-thread
+		mkdir build-memory
+		mkdir build-undefined
+		
+		cmake . -Bbuild-address -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Debug -DARCH=$ARCH -DSANITIZE=address
+		cmake . -Bbuild-thread -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Debug -DARCH=$ARCH -DSANITIZE=thread
+		cmake . -Bbuild-memory -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Debug -DARCH=$ARCH -DSANITIZE=memory
+		cmake . -Bbuild-undefined -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Debug -DARCH=$ARCH -DSANITIZE=undefined
+		
+		make -C build-address
+		make -C build-thread
+		make -C build-memory
+		make -C build-undefined
+
+		cd build-address
+		ctest -C Debug --output-on-failure
+		cd ../build-thread
+		ctest -C Debug --output-on-failure
+		cd ../build-memory
+		ctest -C Debug --output-on-failure
+		cd ../build-undefined
+		ctest -C Debug --output-on-failure
 	else
+		mkdir build-debug
+		mkdir build-release
+		
 		cmake . -Bbuild-debug -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Debug -DARCH=$ARCH
 		cmake . -Bbuild-release -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release -DARCH=$ARCH
+
+		make -C build-debug
+		make -C build-release
+
+		cd build-debug
+		ctest -C Debug --output-on-failure
+
+		cd ../build-release
+		ctest -C Release --output-on-failure
 	fi
-    
-    cd build-debug && make && file Tests && ctest -C Debug --output-on-failure
-    cd ..
-    cd build-release && make && file Tests && ctest -C Release --output-on-failure
 fi

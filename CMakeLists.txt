@@ -67,6 +67,7 @@ if (NOT (CMAKE_BUILD_TYPE STREQUAL "Coverage"))
 			)
 			
 			if(${SANITIZER})
+				set(SANITIZE "" CACHE STRING "")
 				target_compile_options(Tests PRIVATE
 					-g
 					-O1

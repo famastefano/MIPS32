@@ -19,6 +19,8 @@ else
 		mkdir build-thread
 		mkdir build-memory
 		mkdir build-undefined
+
+		export SANITIZER
 		
 		cmake . -Bbuild-address -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Debug -DARCH=$ARCH -DSANITIZE=address
 		cmake . -Bbuild-thread -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Debug -DARCH=$ARCH -DSANITIZE=thread

@@ -68,26 +68,17 @@ if (NOT (CMAKE_BUILD_TYPE STREQUAL "Coverage"))
 				-Wno-dollar-in-identifier-extension
 			)
 			
-			if(${SANITIZER})
+			if($ENV{SANITIZER})
 				target_compile_options(Tests PRIVATE
 					-g
 					-O1
 					-fno-optimize-sibling-calls
 					-Wthread-safety
+					-fsanitize=${SANITIZER}
 					--analyze -Xanalyzer -analyzer-output=text
 				)
 
 				message("SANITIZER is set to: ${SANITIZER} and SANITIZE is set to: ${SANITIZE}")
-
-				if(${SANITIZE} STREQUAL "address")
-					target_compile_options(Tests PRIVATE -fsanitize=address)
-				elseif(${SANITIZE} STREQUAL "thread")
-					target_compile_options(Tests PRIVATE -fsanitize=thread)
-				elseif(${SANITIZE} STREQUAL "memory")
-					target_compile_options(Tests PRIVATE -fsanitize=memory)
-				elseif(${SANITIZE} STREQUAL "undefined")
-					target_compile_options(Tests PRIVATE -fsanitize=undefined)
-				endif()
 
 			endif()
             

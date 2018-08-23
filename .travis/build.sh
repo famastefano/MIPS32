@@ -20,10 +20,10 @@ else
 		mkdir build-memory
 		mkdir build-undefined
 		
-		cmake . -Bbuild-address -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Debug -DARCH=$ARCH -DSANITIZE:STRING=address
-		cmake . -Bbuild-thread -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Debug -DARCH=$ARCH -DSANITIZE:STRING=thread
-		cmake . -Bbuild-memory -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Debug -DARCH=$ARCH -DSANITIZE:STRING=memory
-		cmake . -Bbuild-undefined -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Debug -DARCH=$ARCH -DSANITIZE:STRING=undefined
+		cmake . -Bbuild-address -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Debug -DARCH=$ARCH -DSANITIZE=address
+		cmake . -Bbuild-thread -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Debug -DARCH=$ARCH -DSANITIZE=thread
+		cmake . -Bbuild-memory -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Debug -DARCH=$ARCH -DSANITIZE=memory
+		cmake . -Bbuild-undefined -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Debug -DARCH=$ARCH -DSANITIZE=undefined
 		
 		make -C build-address
 		make -C build-thread

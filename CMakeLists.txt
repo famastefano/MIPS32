@@ -46,6 +46,8 @@ add_executable(Tests
 	test/test_save_restore_state.cpp
 )
 
+set(SANITIZE "" CACHE STRING "")
+
 target_compile_features(Tests PRIVATE cxx_std_17)
 target_include_directories(Tests PRIVATE include third-party test/helpers)
 
@@ -67,15 +69,26 @@ if (NOT (CMAKE_BUILD_TYPE STREQUAL "Coverage"))
 			)
 			
 			if(${SANITIZER})
-				set(SANITIZE "" CACHE STRING "")
 				target_compile_options(Tests PRIVATE
 					-g
 					-O1
 					-fno-optimize-sibling-calls
 					-Wthread-safety
-					-fsanitize=${SANITIZE}
 					--analyze -Xanalyzer -analyzer-output=text
 				)
+
+				message("SANITIZER is set to: ${SANITIZER} and SANITIZE is set to: ${SANITIZE}")
+
+				if(${SANITIZE} STREQUAL "address")
+					target_compile_options(Tests PRIVATE -fsanitize=address)
+				elseif(${SANITIZE} STREQUAL "thread")
+					target_compile_options(Tests PRIVATE -fsanitize=thread)
+				elseif(${SANITIZE} STREQUAL "memory")
+					target_compile_options(Tests PRIVATE -fsanitize=memory)
+				elseif(${SANITIZE} STREQUAL "undefined")
+					target_compile_options(Tests PRIVATE -fsanitize=undefined)
+				endif()
+
 			endif()
             
         else() # GCC

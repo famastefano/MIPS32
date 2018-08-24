@@ -317,7 +317,6 @@ TEST_CASE( "A Coprocessor 1 object exists and is resetted" )
     auto f0 = FP( 0 );
 
     auto f4 = FP( 4 );
-    auto f5 = FP( 5 );
 
     f0->f = 256.0f;
     f4->d = 394.0;

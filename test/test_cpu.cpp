@@ -14,8 +14,6 @@
 // TODO: test BNEZALC
 // TODO: test for [L|S][B|H|W] with address overflow and $zero as destination
 
-// TODO: test for multiple code path in RAMString
-
 using namespace mips32;
 using namespace mips32::literals;
 
@@ -263,7 +261,6 @@ TEST_CASE( "A CPU object exists" )
     auto const _bc = "BC"_cpu | 0x02BCDEFF_imm26;
 
     ui32 const res = pc + 4 + 0xFAF3'7BFC;
-    ui32 const ret = pc + 4;
 
     $start = _bc;
     cpu.single_step();
@@ -3391,12 +3388,6 @@ TEST_CASE( "A CPU object exists" )
     ram[0xBFC0'001C] = _mthc1_0; // mfhc1 $2, $f0
 
     ram[0xBFC0'0020] = "BREAK"_cpu;
-
-    auto $1 = R( 1 );
-    auto $2 = R( 2 );
-
-    auto $3 = R( 3 );
-    auto $4 = R( 4 );
 
     auto $f0 = FP( 0 );
     auto $f1 = FP( 1 );

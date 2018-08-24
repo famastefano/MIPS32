@@ -77,9 +77,8 @@ if (NOT (CMAKE_BUILD_TYPE STREQUAL "Coverage"))
 					-fsanitize=${SANITIZER}
 					--analyze -Xanalyzer -analyzer-output=text
 				)
-
-				message("SANITIZER is set to: ${SANITIZER} and SANITIZE is set to: ${SANITIZE}")
-
+				
+				target_link_libraries(Tests PRIVATE -fsanitize=${SANITIZER})
 			endif()
             
         else() # GCC

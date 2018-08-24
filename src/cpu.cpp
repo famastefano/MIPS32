@@ -63,7 +63,7 @@ IODevice * CPU::attach_iodevice( IODevice * device ) noexcept
 {
   auto * old = io_device;
   io_device = device;
-  return io_device;
+  return old;
 }
 
 FileHandler * CPU::attach_file_handler( FileHandler * handler ) noexcept
@@ -84,7 +84,7 @@ std::uint32_t CPU::start() noexcept
     // fetch
     if ( pc & 0b11 || !word )
     {
-      signal_exception( ExCause::AdEL, *word, pc );
+      signal_exception( ExCause::AdEL, word ? *word : 0, pc ); // word can be nullptr
       continue;
     }
 
@@ -1678,7 +1678,6 @@ void CPU::sltu( std::uint32_t word ) noexcept
 }
 void CPU::tge( std::uint32_t word ) noexcept
 {
-  auto const _rd = rd( word );
   auto const _rs = rs( word );
   auto const _rt = rt( word );
 
@@ -1687,7 +1686,6 @@ void CPU::tge( std::uint32_t word ) noexcept
 }
 void CPU::tgeu( std::uint32_t word ) noexcept
 {
-  auto const _rd = rd( word );
   auto const _rs = rs( word );
   auto const _rt = rt( word );
 
@@ -1696,7 +1694,6 @@ void CPU::tgeu( std::uint32_t word ) noexcept
 }
 void CPU::tlt( std::uint32_t word ) noexcept
 {
-  auto const _rd = rd( word );
   auto const _rs = rs( word );
   auto const _rt = rt( word );
 
@@ -1705,7 +1702,6 @@ void CPU::tlt( std::uint32_t word ) noexcept
 }
 void CPU::tltu( std::uint32_t word ) noexcept
 {
-  auto const _rd = rd( word );
   auto const _rs = rs( word );
   auto const _rt = rt( word );
 
@@ -1714,7 +1710,6 @@ void CPU::tltu( std::uint32_t word ) noexcept
 }
 void CPU::teq( std::uint32_t word ) noexcept
 {
-  auto const _rd = rd( word );
   auto const _rs = rs( word );
   auto const _rt = rt( word );
 
@@ -1731,7 +1726,6 @@ void CPU::seleqz( std::uint32_t word ) noexcept
 }
 void CPU::tne( std::uint32_t word ) noexcept
 {
-  auto const _rd = rd( word );
   auto const _rs = rs( word );
   auto const _rt = rt( word );
 

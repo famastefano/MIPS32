@@ -5,9 +5,6 @@
 #include <cstdio>
 #include <cstring>
 
-// TODO: resolve warnings
-// TODO: use nothrow new
-
 namespace mips32
 {
 
@@ -97,7 +94,9 @@ std::unique_ptr<char[]> RAMString::read( std::uint32_t address, std::uint32_t co
 
     if ( char_read )
     {
-      std::unique_ptr<char[]> buf( new char[char_read + length + 1] );
+      std::unique_ptr<char[]> buf( new(std::nothrow) char[char_read + length + 1] );
+      
+      assert( buf && "Couldn't allocate memory for the string." );
 
       if ( str_buf )
         std::memcpy( buf.get(), str_buf.get(), length );
@@ -130,7 +129,7 @@ std::unique_ptr<char[]> RAMString::read( std::uint32_t address, std::uint32_t co
 
   // [3]
   if ( !str_buf )
-    str_buf.reset( new char[1] );
+    str_buf.reset( new( std::nothrow ) char[1] );
 
   str_buf[length] = '\0';
 
@@ -216,11 +215,14 @@ void RAMString::write( std::uint32_t address, char const *src, std::uint32_t cou
       auto const word_offset = sizeof( std::uint32_t ) * ( begin & ~0b11 );
       auto const byte_offset = ( address & 0b11 ) + char_written;
 
-      std::fseek( block_file, word_offset + byte_offset, SEEK_SET );
+      [[maybe_unused]] auto const _seek = std::fseek( block_file, word_offset + byte_offset, SEEK_SET );
+      assert( !_seek && "Couldn't seek string position." );
 
-      std::fwrite( src + char_written, sizeof( char ), size, block_file );
+      [[maybe_unused]] auto const _write = std::fwrite( src + char_written, sizeof( char ), size, block_file );
+      assert( _write == size && "Couldn't write string to file." );
 
-      std::fclose( block_file );
+      [[maybe_unused]] auto const _close = std::fclose( block_file );
+      assert( !_close && "Couldn't close file." );
 
       char_written += size;
       count -= size;

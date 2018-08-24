@@ -27,12 +27,12 @@ else
 		cmake . -Bbuild-memory -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Debug -DARCH=$ARCH -DSANITIZE=memory
 		cmake . -Bbuild-undefined -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Debug -DARCH=$ARCH -DSANITIZE=undefined
 		
-		make -C build-address
-		make -C build-thread
-		make -C build-memory
-		make -C build-undefined
+		cd build-address && make
+		cd ../build-thread && make
+		cd ../build-memory && make
+		cd ../build-undefined && make
 
-		cd build-address
+		cd ../build-address
 		ctest -C Debug --output-on-failure
 		cd ../build-thread
 		ctest -C Debug --output-on-failure

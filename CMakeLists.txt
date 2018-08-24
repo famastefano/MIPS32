@@ -46,44 +46,52 @@ add_executable(Tests
 	test/test_save_restore_state.cpp
 )
 
-set(SANITIZE "" CACHE STRING "")
-
 target_compile_features(Tests PRIVATE cxx_std_17)
 target_include_directories(Tests PRIVATE include third-party test/helpers)
 
-if (NOT (CMAKE_BUILD_TYPE STREQUAL "Coverage"))
+if($ENV{SANITIZER})
+
+	set(SANITIZE "" CACHE STRING "")
+
+	target_compile_options(Tests PRIVATE
+		-g3
+		-O1
+		-mfpmath=sse -msse2
+		-fno-omit-frame-pointer
+		-fno-optimize-sibling-calls
+		-fsanitize=${SANITIZER}
+		--analyze -Xanalyzer -analyzer-output=text
+	)
+	target_link_libraries(Tests PRIVATE -fsanitize=${SANITIZER})
+
+elseif (CMAKE_BUILD_TYPE STREQUAL "Coverage")
+
+	target_compile_options(Tests PRIVATE -g -O0 --coverage -w)
+    target_link_libraries(Tests PRIVATE -lgcov --coverage)
+
+else() # Normal build
+
     if(MSVC)
 
         target_compile_options(Tests PRIVATE /W3 /fp:strict /wd4146 /wd4267)
         target_compile_definitions(Tests PRIVATE "-D_CRT_SECURE_NO_WARNINGS")
 
     else() # GCC - Clang
-        
+
         if(${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang")
 
             target_compile_options(Tests PRIVATE
+				-Weverything
 				-Wno-logical-op-parentheses
 				-Wno-bitwise-op-parentheses
 				-Wno-implicit-fallthrough
 				-Wno-dollar-in-identifier-extension
 			)
-			
-			if($ENV{SANITIZER})
-				target_compile_options(Tests PRIVATE
-					-g
-					-O1
-					-fno-optimize-sibling-calls
-					-Wthread-safety
-					-fsanitize=${SANITIZER}
-					--analyze -Xanalyzer -analyzer-output=text
-				)
-				
-				target_link_libraries(Tests PRIVATE -fsanitize=${SANITIZER})
-			endif()
             
         else() # GCC
 
             target_compile_options(Tests PRIVATE
+				-Wall -Wextra
 				-Wno-parentheses
 				-Wimplicit-fallthrough=0
 			)
@@ -98,24 +106,18 @@ if (NOT (CMAKE_BUILD_TYPE STREQUAL "Coverage"))
         target_compile_options(Tests PRIVATE "$<$<STREQUAL:${ARCH},x64>:-m64>")
         target_link_libraries(Tests PRIVATE "$<$<STREQUAL:${ARCH},x64>:-m64>")
 
+		# Shared flags between GCC and Clang
         target_compile_options(Tests PRIVATE
-			-Wall -Wextra
 			-mfpmath=sse -msse2
 			-pedantic
 			-Wno-unknown-pragmas
 			-Wno-missing-braces
 			-Wno-unused-variable
 			-Wno-sign-compare
-			-fno-omit-frame-pointer
 		)
 
     endif() # GCC - Clang
-endif()
-
-if (CMAKE_BUILD_TYPE STREQUAL "Coverage")
-    target_compile_options(Tests PRIVATE -g -O0 --coverage -w)
-    target_link_libraries(Tests PRIVATE -lgcov --coverage)
-endif()
+endif() # Debug|Release build
 
 include(CTest)
 enable_testing()

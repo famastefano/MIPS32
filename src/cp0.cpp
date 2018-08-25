@@ -165,7 +165,7 @@ std::uint32_t CP0::read( std::uint32_t reg, std::uint32_t sel ) noexcept
   }
   else if ( reg == 16 )
   {
-    if ( sel < 6 ) return config[sel];
+    if ( sel < 5 ) return config[sel];
   }
   else if ( reg == 30 )
   {
@@ -173,7 +173,7 @@ std::uint32_t CP0::read( std::uint32_t reg, std::uint32_t sel ) noexcept
   }
   else if ( reg == 31 )
   {
-    if ( sel > 1 && sel < 9 ) return k_scratch[sel];
+    if ( sel > 1 && sel < 8 ) return k_scratch[sel];
   }
 
   return 0;

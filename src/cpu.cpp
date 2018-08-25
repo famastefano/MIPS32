@@ -1502,7 +1502,9 @@ void CPU::sop30( std::uint32_t word ) noexcept
   }
   else if ( _fn == MUH )
   {
-    auto const mul = ( std::int64_t )gpr[_rs] * ( std::int64_t )gpr[_rt];
+    auto const x = ( std::int64_t )gpr[_rs] & 0xFFFF'FFFF;
+    auto const y = ( std::int64_t )gpr[_rt] & 0xFFFF'FFFF;
+    auto const mul = x * y;
     gpr[_rd] = ( std::uint32_t )( mul >> 32 );
   }
   else
@@ -1527,7 +1529,9 @@ void CPU::sop31( std::uint32_t word ) noexcept
   }
   else if ( _fn == MUHU )
   {
-    auto const mul = ( std::int64_t )gpr[_rs] * ( std::int64_t )gpr[_rt];
+    auto const x = ( std::uint64_t )gpr[_rs] & 0xFFFF'FFFF;
+    auto const y = ( std::uint64_t )gpr[_rt] & 0xFFFF'FFFF;
+    auto const mul = x * y;
     gpr[_rd] = ( std::uint32_t )( mul >> 32 );
   }
   else

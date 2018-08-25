@@ -133,7 +133,7 @@ std::unique_ptr<char[]> RAMString::read( std::uint32_t address, std::uint32_t co
 
   str_buf[length] = '\0';
 
-  return std::move( str_buf );
+  return str_buf;
 }
 
 /**

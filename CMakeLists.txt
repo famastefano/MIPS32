@@ -49,9 +49,9 @@ add_executable(Tests
 target_compile_features(Tests PRIVATE cxx_std_17)
 target_include_directories(Tests PRIVATE include third-party test/helpers)
 
-if($ENV{SANITIZER})
+set(SANITIZE "" CACHE STRING "")
 
-	set(SANITIZE "" CACHE STRING "")
+if($ENV{SANITIZER})
 
 	target_compile_options(Tests PRIVATE
 		-g3
@@ -59,15 +59,30 @@ if($ENV{SANITIZER})
 		-mfpmath=sse -msse2
 		-fno-omit-frame-pointer
 		-fno-optimize-sibling-calls
-		-fsanitize=${SANITIZER}
-		--analyze -Xanalyzer -analyzer-output=text
+		-fsanitize=${SANITIZE}
+		-mfpmath=sse -msse2
+		-pedantic
+		-Wno-unknown-pragmas
+		-Wno-missing-braces
+		-Wno-unused-variable
+		-Wno-sign-compare
+		-Wno-logical-op-parentheses
+		-Wno-bitwise-op-parentheses
+		-Wno-implicit-fallthrough
+		-Wno-dollar-in-identifier-extension
 	)
-	target_link_libraries(Tests PRIVATE -fsanitize=${SANITIZER})
+	
+	set_property(TARGET Tests APPEND PROPERTY LINK_FLAGS -fsanitize=${SANITIZE})
 
 elseif (CMAKE_BUILD_TYPE STREQUAL "Coverage")
 
 	target_compile_options(Tests PRIVATE -g -O0 --coverage -w)
     target_link_libraries(Tests PRIVATE -lgcov --coverage)
+	
+	include(CTest)
+	enable_testing()
+	add_test(NAME AllTests COMMAND Tests)
+
 
 else() # Normal build
 
@@ -81,7 +96,7 @@ else() # Normal build
         if(${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang")
 
             target_compile_options(Tests PRIVATE
-				-Weverything
+				-Wall -Wextra
 				-Wno-logical-op-parentheses
 				-Wno-bitwise-op-parentheses
 				-Wno-implicit-fallthrough
@@ -94,6 +109,7 @@ else() # Normal build
 				-Wall -Wextra
 				-Wno-parentheses
 				-Wimplicit-fallthrough=0
+				-Wno-unused-but-set-variable
 			)
 
         endif()
@@ -117,8 +133,9 @@ else() # Normal build
 		)
 
     endif() # GCC - Clang
-endif() # Debug|Release build
+	
+	include(CTest)
+	enable_testing()
+	add_test(NAME AllTests COMMAND Tests)
 
-include(CTest)
-enable_testing()
-add_test(NAME AllTests COMMAND Tests)
+endif() # Debug|Release build

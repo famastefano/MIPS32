@@ -2977,7 +2977,6 @@ TEST_CASE( "A CPU object exists" )
       "MFC0"_cpu | 1_rt | 16_rd | 2,
       "MFC0"_cpu | 1_rt | 16_rd | 3,
       "MFC0"_cpu | 1_rt | 16_rd | 4,
-      "MFC0"_cpu | 1_rt | 16_rd | 5,
     };
     auto const _errorepc = "MFC0"_cpu | 1_rt | 30_rd | 0;
     ui32 const _kscratch[6] = {
@@ -2985,8 +2984,6 @@ TEST_CASE( "A CPU object exists" )
       "MFC0"_cpu | 1_rt | 31_rd | 3,
       "MFC0"_cpu | 1_rt | 31_rd | 4,
       "MFC0"_cpu | 1_rt | 31_rd | 5,
-      "MFC0"_cpu | 1_rt | 31_rd | 6,
-      "MFC0"_cpu | 1_rt | 31_rd | 7,
     };
 
     auto $1 = R( 1 );
@@ -3070,7 +3067,7 @@ TEST_CASE( "A CPU object exists" )
     }
     SECTION( "I shall able to read Config registers" )
     {
-      for ( int i = 0; i < 6; ++i )
+      for ( int i = 0; i < 5; ++i )
       {
         PC() = pc;
         $start = _config[i];
@@ -3088,7 +3085,7 @@ TEST_CASE( "A CPU object exists" )
     }
     SECTION( "I shall able to read KScratch registers" )
     {
-      for ( int i = 0; i < 6; ++i )
+      for ( int i = 0; i < 5; ++i )
       {
         PC() = pc;
         $start = _kscratch[i];
@@ -3255,7 +3252,7 @@ TEST_CASE( "A CPU object exists" )
     }
     SECTION( "I shall not able to write Config registers" )
     {
-      for ( int i = 0; i < 6; ++i )
+      for ( int i = 0; i < 5; ++i )
       {
         auto const _prev_config = cp0.config[i];
 
@@ -3275,7 +3272,7 @@ TEST_CASE( "A CPU object exists" )
     }
     SECTION( "I shall able to write KScratch registers" )
     {
-      for ( int i = 0; i < 6; ++i )
+      for ( int i = 0; i < 5; ++i )
       {
         PC() = pc;
         $start = _kscratch[i];

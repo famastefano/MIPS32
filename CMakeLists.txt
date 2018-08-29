@@ -51,40 +51,10 @@ add_executable(Tests
 target_compile_features(Tests PRIVATE cxx_std_17)
 target_include_directories(Tests PRIVATE include third-party test/helpers)
 
-set(SANITIZE "" CACHE STRING "")
-
-if($ENV{SANITIZER})
-
-	target_compile_options(Tests PRIVATE
-		-g3
-		-O1
-		-mfpmath=sse -msse2
-		-fno-omit-frame-pointer
-		-fno-optimize-sibling-calls
-		-fsanitize=${SANITIZE}
-		-mfpmath=sse -msse2
-		-pedantic
-		-Wno-unknown-pragmas
-		-Wno-missing-braces
-		-Wno-unused-variable
-		-Wno-sign-compare
-		-Wno-logical-op-parentheses
-		-Wno-bitwise-op-parentheses
-		-Wno-implicit-fallthrough
-		-Wno-dollar-in-identifier-extension
-	)
-	
-	set_property(TARGET Tests APPEND PROPERTY LINK_FLAGS -fsanitize=${SANITIZE})
-
-elseif (CMAKE_BUILD_TYPE STREQUAL "Coverage")
+if (CMAKE_BUILD_TYPE STREQUAL "Coverage")
 
 	target_compile_options(Tests PRIVATE -g -O0 --coverage -w)
     target_link_libraries(Tests PRIVATE -lgcov --coverage)
-	
-	include(CTest)
-	enable_testing()
-	add_test(NAME AllTests COMMAND Tests)
-
 
 else() # Normal build
 
@@ -136,8 +106,8 @@ else() # Normal build
 
     endif() # GCC - Clang
 	
-	include(CTest)
-	enable_testing()
-	add_test(NAME AllTests COMMAND Tests)
-
 endif() # Debug|Release build
+
+include(CTest)
+enable_testing()
+add_test(NAME AllTests COMMAND Tests)

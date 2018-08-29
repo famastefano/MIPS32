@@ -76,21 +76,6 @@ matrix:
         - MATRIX_EVAL="CC=clang-6.0 && CXX=clang++-6.0"
         - ARCH=x64
 
-  # Linux - clang 6 - Sanitizer
-    - os: linux
-      addons:
-        apt:
-          sources:
-            - llvm-toolchain-trusty-6.0
-            - ubuntu-toolchain-r-test
-          packages:
-            - clang-6.0
-            - g++-7
-      env:
-        - MATRIX_EVAL="CC=clang-6.0 && CXX=clang++-6.0"
-        - ARCH=x64
-        - SANITIZER=ON
-
   # # # # # # # #
   # x86  builds #
   # # # # # # # #
@@ -156,14 +141,14 @@ matrix:
         - ARCH=x86
 
 before_install:
-  - eval "${MATRIX_EVAL}"
   - |
+    eval "${MATRIX_EVAL}"
     if [[ -v COVERAGE ]]; then
       wget http://ftp.de.debian.org/debian/pool/main/l/lcov/lcov_1.13.orig.tar.gz
       tar xf lcov_1.13.orig.tar.gz
       sudo make -C lcov-1.13/ install
     fi
-  - chmod a+x .travis/*
+    chmod a+x .travis/*
 
 script:
   - .travis/build.sh

@@ -217,7 +217,9 @@ private:
   void set_ex_cause( std::uint32_t ex ) noexcept;
   void signal_exception( std::uint32_t ex, std::uint32_t word, std::uint32_t pc ) noexcept;
 
-  static inline constexpr std::array<void ( CPU::* )( std::uint32_t ) noexcept, 64> function_table{
+  using method_ptr = void ( CPU::* )( std::uint32_t ) noexcept;
+
+  static inline constexpr std::array<method_ptr, 64> function_table{
       &CPU::special,
       &CPU::regimm,
       &CPU::j,

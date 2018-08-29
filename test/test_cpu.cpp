@@ -59,11 +59,11 @@ enum SYSCALL
   EXIT2,
 };
 
-std::unique_ptr<Terminal> terminal = std::make_unique<Terminal>();
-std::unique_ptr<FileManager> filehandler = std::make_unique<FileManager>();
-
 TEST_CASE( "A CPU object exists" )
 {
+  std::unique_ptr<Terminal> terminal = std::make_unique<Terminal>();
+  std::unique_ptr<FileManager> filehandler = std::make_unique<FileManager>();
+
   MachineInspector inspector;
 
   RAM ram{ 192_KB }; // 3 Blocks
@@ -79,7 +79,7 @@ TEST_CASE( "A CPU object exists" )
   cpu.attach_file_handler( filehandler.get() );
   filehandler->reset();
 
-  auto & cp0 = inspector.access_cp0();
+  auto & cp0 = inspector.access_CP0();
 
   auto const pc = PC();
 
@@ -1248,7 +1248,7 @@ TEST_CASE( "A CPU object exists" )
 
   SECTION( "DI is executed" )
   {
-    inspector.access_cp0().status |= 1;
+    cp0.status |= 1;
     $start = "DI"_cpu;
     cpu.single_step();
 

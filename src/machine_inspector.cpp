@@ -264,7 +264,7 @@ void MachineInspector::CPU_write_exit_code( std::uint32_t value ) noexcept
   cpu->exit_code.store( value, std::memory_order_release );
 }
 
-CP0 & MachineInspector::access_cp0() noexcept
+CP0 & MachineInspector::access_CP0() noexcept
 {
   return *cp0;
 }

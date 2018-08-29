@@ -27,7 +27,7 @@ TEST_CASE( "A functional machine exists" )
 
   SECTION( "I save and restore CP0" )
   {
-    auto & cp0 = inspector.access_cp0();
+    auto & cp0 = inspector.access_CP0();
 
     CP0 cp0_copy = cp0;
 

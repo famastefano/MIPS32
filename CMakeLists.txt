@@ -44,6 +44,8 @@ add_executable(Tests
 	test/helpers/FileManager.cpp
 # Machine Inspector
 	test/test_save_restore_state.cpp
+# Example Programs - Kernel
+	test/test_example_programs_kernel.cpp
 )
 
 target_compile_features(Tests PRIVATE cxx_std_17)

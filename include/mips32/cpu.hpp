@@ -24,6 +24,31 @@ public:
   IODevice* attach_iodevice( IODevice *device ) noexcept;
   FileHandler* attach_file_handler( FileHandler *handler ) noexcept;
 
+  enum ExitCode : std::uint32_t
+  {
+    NONE,
+    MANUAL_STOP,
+    INTERRUPT,
+    EXCEPTION,
+    EXIT,
+  };
+
+  enum ExCause : std::uint32_t
+  {
+    Int = 0x00,
+    AdEL = 0x04,
+    AdES = 0x05,
+    IBE = 0x06,
+    DBE = 0x07,
+    Sys = 0x08,
+    Bp = 0x09,
+    RI = 0x0A,
+    CpU = 0x0B,
+    Ov = 0x0C,
+    Tr = 0x0D,
+    FPE = 0x0F,
+  };
+
   std::uint32_t start() noexcept;
   void          stop() noexcept;
 
@@ -78,7 +103,6 @@ private:
   void lhu( std::uint32_t word ) noexcept;
   void sb( std::uint32_t word ) noexcept;
   void sh( std::uint32_t word ) noexcept;
-  void swl( std::uint32_t word ) noexcept;
   void sw( std::uint32_t word ) noexcept;
   void lwc1( std::uint32_t word ) noexcept;
   void bc( std::uint32_t word ) noexcept;

@@ -32,31 +32,6 @@ constexpr int _sign_extend{ -_zero_extend };
 constexpr int _byte{ 0x9876 };
 constexpr int _halfword{ -_byte };
 
-enum ExitCode : std::uint32_t
-{
-  NONE,
-  MANUAL_STOP,
-  INTERRUPT,
-  EXCEPTION,
-  EXIT,
-};
-
-enum ExCause : std::uint32_t
-{
-  Int = 0x00,
-  AdEL = 0x04,
-  AdES = 0x05,
-  IBE = 0x06,
-  DBE = 0x07,
-  Sys = 0x08,
-  Bp = 0x09,
-  RI = 0x0A,
-  CpU = 0x0B,
-  Ov = 0x0C,
-  Tr = 0x0D,
-  FPE = 0x0F,
-};
-
 CPU::CPU( RAM &ram ) noexcept : string_handler( ram ), mmu( ram, fixed_mapping_segments ) {}
 
 IODevice * CPU::attach_iodevice( IODevice * device ) noexcept
@@ -1106,7 +1081,6 @@ void CPU::pop66( std::uint32_t word ) noexcept
       if ( _immediate & 1 << 21 ) // sign extend
         _immediate |= 0xFFE0'0000;
 
-      gpr[31] = pc;
       pc += _immediate << 2;
     }
   }

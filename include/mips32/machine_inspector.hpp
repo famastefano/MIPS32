@@ -119,7 +119,7 @@ public:
    *       *
    * * * * */
 
-  CP0& access_cp0() noexcept;
+  CP0& access_CP0() noexcept;
 
   /* * * * *
    *       *

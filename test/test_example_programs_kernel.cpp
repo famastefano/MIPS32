@@ -20,14 +20,6 @@
 using namespace mips32;
 using namespace mips32::literals;
 
-inline void insert_machine_code( RAM& ram, std::uint32_t text_segment, std::uint32_t* machine_code, std::uint32_t size ) noexcept
-{
-  for ( int i = 0; i < std::size( machine_code ); ++i )
-  {
-    ram[text_segment + i * 4] = machine_code[i];
-  }
-}
-
 TEST_CASE( "A CPU runs a simple Hello World program in Kernel Mode" )
 {
   auto terminal = std::make_unique<Terminal>();

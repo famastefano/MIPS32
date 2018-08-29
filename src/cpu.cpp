@@ -283,7 +283,7 @@ void CPU::pcrel( std::uint32_t word ) noexcept
 {
   auto fn_opcode = word >> 16 & 0x1F;
 
-  constexpr void ( CPU::*fn[] )( std::uint32_t ) =
+  constexpr void ( CPU::*fn[] )( std::uint32_t ) noexcept =
   {
     &CPU::addiupc,
     &CPU::lwpc,

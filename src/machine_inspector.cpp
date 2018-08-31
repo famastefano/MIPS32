@@ -275,6 +275,43 @@ CP0 & MachineInspector::access_CP0() noexcept
  *               *
  * * * * * * * * */
 
+constexpr std::uint32_t magic_tag{ 0x66'61'6D'61 };
+constexpr std::uint32_t version_tag{ 0x1 };
+
+struct StateHeader
+{
+  std::uint32_t magic{};
+  std::uint32_t version{};
+};
+
+bool is_valid( StateHeader header ) noexcept
+{
+  return header.magic == magic_tag // "fama"
+    && header.version == version_tag;
+}
+
+bool read_tag( std::FILE* file ) noexcept
+{
+  StateHeader header;
+
+  [[maybe_unused]] auto _read = std::fread( &header, sizeof( StateHeader ), 1, file );
+  assert( _read == 1 && "Couldn't read state header" );
+
+  return !is_valid( header );
+}
+
+bool write_tag( std::FILE* file ) noexcept
+{
+  StateHeader header;
+  header.magic = magic_tag;
+  header.version = version_tag;
+
+  [[maybe_unused]] auto _write = std::fwrite( &header, sizeof( StateHeader ), 1, file );
+  assert( _write == 1 && "Couldn't write state header" );
+
+  return std::ferror( file );
+}
+
 ////
 //// RAM
 ////
@@ -282,8 +319,7 @@ CP0 & MachineInspector::access_CP0() noexcept
  * uint32_t -> alloc_limit -|
  * uint32_t -> blocks_no    |- data
  * uint32_t -> swap_no     -|
- * (uint32_t, uint32_t, uint32_t * RAM::block_size) * blocks_no -> base_address, access_count, data
- * uint32_t * swap_no -> base_address
+ * (uint32_t, uint32_t, uint32_t * RAM::block_size) * blocks_no * swap_no -> base_address, access_count, data
  **/
 bool MachineInspector::save_state_ram( char const * name ) const noexcept
 {
@@ -294,31 +330,61 @@ bool MachineInspector::save_state_ram( char const * name ) const noexcept
   if ( !file )
     return true;
 
-  // Data
-  std::uint32_t const _alloc_limit = ram->alloc_limit;
-  std::uint32_t const _blocks_no = ram->blocks.size();
-  std::uint32_t const _swap_no = ram->swapped.size();
+  if ( write_tag( file ) )
+  {
+    std::fclose( file );
+    return true;
+  }
 
-  std::fwrite( &_alloc_limit, sizeof( _alloc_limit ), 1, file );
-  std::fwrite( &_blocks_no, sizeof( _blocks_no ), 1, file );
-  std::fwrite( &_swap_no, sizeof( _swap_no ), 1, file );
+  // Data
+  std::uint32_t _alloc_limit = ram->alloc_limit;
+  std::uint32_t _blocks_no = ram->blocks.size();
+  std::uint32_t _swap_no = ram->swapped.size();
+
+  [[maybe_unused]] auto _alloc_limit_write = std::fwrite( &_alloc_limit, sizeof( _alloc_limit ), 1, file );
+  [[maybe_unused]] auto _blocks_no_write = std::fwrite( &_blocks_no, sizeof( _blocks_no ), 1, file );
+  [[maybe_unused]] auto _swap_no_write = std::fwrite( &_swap_no, sizeof( _swap_no ), 1, file );
+
+  assert( _alloc_limit_write == 1 && "Couldn't write alloc limit to file" );
+  assert( _blocks_no_write == 1 && "Couldn't write the number of blocks to file" );
+  assert( _swap_no_write == 1 && "Couldn't write the number of swapped blocks to file" );
 
   // Allocated blocks
   for ( auto const & block : ram->blocks )
   {
-    std::uint32_t const _base_address = block.base_address;
-    std::uint32_t const _access_count = block.access_count;
+    std::uint32_t _base_address = block.base_address;
+    std::uint32_t _access_count = block.access_count;
 
-    std::fwrite( &_base_address, sizeof( _base_address ), 1, file );
-    std::fwrite( &_access_count, sizeof( _access_count ), 1, file );
-    std::fwrite( block.data.get(), sizeof( block.data[0] ), RAM::block_size, file );
+    [[maybe_unused]] auto _base_address_write = std::fwrite( &_base_address, sizeof( _base_address ), 1, file );
+    [[maybe_unused]] auto _access_count_write = std::fwrite( &_access_count, sizeof( _access_count ), 1, file );
+    [[maybe_unused]] auto _data_write = std::fwrite( block.data.get(), sizeof( block.data[0] ), RAM::block_size, file );
+
+    assert( _base_address_write == 1 && "[Allocated Block] Couldn't write base address to file" );
+    assert( _access_count_write == 1 && "[Allocated Block] Couldn't write access count to file" );
+    assert( _data_write == RAM::block_size && "[Allocated Block] Couldn't write data to file" );
   }
 
-  // Swapped blocks
-  std::fwrite( ram->swapped.data(), sizeof( ram->swapped[0] ), _swap_no, file );
+  RAM::Block swapped_block;
+  swapped_block.allocate();
 
-  std::fflush( file );
+  // Swapped blocks
+  for ( auto const & block : ram->swapped )
+  {
+    swapped_block.base_address = block.base_address;
+    swapped_block.deserialize();
+    
+    [[maybe_unused]] auto _base_address_write = std::fwrite( &swapped_block.base_address, sizeof( swapped_block.base_address ), 1, file );
+    [[maybe_unused]] auto _access_count_write = std::fwrite( &swapped_block.access_count, sizeof( swapped_block.access_count ), 1, file );
+    [[maybe_unused]] auto _data_write = std::fwrite( swapped_block.data.get(), sizeof( swapped_block.data[0] ), RAM::block_size, file );
+
+    assert( _base_address_write == 1 && "[Swapped Block] Couldn't write base address to file" );
+    assert( _access_count_write == 1 && "[Swapped Block] Couldn't write access count to file" );
+    assert( _data_write == RAM::block_size && "[Swapped Block] Couldn't write data to file" );
+  }
+
+  //std::fflush( file );
   bool error = std::ferror( file );
+
   std::fclose( file );
   return error;
 }
@@ -338,13 +404,20 @@ bool MachineInspector::save_state_cp0( char const * name ) const noexcept
   if ( !file )
     return true;
 
+  if ( write_tag( file ) )
+  {
+    std::fclose( file );
+    return true;
+  }
+
   // CP0
   [[maybe_unused]] auto cp0_write_count = std::fwrite( cp0, sizeof( CP0 ), 1, file );
 
   assert( cp0_write_count == 1 && "Coudln't write CP0 to file!" );
 
-  std::fflush( file );
+  //std::fflush( file );
   bool error = std::ferror( file );
+
   std::fclose( file );
   return error;
 }
@@ -367,6 +440,12 @@ bool MachineInspector::save_state_cp1( char const * name ) const noexcept
   if ( !file )
     return true;
 
+  if ( write_tag( file ) )
+  {
+    std::fclose( file );
+    return true;
+  }
+
   // CP1
   [[maybe_unused]] auto fpr_write_count = std::fwrite( cp1->fpr.data(), sizeof( cp1->fpr[0] ), 32, file );
   [[maybe_unused]] auto fir_write_count = std::fwrite( &cp1->fir, sizeof( cp1->fir ), 1, file );
@@ -380,6 +459,7 @@ bool MachineInspector::save_state_cp1( char const * name ) const noexcept
 
   std::fflush( file );
   bool error = std::ferror( file );
+
   std::fclose( file );
   return error;
 }
@@ -417,8 +497,14 @@ bool MachineInspector::save_state_cpu( char const * name ) const noexcept
   if ( !file )
     return true;
 
+  if ( write_tag( file ) )
+  {
+    std::fclose( file );
+    return true;
+  }
+
   // MMU
-  std::uint32_t const _segment_no = cpu->mmu.segments.size();
+  std::uint32_t _segment_no = cpu->mmu.segments.size();
   [[maybe_unused]] auto seg_write_count = std::fwrite( &_segment_no, sizeof( _segment_no ), 1, file );
   [[maybe_unused]] auto segdata_write_count = std::fwrite( cpu->mmu.segments.data(), sizeof( cpu->mmu.segments[0] ), _segment_no, file );
 
@@ -432,8 +518,9 @@ bool MachineInspector::save_state_cpu( char const * name ) const noexcept
   assert( pc_write_count == 1 && "Coudln't write PC to file!" );
   assert( gpr_write_count == cpu->gpr.size() && "Coudln't write GPRs to file!" );
 
-  std::fflush( file );
+  //std::fflush( file );
   bool error = std::ferror( file );
+
   std::fclose( file );
   return error;
 }
@@ -461,7 +548,11 @@ bool MachineInspector::restore_state_ram( char const * name ) noexcept
   if ( !file )
     return true;
 
-  bool error = false;
+  if ( read_tag( file ) )
+  {
+    std::fclose( file );
+    return true;
+  }
 
   // 1
   std::uint32_t _alloc_limit = 0;
@@ -486,29 +577,46 @@ bool MachineInspector::restore_state_ram( char const * name ) noexcept
     [[maybe_unused]] auto addr_read_count = std::fread( &block.base_address, sizeof( block.base_address ), 1, file );
     [[maybe_unused]] auto access_read_count = std::fread( &block.access_count, sizeof( block.access_count ), 1, file );
 
-    assert( addr_read_count == 1 && "Coudln't read the base_address from file!" );
-    assert( access_read_count == 1 && "Coudln't read the access_count from file!" );
+    assert( addr_read_count == 1 && "[Allocated block] Coudln't read the base_address from file!" );
+    assert( access_read_count == 1 && "[Allocated block] Coudln't read the access_count from file!" );
 
     if ( !block.data )
       block.allocate();
 
     if ( !block.data )
     {
-      error = true;
-      break;
+      std::fclose( file );
+      return true;
     }
 
     [[maybe_unused]] auto data_read_count = std::fread( block.data.get(), sizeof( *block.data.get() ), RAM::block_size, file );
 
-    assert( data_read_count == RAM::block_size && "Coudln't read the block's data from file!" );
+    assert( data_read_count == RAM::block_size && "[Allocated block] Coudln't read the block's data from file!" );
   }
 
   // 3
-  ram->swapped.resize( _swap_no );
-  [[maybe_unused]] auto swapdata_read_count = std::fread( ram->swapped.data(), sizeof( ram->swapped[0] ), _swap_no, file );
-  assert( swapdata_read_count == _swap_no && "Coudln't read the swapped block's data from file!" );
+  RAM::Block swapped_block;
+  swapped_block.allocate();
 
-  error = error || std::ferror( file );
+  assert( swapped_block.data && "Coulnd't allocate swapped block" );
+
+  ram->swapped.resize( _swap_no );
+
+  for ( int i = 0; i < _swap_no; ++i )
+  {
+    [[maybe_unused]] auto addr_read_count = std::fread( &swapped_block.base_address, sizeof( swapped_block.base_address ), 1, file );
+    [[maybe_unused]] auto access_read_count = std::fread( &swapped_block.access_count, sizeof( swapped_block.access_count ), 1, file );
+    [[maybe_unused]] auto data_read_count = std::fread( swapped_block.data.get(), sizeof( swapped_block.data[0] ), RAM::block_size, file );
+
+    assert( addr_read_count == 1 && "[Swapped block] Couldn't read base address" );
+    assert( access_read_count == 1 && "[Swapped block] Couldn't read access count" );
+    assert( data_read_count == RAM::block_size && "[Swapped block] Couldn't read data" );
+
+    swapped_block.deserialize();
+    ram->swapped[i].base_address = swapped_block.base_address;
+  }
+
+  bool error = std::ferror( file );
   std::fclose( file );
   return error;
 }
@@ -527,6 +635,12 @@ bool MachineInspector::restore_state_cp0( char const * name ) noexcept
   auto * file = std::fopen( cp0_file_name.c_str(), "rb" );
   if ( !file )
     return true;
+
+  if ( read_tag( file ) )
+  {
+    std::fclose( file );
+    return true;
+  }
 
   // CP0
   [[maybe_unused]] auto cp0_read_count = std::fread( cp0, sizeof( CP0 ), 1, file );
@@ -555,6 +669,12 @@ bool MachineInspector::restore_state_cp1( char const * name ) noexcept
   auto * file = std::fopen( cp1_file_name.c_str(), "rb" );
   if ( !file )
     return true;
+
+  if ( read_tag( file ) )
+  {
+    std::fclose( file );
+    return true;
+  }
 
   [[maybe_unused]] auto fpr_read_count = std::fread( cp1->fpr.data(), sizeof( FPR ), cp1->fpr.size(), file );
   [[maybe_unused]] auto fir_read_count = std::fread( &cp1->fir, sizeof( cp1->fir ), 1, file );
@@ -605,6 +725,14 @@ bool MachineInspector::restore_state_cpu( char const * name ) noexcept
   cpu_file_name += ".cpu";
 
   auto * file = std::fopen( cpu_file_name.c_str(), "rb" );
+  if ( !file )
+    return true;
+
+  if ( read_tag( file ) )
+  {
+    std::fclose( file );
+    return true;
+  }
 
   // MMU
   std::uint32_t _segment_no = 0;
@@ -626,6 +754,7 @@ bool MachineInspector::restore_state_cpu( char const * name ) noexcept
   assert( gpr_read_count == cpu->gpr.size() && "Coudln't read GPRs from file!" );
 
   bool error = std::ferror( file );
+
   std::fclose( file );
   return error;
 }

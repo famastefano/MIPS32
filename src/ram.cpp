@@ -8,16 +8,6 @@
 
 namespace mips32
 {
-constexpr std::uint32_t RAM::calculate_base_address( std::uint32_t address ) noexcept
-{
-  std::uint32_t base_address = 0;
-
-  while ( base_address + RAM::block_size <= address )
-    base_address += RAM::block_size;
-
-  return base_address;
-}
-
 void addr_to_string( char *buf, std::uint32_t addr )
 {
   std::sprintf( buf, "0x%08X.block", addr );

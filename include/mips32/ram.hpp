@@ -81,7 +81,15 @@ public:
    **/
   bool load( void* binary ) noexcept;
 
-  static constexpr std::uint32_t calculate_base_address( std::uint32_t address ) noexcept;
+  inline static constexpr std::uint32_t calculate_base_address( std::uint32_t address ) noexcept
+  {
+    std::uint32_t base_address = 0;
+
+    while ( base_address + RAM::block_size <= address )
+      base_address += RAM::block_size;
+
+    return base_address;
+  }
 
 private:
   // Represent a portion of data of our RAM.

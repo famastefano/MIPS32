@@ -36,7 +36,7 @@ class RAM
   friend class RAMString;
 
 public:
-// A block holds 16K words (64KB).
+  // A block holds 16K words (64KB).
   static inline constexpr std::uint32_t block_size{ 64_KB / sizeof( std::uint32_t ) };
 
   // Construct a RAM object and specifies
@@ -56,9 +56,36 @@ public:
   // Returns the word at the given address
   std::uint32_t &operator[]( std::uint32_t address ) noexcept;
 
+  /**
+   * Loads the binary into the RAM
+   * 
+   * ! It is implementation-defined which blocks will be allocated and which swapped !
+   * 
+   * Returns
+   * `true` - on error
+   * `false` - on success
+   * 
+   * Binary File Format
+   * 
+   * Main Header
+   * magic       4B
+   * version     4B
+   * segment_no  4B
+   * 
+   * Segment Header (1 for each segment)
+   * phys_addr 4B
+   * size      4B
+   * 
+   * Section Data (1 for each segment)
+   * array of length `size`
+   **/
+  bool load( void* binary ) noexcept;
+
+  static constexpr std::uint32_t calculate_base_address( std::uint32_t address ) noexcept;
+
 private:
-// Represent a portion of data of our RAM.
-// It's a very simple class that owns `RAM::block_size` words.
+  // Represent a portion of data of our RAM.
+  // It's a very simple class that owns `RAM::block_size` words.
   struct Block
   {
     std::uint32_t                    base_address;    // base address of our block

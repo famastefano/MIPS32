@@ -72,15 +72,15 @@ std::unique_ptr<char[]> RAMString::read( std::uint32_t address, std::uint32_t co
 
     std::uint32_t char_read = 0;
 
-    std::uint32_t const begin = address - block->base_address;
-    std::uint32_t const limit = RAM::block_size - begin;
-    auto size = std::min( count, limit );
+    std::uint32_t begin = address - block->base_address;
+    std::uint32_t limit = RAM::block_size - begin;
+    std::uint32_t size = std::min( count, limit );
 
-    auto const * word_offset = ( char* )( block->data.get() + ( begin & ~0b11 ) );
-    auto const byte_offset = ( begin & 0b11 );
+    char * word_offset = ( char* )( block->data.get() + ( begin & ~0b11 ) );
+    std::uint32_t byte_offset = ( begin & 0b11 );
 
-    auto const * start = word_offset + byte_offset;
-    auto const * end = start + size;
+    char * start = word_offset + byte_offset;
+    char * end = start + size;
 
     while ( start != end )
     {
@@ -94,8 +94,8 @@ std::unique_ptr<char[]> RAMString::read( std::uint32_t address, std::uint32_t co
 
     if ( char_read )
     {
-      std::unique_ptr<char[]> buf( new(std::nothrow) char[char_read + length + 1] );
-      
+      std::unique_ptr<char[]> buf( new( std::nothrow ) char[char_read + length + 1] );
+
       assert( buf && "Couldn't allocate memory for the string." );
 
       if ( str_buf )
@@ -183,14 +183,14 @@ void RAMString::write( std::uint32_t address, char const *src, std::uint32_t cou
     {
       auto &block = ram.blocks[index];
 
-      std::uint32_t const begin = address - block.base_address;
-      std::uint32_t const limit = RAM::block_size - begin;
-      auto const size = std::min( count, limit );
+      std::uint32_t begin = address - block.base_address;
+      std::uint32_t limit = RAM::block_size - begin;
+      std::uint32_t size = std::min( count, limit );
 
-      auto * word_offset = ( char* )( block.data.get() + ( begin & ~0b11 ) );
-      auto const byte_offset = ( begin & 0b11 );
+      char * word_offset = ( char* )( block.data.get() + ( begin & ~0b11 ) );
+      std::uint32_t byte_offset = begin & 0b11;
 
-      auto * dst = word_offset + byte_offset;
+      char * dst = word_offset + byte_offset;
 
       std::memcpy( dst, src + char_written, size );
 
@@ -199,7 +199,7 @@ void RAMString::write( std::uint32_t address, char const *src, std::uint32_t cou
     }
     else if ( !in_memory && index != -1 ) // [2]
     {
-      auto const &block = ram.swapped[index];
+      auto &block = ram.swapped[index];
 
       char file_name[18]{ '\0' };
       std::sprintf( file_name, "0x%08X.block", block.base_address );
@@ -208,20 +208,20 @@ void RAMString::write( std::uint32_t address, char const *src, std::uint32_t cou
 
       assert( block_file && "Coudln't open file!" );
 
-      auto const begin = address - block.base_address;
-      auto const limit = RAM::block_size - begin;
-      auto const size = count < limit ? count : limit;
+      std::uint32_t begin = address - block.base_address;
+      std::uint32_t limit = RAM::block_size - begin;
+      std::uint32_t size = count < limit ? count : limit;
 
-      auto const word_offset = sizeof( std::uint32_t ) * ( begin & ~0b11 );
-      auto const byte_offset = ( address & 0b11 ) + char_written;
+      std::uint32_t word_offset = sizeof( std::uint32_t ) * ( begin & ~0b11 );
+      std::uint32_t byte_offset = ( address & 0b11 ) + char_written;
 
-      [[maybe_unused]] auto const _seek = std::fseek( block_file, word_offset + byte_offset, SEEK_SET );
+      [[maybe_unused]] auto _seek = std::fseek( block_file, word_offset + byte_offset, SEEK_SET );
       assert( !_seek && "Couldn't seek string position." );
 
-      [[maybe_unused]] auto const _write = std::fwrite( src + char_written, sizeof( char ), size, block_file );
+      [[maybe_unused]] auto _write = std::fwrite( src + char_written, sizeof( char ), size, block_file );
       assert( _write == size && "Couldn't write string to file." );
 
-      [[maybe_unused]] auto const _close = std::fclose( block_file );
+      [[maybe_unused]] auto _close = std::fclose( block_file );
       assert( !_close && "Couldn't close file." );
 
       char_written += size;
@@ -231,9 +231,7 @@ void RAMString::write( std::uint32_t address, char const *src, std::uint32_t cou
     {
       RAM::Block block;
 
-      block.base_address = 0;
-      while ( block.base_address + RAM::block_size <= address )
-        block.base_address += RAM::block_size;
+      block.base_address = RAM::calculate_base_address( address );
 
       block.allocate();
       assert( block.data && "Couldn't allocate block!" );

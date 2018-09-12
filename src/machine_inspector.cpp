@@ -602,7 +602,7 @@ bool MachineInspector::restore_state_ram( char const * name ) noexcept
 
   ram->swapped.resize( _swap_no );
 
-  for ( int i = 0; i < _swap_no; ++i )
+  for ( std::uint32_t i = 0; i < _swap_no; ++i )
   {
     [[maybe_unused]] auto addr_read_count = std::fread( &swapped_block.base_address, sizeof( swapped_block.base_address ), 1, file );
     [[maybe_unused]] auto access_read_count = std::fread( &swapped_block.access_count, sizeof( swapped_block.access_count ), 1, file );

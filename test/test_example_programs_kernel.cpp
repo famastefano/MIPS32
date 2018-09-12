@@ -132,7 +132,7 @@ TEST_CASE( "A CPU runs a simple Hello World program in Kernel Mode" )
   ram[data_segment] = 0;
   std::memcpy( &ram[data_segment + 4], _data_str, _data_str_len );
 
-  for ( int i = 0; i < std::size( machine_code ); ++i )
+  for ( std::uint32_t i = 0; i < std::size( machine_code ); ++i )
   {
     ram[text_segment + i*4] = machine_code[i];
   }

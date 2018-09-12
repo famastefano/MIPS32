@@ -3,12 +3,12 @@
 #include <algorithm>
 #include <cassert>
 #include <cstdio>
+#include <cstring>
 #include <new>
 
 namespace mips32
 {
-
-constexpr std::uint32_t calculate_base_address( std::uint32_t address ) noexcept
+constexpr std::uint32_t RAM::calculate_base_address( std::uint32_t address ) noexcept
 {
   std::uint32_t base_address = 0;
 
@@ -139,6 +139,139 @@ std::uint32_t &RAM::operator[]( std::uint32_t address ) noexcept
     // Return the word
     return allocated_block[( address & ~0b11 ) - allocated_block.base_address];
   }
+}
+
+/**
+ * 1. After reading the Header we need to validate it.
+ * 2. We need to read the Segment Headers too.
+ * 3. Then we need to check if `phys_addr + size` overflows.
+ * 4. After that we load the data 1 block at a time.
+ * 
+ * A) We'll allocate all the needed blocks on demand,
+ * B) and then we'll move up to `alloc_limit` blocks into the RAM,
+ * C) and swap the others, if some are left.
+ **/
+bool RAM::load( void * binary ) noexcept
+{
+  constexpr std::uint32_t magic_tag{ 0x66'61'6D'61 }; // "fama"
+  constexpr std::uint32_t version_tag{ 0x1 };
+
+  unsigned char * cursor = ( unsigned char* )binary;
+
+  struct Header
+  {
+    std::uint32_t magic, version, segment_no;
+  };
+
+  struct SegmentHeader
+  {
+    std::uint32_t phys_addr, size;
+  };
+
+  Header header;
+
+  // 1
+  std::memcpy( &header, cursor, sizeof( Header ) );
+
+  if ( header.magic != magic_tag || header.version != version_tag )
+    return true;
+
+  // 2
+  std::vector<SegmentHeader> segments( header.segment_no );
+
+  if ( segments.empty() )
+    return false;
+
+  cursor += sizeof( Header );
+
+  for ( std::uint32_t i = 0; i < header.segment_no; ++i )
+  {
+    std::memcpy( &segments[i], cursor, sizeof( SegmentHeader ) );
+    cursor += sizeof( SegmentHeader );
+  }
+
+  // 3
+  for ( auto & seg : segments )
+  {
+    std::uint64_t paddr = seg.phys_addr;
+    std::uint64_t size = seg.size;
+
+    if ( paddr + size & 0x1'0000'0000 )
+      return true;
+  }
+
+  // 4
+  std::vector<Block> tmp_blocks;
+
+  // A
+  auto get_block_ptr = [ &tmp_blocks ] ( std::uint32_t paddr ) -> Block*
+  {
+    auto baddr = calculate_base_address( paddr );
+
+    for ( std::size_t i = 0; i < tmp_blocks.size(); ++i )
+      if ( tmp_blocks[i].base_address == baddr )
+        return &tmp_blocks[i];
+
+    tmp_blocks.push_back( {} );
+    return &tmp_blocks.back();
+  };
+
+  for ( auto & seg : segments )
+  {
+    std::uint32_t size = seg.size;
+    std::uint32_t paddr = seg.phys_addr;
+
+    while ( size )
+    {
+      auto * block = get_block_ptr( paddr );
+
+      std::uint32_t begin = paddr - block->base_address;
+      std::uint32_t count = std::min( RAM::block_size - begin, size );
+
+      char * word_offset = ( char* )( block->data.get() + ( begin & ~0b11 ) );
+      std::uint32_t byte_offset = begin & 0b11;
+
+      char * dst = word_offset + byte_offset;
+
+      std::memcpy( dst, cursor, size );
+
+      cursor += count;
+      size -= count;
+      paddr += count;
+    }
+  }
+
+  // B only
+  if ( tmp_blocks.size() <= alloc_limit )
+  {
+    blocks = std::move( tmp_blocks );
+  }
+  else // B + C
+  {
+    auto tmp_alloc_begin = std::make_move_iterator( tmp_blocks.begin() );
+    auto tmp_alloc_end = std::make_move_iterator( tmp_blocks.begin() + alloc_limit );
+
+    auto tmp_swap_begin = tmp_blocks.begin() + alloc_limit;
+    auto tmp_swap_end = tmp_blocks.end();
+
+    // B
+    blocks.clear();
+    blocks.reserve( alloc_limit );
+    blocks.insert( blocks.end(), tmp_alloc_begin, tmp_alloc_end );
+
+    // C
+    swapped.clear();
+    swapped.reserve( tmp_swap_end - tmp_swap_begin );
+    while ( tmp_swap_begin != tmp_swap_end )
+    {
+      tmp_alloc_begin->deserialize();
+      swapped.push_back( { tmp_swap_begin->base_address } );
+
+      ++tmp_swap_begin;
+    }
+  }
+
+  return false;
 }
 
 RAM::Block &RAM::Block::allocate() noexcept

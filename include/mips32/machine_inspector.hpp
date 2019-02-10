@@ -5,6 +5,7 @@
 
 #include <array>
 #include <cstdint>
+#include <memory>
 #include <vector>
 
 namespace mips32
@@ -23,7 +24,7 @@ class CPU;
 class MachineInspector
 {
 public:
-  MachineInspector & inspect( RAM &ram ) noexcept;
+  MachineInspector &inspect( RAM &ram ) noexcept;
   MachineInspector &inspect( CP0 &cp0 ) noexcept;
   MachineInspector &inspect( CP1 &cp1 ) noexcept;
   MachineInspector &inspect( CPU &cpu, bool sub_components = true ) noexcept;
@@ -93,6 +94,10 @@ public:
   std::uint32_t              RAM_swapped_blocks_no() const noexcept;
   std::vector<std::uint32_t> RAM_allocated_addresses() const noexcept;
   std::vector<std::uint32_t> RAM_swapped_addresses() const noexcept;
+
+  std::unique_ptr<char[]> RAM_read( std::uint32_t address, std::uint32_t count ) noexcept;
+
+  void RAM_write( std::uint32_t address, char const *src, std::uint32_t count ) noexcept;
 
   /* * * * *
    *       *

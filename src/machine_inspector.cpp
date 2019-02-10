@@ -5,6 +5,8 @@
 
 #include <mips32/machine_inspector.hpp>
 
+#include <mips32/ram_io.hpp>
+
 #include <cassert>
 #include <cstring>
 #include <cstdio>
@@ -168,6 +170,16 @@ noexcept
     addresses.emplace_back( block.base_address );
 
   return addresses;
+}
+
+std::unique_ptr<char[]> MachineInspector::RAM_read( std::uint32_t address, std::uint32_t count ) noexcept
+{
+  return RAMIO( *ram ).read( address, count );
+}
+
+void MachineInspector::RAM_write( std::uint32_t address, char const * src, std::uint32_t count ) noexcept
+{
+  return RAMIO( *ram ).write( address, src, count );
 }
 
 /* * * * *

@@ -5,10 +5,10 @@
 
 namespace mips32
 {
-class RAMString
+class RAMIO
 {
 public:
-  constexpr RAMString( RAM &ram ) noexcept : ram( ram ) {}
+  constexpr RAMIO( RAM &ram ) noexcept : ram( ram ) {}
 
   std::unique_ptr<char[]> read( std::uint32_t address, std::uint32_t count ) const noexcept;
 

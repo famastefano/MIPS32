@@ -37,7 +37,7 @@ add_executable(Tests
 # CPU
     test/test_cpu.cpp
     src/cpu.cpp
-    src/ram_string.cpp
+    src/ram_io.cpp
     src/cp0.cpp
     src/mmu.cpp
 	test/helpers/Terminal.cpp

@@ -6,7 +6,7 @@
 #include <mips32/io_device.hpp>
 #include <mips32/mmu.hpp>
 #include <mips32/ram.hpp>
-#include <mips32/ram_string.hpp>
+#include <mips32/ram_io.hpp>
 
 #include <array>
 #include <atomic>
@@ -57,7 +57,7 @@ public:
   void hard_reset() noexcept;
 
 private:
-  RAMString string_handler;
+  RAMIO string_handler;
 
   MMU mmu;
   CP1 cp1;

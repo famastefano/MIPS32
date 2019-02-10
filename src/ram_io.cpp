@@ -1,4 +1,4 @@
-#include <mips32/ram_string.hpp>
+#include <mips32/ram_io.hpp>
 
 #include <algorithm>
 #include <cassert>
@@ -36,7 +36,7 @@ namespace mips32
  * [Aligned]   we continue normally, nothing to handle
  * [Unaligned] we need to handle it only for the 1st word
  **/
-std::unique_ptr<char[]> RAMString::read( std::uint32_t address, std::uint32_t count ) const noexcept
+std::unique_ptr<char[]> RAMIO::read( std::uint32_t address, std::uint32_t count ) const noexcept
 {
   if ( address + count < address ) // overflows
     count = 0xFFFF'FFFF - address; // we read up to the last byte
@@ -163,7 +163,7 @@ std::unique_ptr<char[]> RAMString::read( std::uint32_t address, std::uint32_t co
  * [Aligned]   we continue normally, nothing to handle
  * [Unaligned] we need to handle it only for the 1st word
  **/
-void RAMString::write( std::uint32_t address, char const *src, std::uint32_t count ) noexcept
+void RAMIO::write( std::uint32_t address, char const *src, std::uint32_t count ) noexcept
 {
   if ( count == 0 )
     return;
@@ -259,7 +259,7 @@ void RAMString::write( std::uint32_t address, char const *src, std::uint32_t cou
   } while ( !eof && count );
 }
 
-std::pair<std::uint32_t, bool> RAMString::get_block( std::uint32_t address ) const noexcept
+std::pair<std::uint32_t, bool> RAMIO::get_block( std::uint32_t address ) const noexcept
 {
   for ( auto i = 0u; i < ram.blocks.size(); ++i )
   {

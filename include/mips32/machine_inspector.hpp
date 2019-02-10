@@ -48,7 +48,6 @@ public:
   enum class Component
   {
     RAM,
-    //CACHE,
     CP0,
     CP1,
     CPU,

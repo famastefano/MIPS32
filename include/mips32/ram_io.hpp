@@ -1,3 +1,5 @@
+#pragma once
+
 #include <mips32/ram.hpp>
 
 #include <memory>

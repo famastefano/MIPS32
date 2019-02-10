@@ -1,4 +1,3 @@
-#include <mips32/cache.hpp>
 #include <mips32/cp0.hpp>
 #include <mips32/cp1.hpp>
 #include <mips32/cpu.hpp>
@@ -18,8 +17,6 @@ MachineInspector &MachineInspector::inspect( RAM &ram ) noexcept
   this->ram = &ram;
   return *this;
 }
-
-//void MachineInspector::inspect( Cache &cache ) noexcept { this->cache = &cache; return *this; }
 
 MachineInspector & MachineInspector::inspect( CP0 & cp0 ) noexcept
 {
@@ -172,42 +169,6 @@ noexcept
 
   return addresses;
 }
-
-/* * * * *
- *       *
- * CACHE *
- *       *
- * * * * */
-/*
-MachineInspector::CacheBlockIterator MachineInspector::CACHE_block_begin() noexcept
-{
-  return {cache->headers.data(),
-          cache->lines.data(),
-          cache->words_per_block};
-}
-
-MachineInspector::CacheBlockIterator MachineInspector::CACHE_block_end() noexcept
-{
-  return {cache->headers.data() + cache->headers.size(),
-          cache->lines.data() + cache->lines.size(),
-          cache->words_per_block};
-}
-
-std::uint32_t MachineInspector::CACHE_line_no() const noexcept
-{
-  return (std::uint32_t)cache->headers.size() / cache->associativity;
-}
-
-std::uint32_t MachineInspector::CACHE_associativity() const noexcept
-{
-  return cache->associativity;
-}
-
-std::uint32_t MachineInspector::CACHE_block_size() const noexcept
-{
-  return cache->words_per_block;
-}
-*/
 
 /* * * * *
  *       *

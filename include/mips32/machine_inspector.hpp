@@ -11,7 +11,6 @@ namespace mips32
 {
 
 class RAM;
-//class Cache;
 class CP0;
 class CP1;
 class CPU;
@@ -25,7 +24,6 @@ class MachineInspector
 {
 public:
   MachineInspector & inspect( RAM &ram ) noexcept;
-  // MachineInspector& inspect( Cache &cache ) noexcept;
   MachineInspector &inspect( CP0 &cp0 ) noexcept;
   MachineInspector &inspect( CP1 &cp1 ) noexcept;
   MachineInspector &inspect( CPU &cpu, bool sub_components = true ) noexcept;
@@ -99,22 +97,6 @@ public:
 
   /* * * * *
    *       *
-   * CACHE *
-   *       *
-   * * * * */
-  /*
-  class CacheBlockIterator;
-
-  CacheBlockIterator CACHE_block_begin() noexcept;
-  CacheBlockIterator CACHE_block_end() noexcept;
-
-  std::uint32_t CACHE_line_no() const noexcept;
-  std::uint32_t CACHE_associativity() const noexcept;
-  std::uint32_t CACHE_block_size() const noexcept;
-  */
-
-  /* * * * *
-   *       *
    * COP 0 *
    *       *
    * * * * */
@@ -152,8 +134,7 @@ public:
   void          CPU_write_exit_code( std::uint32_t value ) noexcept;
 
 private:
-  RAM * ram;
-  //Cache *cache;
+  RAM *ram;
   CP0 *cp0;
   CP1 *cp1;
   CPU *cpu;
@@ -168,8 +149,6 @@ private:
   bool restore_state_cp1( char const*name ) noexcept;
   bool restore_state_cpu( char const*name ) noexcept;
 };
-
-//#include <mips32/inspector_iterators/cache_iterator.hpp>
 
 } // namespace mips32
 

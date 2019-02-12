@@ -17,26 +17,41 @@ void Terminal::print_double( double value ) noexcept
 
 void Terminal::print_string( char const * string ) noexcept
 {
+  if ( !string )
+    return;
+
   out_string = string;
 }
 
 void Terminal::read_integer( std::uint32_t * value ) noexcept
 {
+  if ( !value )
+    return;
+
   *value = in_int;
 }
 
 void Terminal::read_float( float * value ) noexcept
 {
+  if ( !value )
+    return;
+
   *value = in_float;
 }
 
 void Terminal::read_double( double * value ) noexcept
 {
+  if ( !value )
+    return;
+
   *value = in_double;
 }
 
 void Terminal::read_string( char * string, std::uint32_t max_count ) noexcept
 {
+  if ( !string )
+    return;
+
   if ( max_count <= in_string.size() )
     for ( std::uint32_t i = 0; i < max_count; ++i )
       string[i] = in_string[i];

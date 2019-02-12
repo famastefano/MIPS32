@@ -2,7 +2,7 @@
 
 #include <mips32/ram.hpp>
 
-#include <memory>
+#include <vector>
 #include <utility>
 
 namespace mips32
@@ -12,9 +12,9 @@ class RAMIO
 public:
   constexpr RAMIO( RAM &ram ) noexcept : ram( ram ) {}
 
-  std::unique_ptr<char[]> read( std::uint32_t address, std::uint32_t count ) const noexcept;
+  std::vector<char> read( std::uint32_t address, std::uint32_t count, bool read_string = false ) const noexcept;
 
-  void write( std::uint32_t address, char const *src, std::uint32_t count ) noexcept;
+  void write( std::uint32_t address, void const *src, std::uint32_t count ) noexcept;
 
 private:
   std::pair<std::uint32_t, bool> get_block( std::uint32_t address ) const noexcept;

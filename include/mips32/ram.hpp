@@ -36,8 +36,8 @@ class RAM
   friend class RAMIO;
 
 public:
-  // A block holds 16K words (64KB).
-  static inline constexpr std::uint32_t block_size{ 64_KB / sizeof( std::uint32_t ) };
+  // A block holds 64KB.
+  static inline constexpr std::uint32_t block_size{ 64_KB };
 
   // Construct a RAM object and specifies
   // how much memory, in bytes, it can use to hold the blocks.
@@ -55,31 +55,6 @@ public:
 
   // Returns the word at the given address
   std::uint32_t &operator[]( std::uint32_t address ) noexcept;
-
-  /**
-   * Loads the binary into the RAM
-   * 
-   * ! It is implementation-defined which blocks will be allocated and which swapped !
-   * 
-   * Returns
-   * `true` - on error
-   * `false` - on success
-   * 
-   * Binary File Format
-   * 
-   * Main Header
-   * magic       4B
-   * version     4B
-   * segment_no  4B
-   * 
-   * Segment Header (1 for each segment)
-   * phys_addr 4B
-   * size      4B
-   * 
-   * Section Data (1 for each segment)
-   * array of length `size`
-   **/
-  bool load( void* binary ) noexcept;
 
   inline static constexpr std::uint32_t calculate_base_address( std::uint32_t address ) noexcept
   {

@@ -95,9 +95,9 @@ public:
   std::vector<std::uint32_t> RAM_allocated_addresses() const noexcept;
   std::vector<std::uint32_t> RAM_swapped_addresses() const noexcept;
 
-  std::unique_ptr<char[]> RAM_read( std::uint32_t address, std::uint32_t count ) noexcept;
+  std::vector<char> RAM_read( std::uint32_t address, std::uint32_t count, bool read_string = false ) noexcept;
 
-  void RAM_write( std::uint32_t address, char const *src, std::uint32_t count ) noexcept;
+  void RAM_write( std::uint32_t address, void const *src, std::uint32_t count ) noexcept;
 
   /* * * * *
    *       *

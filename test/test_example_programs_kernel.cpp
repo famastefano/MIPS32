@@ -30,6 +30,7 @@ TEST_CASE( "A CPU runs a simple Hello World program in Kernel Mode" )
   RAM ram{ 1_MB };
   CPU cpu{ ram };
 
+  inspector.inspect( ram );
   inspector.inspect( cpu );
 
   cpu.attach_iodevice( terminal.get() );
@@ -132,10 +133,15 @@ TEST_CASE( "A CPU runs a simple Hello World program in Kernel Mode" )
   ram[data_segment] = 0;
   std::memcpy( &ram[data_segment + 4], _data_str, _data_str_len );
 
+  
   for ( std::uint32_t i = 0; i < std::size( machine_code ); ++i )
   {
     ram[text_segment + i*4] = machine_code[i];
   }
+  
+
+  //inspector.RAM_write( data_segment, _data_str, _data_str_len );
+  //inspector.RAM_write( text_segment, machine_code, std::size( machine_code ) * sizeof( std::uint32_t ) );
 
   terminal->out_string = "UNDEFINED";
 

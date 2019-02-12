@@ -9,9 +9,9 @@ namespace mips32
 {
 
 /**
- * To read a string from our RAM we need to handle these cases:
- * A) The string is inside a single Block
- * B) The string is splitted in 2 or more Blocks
+ * To read a sequence of bytes from our RAM we need to handle these cases:
+ * A) The seq is inside a single Block
+ * B) The seq is splitted in 2 or more Blocks
  *
  * 1) The Block is present in memory
  * 2) The Block is swapped on disk
@@ -24,35 +24,42 @@ namespace mips32
  *
  * [A] and [B] are handled with a simple loop that continues until:
  *    1. we finished the Blocks, or
- *    2. the number of characters reached `count`, or
- *    3. we reached the end of the string
+ *    2. the number of characters reached `count`
  *
  * [1] and [2] are handled by accessing the Block with a pointer:
  * [1] -> pointer points to an allocated Block *inside the RAM object*
  * [2] -> pointer points to an allocated Block *local to this function*
  *
- * [3] if the Block doesn't exists we return an empty string with only 1 '\0'
+ * [3] if the Block doesn't exists we return an empty seq
  *
  * [Aligned]   we continue normally, nothing to handle
  * [Unaligned] we need to handle it only for the 1st word
  **/
-std::unique_ptr<char[]> RAMIO::read( std::uint32_t address, std::uint32_t count ) const noexcept
+std::vector<char> RAMIO::read( std::uint32_t address, std::uint32_t count, bool read_string ) const noexcept
 {
-  if ( address + count < address ) // overflows
-    count = 0xFFFF'FFFF - address; // we read up to the last byte
+  std::vector<char> seq_buf; // buffer of our sequence
 
-  bool                    eof = false;
-  std::uint32_t           length = 0; // length of our string
-  std::unique_ptr<char[]> str_buf;    // buffer of our string
+  // only valid memory regions (checked only if we are not reading a string)
+  if ( !read_string && ( count == 0 || address + count < address ) )
+    return seq_buf;
 
   auto[index, in_memory] = get_block( address );
 
-  RAM::Block *block = nullptr;
-  RAM::Block  tmp;
+  if ( index == -1 ) // [3]
+    return seq_buf;
 
-  while ( index != -1 && !eof && length < count )
+  RAM::Block *block = nullptr;
+  RAM::Block tmp;
+
+  bool eof = false;
+
+  while ( index != -1 && count && !eof )
   {
-    if ( !in_memory ) // [2]
+    if ( in_memory ) // [1]
+    {
+      block = ram.blocks.data() + index;
+    }
+    else             // [2]
     {
       tmp.base_address = ram.swapped[index].base_address;
 
@@ -63,60 +70,41 @@ std::unique_ptr<char[]> RAMIO::read( std::uint32_t address, std::uint32_t count 
       tmp.deserialize();
 
       block = &tmp;
-
     }
-    else // [1]
-    {
-      block = ram.blocks.data() + index;
-    }
-
-    std::uint32_t char_read = 0;
 
     std::uint32_t begin = address - block->base_address;
     std::uint32_t limit = RAM::block_size - begin;
-    std::uint32_t size = std::min( count, limit );
+    std::uint32_t size  = std::min( count, limit );
 
-    char * word_offset = ( char* )( block->data.get() + ( begin & ~0b11 ) );
-    std::uint32_t byte_offset = ( begin & 0b11 );
+    auto _old_length = seq_buf.size();
 
-    char * start = word_offset + byte_offset;
+    char * start = (char*)block->data.get() + begin;
     char * end = start + size;
 
-    while ( start != end )
+    if ( read_string )
     {
-      if ( *start++ == '\0' )
+      while ( start != end )
       {
-        eof = true;
-        break;
+        seq_buf.emplace_back( *start );
+        if ( *start == '\0' )
+        {
+          return seq_buf;
+        }
+        ++start;
       }
-      ++char_read;
+    }
+    else
+    {
+      std::copy( start, end, std::back_inserter( seq_buf ) );
     }
 
-    if ( char_read )
-    {
-      std::unique_ptr<char[]> buf( new( std::nothrow ) char[char_read + length + 1] );
+    auto _new_length = seq_buf.size();
 
-      assert( buf && "Couldn't allocate memory for the string." );
-
-      if ( str_buf )
-        std::memcpy( buf.get(), str_buf.get(), length );
-
-      auto const * src = word_offset + byte_offset;
-
-      std::memcpy( buf.get() + length, src, char_read );
-
-      length += char_read;
-
-      str_buf = std::move( buf );
-    } // if ( char_read )
-
-    if ( eof )
-      break;
-
-    address += char_read;
+    address += _new_length - _old_length;
+    count -= _new_length - _old_length;
 
     // Corner case where the address overflows
-    if ( address < address - char_read )
+    if ( address < address - _new_length )
       break;
 
     { // [B]
@@ -125,21 +113,15 @@ std::unique_ptr<char[]> RAMIO::read( std::uint32_t address, std::uint32_t count 
       index = _index;
       in_memory = _in_memory;
     }
-  } // while ( index != -1 && !eof && length < count )
+  }
 
-  // [3]
-  if ( !str_buf )
-    str_buf.reset( new( std::nothrow ) char[1] );
-
-  str_buf[length] = '\0';
-
-  return str_buf;
+  return seq_buf;
 }
 
 /**
- * To copy a string into our RAM we need to handle these cases:
- * A) The string is inside a single Block
- * B) The string is splitted in 2 or more Blocks
+ * To copy a sequence of bytes into our RAM we need to handle these cases:
+ * A) The seq is inside a single Block
+ * B) The seq is splitted in 2 or more Blocks
  *
  * 1) The Block is present in memory
  * 2) The Block is swapped on disk
@@ -150,9 +132,8 @@ std::unique_ptr<char[]> RAMIO::read( std::uint32_t address, std::uint32_t count 
  *
  **
  *
- * [A] and [B] are handled with a simple loop that continues until:
- *    1. the number of characters reached `count`, or
- *    1. we reached the end of the string
+ * [A] and [B] are handled with a simple loop that continues until
+ * the number of characters reached `count`
  *
  * [1] and [2] are handled by copying the content to:
  *   [1] the Block, or
@@ -163,19 +144,15 @@ std::unique_ptr<char[]> RAMIO::read( std::uint32_t address, std::uint32_t count 
  * [Aligned]   we continue normally, nothing to handle
  * [Unaligned] we need to handle it only for the 1st word
  **/
-void RAMIO::write( std::uint32_t address, char const *src, std::uint32_t count ) noexcept
+void RAMIO::write( std::uint32_t address, void const *src, std::uint32_t count ) noexcept
 {
-  if ( count == 0 )
+  // only valid memory region can be used
+  if ( address + count < address )
     return;
 
-  if ( address + count < address ) // overflows
-    count = 0xFFFF'FFFF - address; // we write up to the last byte in RAM
+  std::uint32_t byte_written = 0;
 
-  std::uint32_t char_written = 0;
-
-  bool eof = false;
-
-  do
+  while ( count )
   {
     auto[index, in_memory] = get_block( address );
 
@@ -185,17 +162,16 @@ void RAMIO::write( std::uint32_t address, char const *src, std::uint32_t count )
 
       std::uint32_t begin = address - block.base_address;
       std::uint32_t limit = RAM::block_size - begin;
-      std::uint32_t size = std::min( count, limit );
+      std::uint32_t size  = std::min( count, limit );
 
-      char * word_offset = ( char* )( block.data.get() + ( begin & ~0b11 ) );
-      std::uint32_t byte_offset = begin & 0b11;
+      char * dst = ( char* )block.data.get() + begin;
+      char * _src = ( char* )src + byte_written;
 
-      char * dst = word_offset + byte_offset;
+      std::copy( ( char* )_src, ( char* )_src + size, dst );
 
-      std::memcpy( dst, src + char_written, size );
-
-      char_written += size;
+      byte_written += size;
       count -= size;
+      address += size;
     }
     else if ( !in_memory && index != -1 ) // [2]
     {
@@ -206,26 +182,30 @@ void RAMIO::write( std::uint32_t address, char const *src, std::uint32_t count )
 
       std::FILE *block_file = std::fopen( file_name, "r+b" );
 
-      assert( block_file && "Coudln't open file!" );
+      assert( block_file && "Couldn't open file!" );
 
       std::uint32_t begin = address - block.base_address;
       std::uint32_t limit = RAM::block_size - begin;
-      std::uint32_t size = count < limit ? count : limit;
+      std::uint32_t size  = std::min( count, limit-1 );
 
-      std::uint32_t word_offset = sizeof( std::uint32_t ) * ( begin & ~0b11 );
-      std::uint32_t byte_offset = ( address & 0b11 ) + char_written;
+      if ( size == 0 )
+      {
+        ++byte_written;
+        continue;
+      }
 
-      [[maybe_unused]] auto _seek = std::fseek( block_file, word_offset + byte_offset, SEEK_SET );
+      [[maybe_unused]] auto _seek = std::fseek( block_file, begin, SEEK_SET );
       assert( !_seek && "Couldn't seek string position." );
 
-      [[maybe_unused]] auto _write = std::fwrite( src + char_written, sizeof( char ), size, block_file );
+      [[maybe_unused]] auto _write = std::fwrite( (char*)src + byte_written, 1, size, block_file );
       assert( _write == size && "Couldn't write string to file." );
 
       [[maybe_unused]] auto _close = std::fclose( block_file );
       assert( !_close && "Couldn't close file." );
 
-      char_written += size;
+      byte_written += size;
       count -= size;
+      address += size;
     }
     else // [3], once the block is created, we can reuse [1] and [2] by adding the block to the RAM and iterate again
     {
@@ -250,13 +230,10 @@ void RAMIO::write( std::uint32_t address, char const *src, std::uint32_t count )
       continue;
     }
 
-    address += char_written;
-
     // Corner case where the address overflows
-    if ( address < address - char_written )
+    if ( address < address - byte_written )
       return;
-
-  } while ( !eof && count );
+  }
 }
 
 std::pair<std::uint32_t, bool> RAMIO::get_block( std::uint32_t address ) const noexcept
@@ -275,4 +252,5 @@ std::pair<std::uint32_t, bool> RAMIO::get_block( std::uint32_t address ) const n
 
   return std::make_pair( -1, false );
 }
+
 } // namespace mips32

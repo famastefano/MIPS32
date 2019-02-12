@@ -1342,8 +1342,8 @@ void CPU::syscall( std::uint32_t word ) noexcept
   else if ( sysnum == 4 ) // print string
   {
     auto address = gpr[a0];
-    auto str = string_handler.read( address, 0xFFFF'FFFF );
-    io_device->print_string( str.get() );
+    auto str = string_handler.read( address, 0xFFFF'FFFF, true);
+    io_device->print_string( str.data() );
   }
   else if ( sysnum == 5 ) // read int
   {
@@ -1379,8 +1379,8 @@ void CPU::syscall( std::uint32_t word ) noexcept
     auto address = gpr[a0];
     auto length = gpr[a1];
 
-    // Allocated enough space
-    std::unique_ptr<char[]> buf( new char[length] );
+    // Allocate enough space
+    std::unique_ptr<char[]> buf( new( std::nothrow ) char[length] );
 
     // Read the string from the device
     io_device->read_string( buf.get(), length );
@@ -1417,12 +1417,12 @@ void CPU::syscall( std::uint32_t word ) noexcept
   {
     auto filename_address = gpr[a0];
 
-    auto filename = string_handler.read( filename_address, 0xFFFF'FFFF );
+    auto filename = string_handler.read( filename_address, 0xFFFF'FFFF, true );
     char flags[5] = { 0 }; // flags must be null terminated, but $a1 can contain up to 4 chars without '\0'.
 
     std::memcpy( flags, &gpr[a1], 4 );
 
-    gpr[v0] = file_handler->open( filename.get(), flags );
+    gpr[v0] = file_handler->open( filename.data(), flags );
   }
   else if ( sysnum == 14 ) // file read
   {
@@ -1447,7 +1447,7 @@ void CPU::syscall( std::uint32_t word ) noexcept
 
     auto data = string_handler.read( buf, count );
 
-    gpr[v0] = file_handler->write( fd, data.get(), count );
+    gpr[v0] = file_handler->write( fd, data.data(), count );
   }
   else if ( sysnum == 16 ) // file close
   {

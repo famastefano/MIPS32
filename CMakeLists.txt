@@ -8,7 +8,7 @@ project (MIPS32 CXX)
 #include_directories(include third-party)
 
 set(MIPS32_VERSION_MAJOR 0)
-set(MIPS32_VERSION_MINOR 3)
+set(MIPS32_VERSION_MINOR 4)
 set(MIPS32_VERSION_PATCH 0)
 
 #############
@@ -44,6 +44,8 @@ add_executable(Tests
 	test/helpers/FileManager.cpp
 # Machine Inspector
 	test/test_save_restore_state.cpp
+# RAMIO
+    test/test_ram_io.cpp
 # Example Programs - Kernel
 	test/test_example_programs_kernel.cpp
 )

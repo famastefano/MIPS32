@@ -1,4 +1,4 @@
-#include <mips32/cp1.hpp>
+#include "cp1.hpp"
 
 #include <cassert>
 #include <cfenv>

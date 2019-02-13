@@ -1,12 +1,13 @@
 #pragma once
 
-#include <mips32/cp0.hpp>
-#include <mips32/cp1.hpp>
 #include <mips32/file_handler.hpp>
 #include <mips32/io_device.hpp>
-#include <mips32/mmu.hpp>
-#include <mips32/ram.hpp>
-#include <mips32/ram_io.hpp>
+
+#include "cp0.hpp"
+#include "cp1.hpp"
+#include "mmu.hpp"
+#include "ram.hpp"
+#include "ram_io.hpp"
 
 #include <array>
 #include <atomic>

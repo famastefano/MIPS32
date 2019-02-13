@@ -1,6 +1,6 @@
 #pragma once
 
-#include <mips32/ram.hpp>
+#include "ram.hpp"
 
 #include <vector>
 #include <utility>

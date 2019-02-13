@@ -28,9 +28,6 @@ add_executable(Tests
 # RAM
     test/test_ram.cpp
     src/ram.cpp
-# Cache
-    #test/test_cache.cpp
-    #src/cache.cpp
 # Coprocessor 1
     test/test_cp1.cpp
     src/cp1.cpp

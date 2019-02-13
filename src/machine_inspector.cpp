@@ -1,11 +1,11 @@
-#include <mips32/cp0.hpp>
-#include <mips32/cp1.hpp>
-#include <mips32/cpu.hpp>
-#include <mips32/ram.hpp>
+#include "cp0.hpp"
+#include "cp1.hpp"
+#include "cpu.hpp"
+#include "ram.hpp"
 
 #include <mips32/machine_inspector.hpp>
 
-#include <mips32/ram_io.hpp>
+#include "ram_io.hpp"
 
 #include <cassert>
 #include <cstring>

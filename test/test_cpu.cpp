@@ -1,6 +1,6 @@
 #include <catch.hpp>
 
-#include <mips32/cpu.hpp>
+#include "../src/cpu.hpp"
 #include <mips32/machine_inspector.hpp>
 
 #include "helpers/test_cpu_instructions.hpp"

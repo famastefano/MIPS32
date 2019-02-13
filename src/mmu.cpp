@@ -1,7 +1,5 @@
-#include <mips32/mmu.hpp>
-#include <mips32/ram.hpp>
-
-#include <cassert>
+#include "mmu.hpp"
+#include "ram.hpp"
 
 namespace mips32
 {

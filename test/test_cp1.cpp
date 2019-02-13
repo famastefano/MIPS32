@@ -1,6 +1,6 @@
 #include <catch.hpp>
 
-#include <mips32/cp1.hpp>
+#include "../src/cp1.hpp"
 #include <mips32/machine_inspector.hpp>
 
 #include "helpers/test_cp1_instructions.hpp"

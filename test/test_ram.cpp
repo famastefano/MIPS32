@@ -1,7 +1,7 @@
 #include <catch.hpp>
 
 #include <mips32/machine_inspector.hpp>
-#include <mips32/ram.hpp>
+#include "../src/ram.hpp"
 
 using namespace mips32;
 using namespace mips32::literals;

@@ -1,7 +1,7 @@
 #include <catch.hpp>
 
-#include <mips32/ram.hpp>
-#include <mips32/ram_io.hpp>
+#include "../src/ram.hpp"
+#include "../src/ram_io.hpp"
 #include <mips32/machine_inspector.hpp>
 
 #include <cstring>

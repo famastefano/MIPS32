@@ -1,4 +1,4 @@
-#include <mips32/ram.hpp>
+#include "ram.hpp"
 
 #include <algorithm>
 #include <cassert>

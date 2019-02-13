@@ -1,4 +1,4 @@
-#include <mips32/cpu.hpp>
+#include "cpu.hpp"
 
 #include <cstring>
 

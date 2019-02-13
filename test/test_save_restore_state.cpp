@@ -1,7 +1,7 @@
 #include <catch.hpp>
 
 #include <mips32/machine_inspector.hpp>
-#include <mips32/cpu.hpp>
+#include "../src/cpu.hpp"
 
 #include <algorithm>
 #include <cstring>

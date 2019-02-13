@@ -2,10 +2,9 @@
 #include "cp1.hpp"
 #include "cpu.hpp"
 #include "ram.hpp"
+#include "ram_io.hpp"
 
 #include <mips32/machine_inspector.hpp>
-
-#include "ram_io.hpp"
 
 #include <cassert>
 #include <cstring>

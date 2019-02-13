@@ -24,10 +24,10 @@ class CPU;
 class MachineInspector
 {
 public:
-  MachineInspector &inspect( RAM &ram ) noexcept;
-  MachineInspector &inspect( CP0 &cp0 ) noexcept;
-  MachineInspector &inspect( CP1 &cp1 ) noexcept;
-  MachineInspector &inspect( CPU &cpu, bool sub_components = true ) noexcept;
+  MachineInspector& inspect( RAM &ram ) noexcept;
+  MachineInspector& inspect( CP0 &cp0 ) noexcept;
+  MachineInspector& inspect( CP1 &cp1 ) noexcept;
+  MachineInspector& inspect( CPU &cpu, bool sub_components = true ) noexcept;
 
   /* * * * *
    *       *

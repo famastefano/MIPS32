@@ -23,11 +23,13 @@ public:
 
   ~MachineImpl();
 
+  MachineInspector get_inspector() noexcept;
+
   bool load( void const * data ) noexcept;
 
-  std::uint32_t run() noexcept;
+  std::uint32_t start() noexcept;
 
-  std::uint32_t stop() noexcept;
+  void stop() noexcept;
 
   std::uint32_t single_step() noexcept;
 
@@ -42,97 +44,54 @@ private:
 };
 }
 
-Machine::Machine( std::uint32_t ram_alloc_limit, IODevice* io_device, FileHandler* file_handler )
-  : _impl( new MachineImpl( ram_alloc_limit, io_device, file_handler ) noexcept
+Machine::Machine( std::uint32_t ram_alloc_limit, IODevice* io_device, FileHandler* file_handler ) noexcept
+  : _impl( new MachineImpl( ram_alloc_limit, io_device, file_handler ) )
 {}
 
 Machine::~Machine() { delete _impl; }
 
-bool Machine::load( void const * data ) noexcept;
+bool Machine::load( void const * data ) noexcept { return _impl->load( data ); }
 
-MachineInspector Machine::get_inspector() noexcept
-{
-  MachineInspector inspector;
-  inspector.inspect( *_impl );
-  return inspector;
-}
+MachineInspector Machine::get_inspector() noexcept { return _impl->get_inspector(); }
 
-std::uint32_t Machine::run() noexcept
-{
-  return _impl->run();
-}
+std::uint32_t Machine::start() noexcept { return _impl->start(); }
 
-std::uint32_t Machine::stop() noexcept
-{
-  return _impl->stop();
-}
+void Machine::stop() noexcept { _impl->stop(); }
 
-std::uint32_t Machine::single_step() noexcept
-{
-  return _impl->single_step();
-}
+std::uint32_t Machine::single_step() noexcept { return _impl->single_step(); }
 
-void Machine::reset() noexcept
-{
-  _impl->reset();
-}
+void Machine::reset() noexcept { _impl->reset(); }
 
-IODevice* Machine::swap_io_device( IODevice *device ) noexcept
-{
-  return _impl->swap_io_device( device );
-}
+IODevice* Machine::swap_iodevice( IODevice *device ) noexcept { return _impl->swap_io_device( device ); }
 
-FileHandler* Machine::swap_file_handler( FileHandler *handler ) noexcept
-{
-  return _impl->swap_file_handler( handler );
-}
+FileHandler* Machine::swap_file_handler( FileHandler *handler ) noexcept { return _impl->swap_file_handler( handler ); }
 
-
-MachineImpl::MachineImpl( std::uint32_t ram_alloc_limit, IODevice* io_device, FileHandler* file_handler )
+v0::MachineImpl::MachineImpl( std::uint32_t ram_alloc_limit, IODevice* io_device, FileHandler* file_handler ) noexcept
   : ram( ram_alloc_limit ), cpu( ram )
 {
-  cpu.attach_io_device( io_device );
+  cpu.attach_iodevice( io_device );
   cpu.attach_file_handler( file_handler );
 }
 
-MachineImpl::~MachineImpl()
+v0::MachineImpl::~MachineImpl()
 {
-  cpu.stop();
+  stop();
 }
 
-std::uint32_t MachineImpl::run() noexcept
-{
-  return cpu.run();
-}
+MachineInspector v0::MachineImpl::get_inspector() noexcept { return MachineInspector().inspect( ram ).inspect( cpu ); }
 
-std::uint32_t MachineImpl::stop() noexcept
-{
-  return cpu.stop();
-}
+std::uint32_t v0::MachineImpl::start() noexcept { return cpu.start(); }
 
-std::uint32_t MachineImpl::single_step() noexcept
-{
-  return cpu.single_step();
-}
+void v0::MachineImpl::stop() noexcept { cpu.stop(); }
 
-void reset() noexcept
-{
-  cpu.hard_reset();
-}
+std::uint32_t v0::MachineImpl::single_step() noexcept { return cpu.single_step(); }
 
-IODevice* MachineImpl::swap_io_device( IODevice *device ) noexcept
-{
-  return cpu.attach_io_device( device );
-}
+void v0::MachineImpl::reset() noexcept { cpu.hard_reset(); }
 
-FileHandler* MachineImpl::swap_file_handler( FileHandler *handler ) noexcept
-{
-  return cpu.attach_file_handler( handler );
-}
+IODevice* v0::MachineImpl::swap_io_device( IODevice *device ) noexcept { return cpu.attach_iodevice( device ); }
 
-bool MachineImpl::load( void const * data ) noexcept
-{
-  return false;
-}
+FileHandler* v0::MachineImpl::swap_file_handler( FileHandler *handler ) noexcept { return cpu.attach_file_handler( handler ); }
+
+bool v0::MachineImpl::load( void const * data ) noexcept { return false; }
 
 }

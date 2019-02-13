@@ -2,21 +2,11 @@
 
 [![Build Status - Travis-CI](https://travis-ci.org/famastefano/MIPS32.svg?branch=develop)](https://travis-ci.org/famastefano/MIPS32)
 [![Build status - AppVeyor](https://ci.appveyor.com/api/projects/status/r4pgby80gsidb69x/branch/develop?svg=true)](https://ci.appveyor.com/project/famastefano/mips32/branch/develop)
-[![Documentation Status](https://readthedocs.org/projects/mips32/badge/?version=latest)](https://mips32.readthedocs.org/en/latest/?badge=latest)
 [![codecov](https://codecov.io/gh/famastefano/MIPS32/branch/develop/graph/badge.svg)](https://codecov.io/gh/famastefano/MIPS32)
 
-C++ library to simulate a MIPS32 CPU.
+C++ library to simulate a Machine running on a MIPS32 CPU.
 
-## Project Structure
-
-|Name|Info|
-|---|---|
-|[changelog](changelog.md)|List of changes|
-|[docs](docs)|Documentation|
-|[include](include)|Public header files for end-users|
-|[src](src)|Implementation files for developers|
-|[test](src)|Folder used to test the public API|
-|[third-party](third-party)|Third-party libraries are saved here|
+For the documentation, read the Wiki.
 
 ## License
 

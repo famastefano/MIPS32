@@ -40,8 +40,7 @@ public:
   /**
    * Loads an executable
    * 
-   * The format of this executable shall follow
-   * the specification found on the GitHub Wiki
+   * For the Executable File Format, read `executable_format.md` on the repository
    * 
    * `data` must point to a valid memory region
    **/

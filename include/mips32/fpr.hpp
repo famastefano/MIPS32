@@ -4,6 +4,7 @@
 
 namespace mips32
 {
+// Floating Point register
 union FPR
 {
   float         f;

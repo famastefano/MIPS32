@@ -2,8 +2,7 @@
 
 #include <mips32/file_handler.hpp>
 #include <mips32/io_device.hpp>
-
-#include "cp0.hpp"
+#include <mips32/cp0.hpp>
 #include "cp1.hpp"
 #include "mmu.hpp"
 #include "ram.hpp"

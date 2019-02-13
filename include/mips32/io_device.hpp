@@ -32,10 +32,10 @@ public:
   virtual void print_double( double value ) noexcept = 0;
 
   // Writes a string to the device
-  // `string` is guaranteed to point to a valid address.
   //
   // #!#!#!
   // [WARNING] `string` could be NOT null terminated.
+  // [WARNING] Check against null
   // !#!#!#
   virtual void print_string( char const *string ) noexcept = 0;
 
@@ -52,10 +52,10 @@ public:
   virtual void read_double( double *value ) noexcept = 0;
 
   // Reads a string from the device and stores it into `string`.
-  // `string` is guaranteed to point to a valid address.
   //
   // #!#!#!
   // [WARNING] Writing more than `max_count` characters is undefined behaviour.
+  // [WARNING] Check against null
   // !#!#!#
   virtual void read_string( char *string, std::uint32_t max_count ) noexcept = 0;
 

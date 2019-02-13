@@ -1,4 +1,4 @@
-#include "cp0.hpp"
+#include <mips32/cp0.hpp>
 
 #include <cassert>
 #include <cstring>

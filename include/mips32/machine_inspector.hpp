@@ -95,8 +95,19 @@ public:
   std::vector<std::uint32_t> RAM_allocated_addresses() const noexcept;
   std::vector<std::uint32_t> RAM_swapped_addresses() const noexcept;
 
+  // Read `count` bytes from the RAM starting at `address`.
+  // If you want to read a string with unspecified length, call `RAM_read(0xABCD'1234, -1, true)`
+  // 
+  // For space reasons, if the RAM doesn't contain a block in the range [address, address + count),
+  // the function immediately returns, so it may contain partial data
   std::vector<char> RAM_read( std::uint32_t address, std::uint32_t count, bool read_string = false ) noexcept;
 
+  // Writes exactly `count` bytes from `src` to `address`
+  // Behaves *like* a common memcpy
+  // 
+  // #!#!#!
+  // [WARNING] It is undefined behaviour if `src` holds *less* than `count`bytes
+  // !#!#!#
   void RAM_write( std::uint32_t address, void const *src, std::uint32_t count ) noexcept;
 
   /* * * * *
@@ -132,7 +143,7 @@ public:
   CPU_GPR_iterator CPU_gpr_begin() noexcept;
   CPU_GPR_iterator CPU_gpr_end() noexcept;
 
-  std::uint32_t &CPU_pc() noexcept;
+  std::uint32_t& CPU_pc() noexcept;
 
   std::uint32_t CPU_read_exit_code() const noexcept;
   void          CPU_write_exit_code( std::uint32_t value ) noexcept;

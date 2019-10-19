@@ -4,18 +4,9 @@
 [![Build status - AppVeyor](https://ci.appveyor.com/api/projects/status/r4pgby80gsidb69x/branch/master?svg=true)](https://ci.appveyor.com/project/famastefano/mips32/branch/master)
 [![Documentation Status](//readthedocs.org/projects/mips32/badge/?version=master)](https://mips32.readthedocs.io/en/latest/?badge=master)
 
-C++ library to simulate a MIPS32 CPU.
+C++ library to simulate a Machine running on a MIPS32 CPU.
 
-## Project Structure
-
-|Name|Info|
-|---|---|
-|[changelog](changelog.md)|List of changes|
-|[docs](docs)|Documentation|
-|[include](include)|Public header files for end-users|
-|[src](src)|Implementation files for developers|
-|[test](src)|Folder used to test the public API|
-|[third-party](third-party)|Third-party libraries are saved here|
+For the documentation, read the Wiki.
 
 ## License
 

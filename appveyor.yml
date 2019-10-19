@@ -1,4 +1,4 @@
-version: '0.1.0.{build}'
+version: '0.3.0.{build}'
 
 branches:
   only:
@@ -18,9 +18,9 @@ image: Visual Studio 2017
 before_build:
 - cmd: |-
     mkdir build
-    cd build
     cmake --version
-    cmake .. -G "Visual Studio 15 2017" -A%platform%
+    cmake . -Bbuild -G "Visual Studio 15 2017" -A%platform%
+    cmake --build build --config %configuration%
 
 build:
   project: c:\projects\MIPS32\build\MIPS32.sln
@@ -28,4 +28,4 @@ build:
   parallel: true
 
 test_script:
-  - cmd: c:\projects\MIPS32\build\%configuration%\mips32_run_all_tests.exe
+  - cmd: cd build && ctest -C %configuration% --output-on-failure

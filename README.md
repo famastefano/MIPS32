@@ -2,7 +2,6 @@
 
 [![Build Status - Travis-CI](https://travis-ci.org/famastefano/MIPS32.svg?branch=master)](https://travis-ci.org/famastefano/MIPS32)
 [![Build status - AppVeyor](https://ci.appveyor.com/api/projects/status/r4pgby80gsidb69x/branch/master?svg=true)](https://ci.appveyor.com/project/famastefano/mips32/branch/master)
-[![Documentation Status](//readthedocs.org/projects/mips32/badge/?version=master)](https://mips32.readthedocs.io/en/latest/?badge=master)
 
 C++ library to simulate a Machine running on a MIPS32 CPU.
 
